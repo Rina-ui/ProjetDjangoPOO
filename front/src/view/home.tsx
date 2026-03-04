@@ -10,7 +10,7 @@ const Home = () => {
         <div className="home">
             {/* NAVBAR */}
             <nav className="navbar">
-    <div className="logo">EverGreen</div>
+    <div className="logo">KÔRÂ</div>
         <ul className="nav-links">
     <li className="active">Home</li>
         <li>About Us</li>
