@@ -1,62 +1,89 @@
-import { useState } from "react";
+import { useState } from "react"
+import { useNavigate } from "react-router-dom"
+import "../style/auth.css"
 
 const Login = () => {
+    const navigate = useNavigate()
     const [email, setEmail] = useState("")
-    const [password, setpassword] = useState("")
+    const [password, setPassword] = useState("")
     const [error, setError] = useState(false)
+    const [loading, setLoading] = useState(false)
 
     const handleSubmit = () => {
         if (!email || !password) {
-            setError(true);
+            setError(true)
             setTimeout(() => setError(false), 500)
             return
         }
+        setLoading(true)
+        // Simule un appel API
+        setTimeout(() => {
+            setLoading(false)
+            // navigate("/dashboard") quand tu auras la route
+        }, 1500)
     }
 
     return (
         <div className="auth-page">
-            <div className="auth-card">
+            <div className="auth-overlay" />
 
+            <div className="auth-card">
+                {/* Switcher */}
                 <div className="auth-switcher">
-                    <button className="active">
-                        Login
-                    </button>
-                    <button onClick={() => {/* navigate vers notre register */}}>
-                        Register
-                    </button>
+                    <button className="active">Login</button>
+                    <button onClick={() => navigate("/register")}>Register</button>
                 </div>
 
-                <h2>Welcome Back</h2>
-                <p>Sign in to your account</p>
+                {/* Header */}
+                <div className="auth-header">
+                    <h2>Welcome Back</h2>
+                    <p>Sign in to your account</p>
+                </div>
 
-                <div className={'input-group ${error ? "input-error" : ""}'}>
+                {/* Email */}
+                <div className={`input-group ${error ? "input-error" : ""}`}>
                     <input
-                    type="email"
-                    placeholder=""
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                        type="email"
+                        placeholder=" "
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
                     />
                     <label>Email address</label>
                 </div>
 
-                <div className={'input-group ${error ? "input-error" : ""}'}>
+                {/* Password */}
+                <div className={`input-group ${error ? "input-error" : ""}`}>
                     <input
-                    type="password"
-                    placeholder=""
-                    value={password}
-                    onChange={(e) => setpassword(e.target.value)}
+                        type="password"
+                        placeholder=" "
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
                     />
                     <label>Password</label>
                 </div>
 
-                <button className="btn-auth" onClick={handleSubmit}>
-                    Sign In
+                {/* Forgot */}
+                <div className="auth-forgot">
+                    <span>Forgot password?</span>
+                </div>
+
+                {/* Submit */}
+                <button
+                    className={`btn-auth ${loading ? "loading" : ""}`}
+                    onClick={handleSubmit}
+                    disabled={loading}
+                >
+                    {loading ? <span className="spinner" /> : "Sign In"}
                 </button>
 
+                {/* Footer */}
+                <p className="auth-footer">
+                    Don't have an account?{" "}
+                    <span onClick={() => navigate("/register")}>Register</span>
+                </p>
             </div>
         </div>
     )
-
 }
 
-export default Login;
+export default Login

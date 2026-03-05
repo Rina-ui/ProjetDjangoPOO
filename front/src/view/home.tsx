@@ -1,8 +1,10 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom"
 import "../style/home.css";
 
 const Home = () => {
     const [activeFilter, setActiveFilter] = useState<string>("City");
+    const navigate = useNavigate()
 
     const filters = ["City", "House", "Residential", "Apartment"];
 
@@ -22,7 +24,9 @@ const Home = () => {
         <span>🌐</span>
     <span>Eng</span>
     </div>
-    <button className="btn-signup">Sign Up</button>
+        <button className="btn-signup" onClick={() => navigate("/register")}>
+            Sign Up
+        </button>
     </div>
     </nav>
 
