@@ -29,70 +29,44 @@ const Login = () => {
     return (
         <div className="auth-page">
             <div className="auth-overlay" />
-
             <div className="auth-card">
-                {/* Switcher */}
                 <div className="auth-switcher">
                     <button className="active">Login</button>
                     <button onClick={() => navigate("/register")}>Register</button>
                 </div>
-
-                {/* Header */}
                 <div className="auth-header">
                     <h2>Welcome Back</h2>
                     <p>Sign in to your account</p>
                 </div>
 
-                {/* DEV: Role Selector */}
-                <div className="mock-role-selector">
-                    <label className="mock-label">🛠 Dev · Select Role</label>
-                    <div className="mock-role-btns">
-                        {(["client", "owner", "admin"] as Role[]).map((r) => (
+                {/* Dev role selector */}
+                <div className="mock-selector">
+                    <span className="mock-selector-lbl">Dev mode — Select role to preview</span>
+                    <div className="mock-btns">
+                        {(["client", "owner", "admin"] as Role[]).map(r => (
                             <button
                                 key={r}
-                                className={`mock-role-btn ${mockRole === r ? "active" : ""}`}
+                                className={`mock-btn ${mockRole === r ? "mock-btn--active" : ""}`}
                                 onClick={() => setMockRole(r)}
                             >
-                                {r === "client" ? "👤 Client" : r === "owner" ? "🏠 Owner" : "⚙️ Admin"}
+                                {r === "client" ? "Client" : r === "owner" ? "Owner" : "Admin"}
                             </button>
                         ))}
                     </div>
                 </div>
 
-                {/* Email */}
                 <div className={`input-group ${error ? "input-error" : ""}`}>
-                    <input
-                        type="email"
-                        placeholder=" "
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                    />
+                    <input type="email" placeholder=" " value={email} onChange={e => setEmail(e.target.value)} />
                     <label>Email address</label>
                 </div>
-
-                {/* Password */}
                 <div className={`input-group ${error ? "input-error" : ""}`}>
-                    <input
-                        type="password"
-                        placeholder=" "
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                    />
+                    <input type="password" placeholder=" " value={password} onChange={e => setPassword(e.target.value)} />
                     <label>Password</label>
                 </div>
-
-                <div className="auth-forgot">
-                    <span>Forgot password?</span>
-                </div>
-
-                <button
-                    className={`btn-auth ${loading ? "loading" : ""}`}
-                    onClick={handleSubmit}
-                    disabled={loading}
-                >
+                <div className="auth-forgot"><span>Forgot password?</span></div>
+                <button className={`btn-auth ${loading ? "loading" : ""}`} onClick={handleSubmit} disabled={loading}>
                     {loading ? <span className="spinner" /> : "Sign In"}
                 </button>
-
                 <p className="auth-footer">
                     Don't have an account?{" "}
                     <span onClick={() => navigate("/register")}>Register</span>
