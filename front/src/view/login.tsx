@@ -1,11 +1,14 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { useAuth, type Role } from "../context/AuthContext"
 import "../style/auth.css"
 
 const Login = () => {
     const navigate = useNavigate()
+    const { login } = useAuth()
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
+    const [mockRole, setMockRole] = useState<Role>("client")
     const [error, setError] = useState(false)
     const [loading, setLoading] = useState(false)
 
@@ -16,11 +19,11 @@ const Login = () => {
             return
         }
         setLoading(true)
-        // Simule un appel API
         setTimeout(() => {
+            login(mockRole)
             setLoading(false)
-            // navigate("/dashboard") quand tu auras la route
-        }, 1500)
+            navigate("/dashboard")
+        }, 1200)
     }
 
     return (
@@ -38,6 +41,22 @@ const Login = () => {
                 <div className="auth-header">
                     <h2>Welcome Back</h2>
                     <p>Sign in to your account</p>
+                </div>
+
+                {/* DEV: Role Selector */}
+                <div className="mock-role-selector">
+                    <label className="mock-label">🛠 Dev · Select Role</label>
+                    <div className="mock-role-btns">
+                        {(["client", "owner", "admin"] as Role[]).map((r) => (
+                            <button
+                                key={r}
+                                className={`mock-role-btn ${mockRole === r ? "active" : ""}`}
+                                onClick={() => setMockRole(r)}
+                            >
+                                {r === "client" ? "👤 Client" : r === "owner" ? "🏠 Owner" : "⚙️ Admin"}
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
                 {/* Email */}
@@ -62,12 +81,10 @@ const Login = () => {
                     <label>Password</label>
                 </div>
 
-                {/* Forgot */}
                 <div className="auth-forgot">
                     <span>Forgot password?</span>
                 </div>
 
-                {/* Submit */}
                 <button
                     className={`btn-auth ${loading ? "loading" : ""}`}
                     onClick={handleSubmit}
@@ -76,7 +93,6 @@ const Login = () => {
                     {loading ? <span className="spinner" /> : "Sign In"}
                 </button>
 
-                {/* Footer */}
                 <p className="auth-footer">
                     Don't have an account?{" "}
                     <span onClick={() => navigate("/register")}>Register</span>
