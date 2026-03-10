@@ -1,6 +1,7 @@
 import DashboardLayout from "../../component/sidebar"
-import { IconUsers, IconBarChart, IconBuilding, IconCreditCard, IconPhone, IconTrendUp, IconPlus } from "../../component/Icons"
+import { IconPlus, IconBarChart } from "../../component/Icons"
 import "../../style/dashboard.css"
+import "../../style/admin.css"
 
 const NAV_ITEMS = [
     { label: "Dashboard",    path: "/dashboard/admin" },
@@ -11,199 +12,318 @@ const NAV_ITEMS = [
     { label: "Settings",     path: "/dashboard/admin/settings" },
 ]
 
-const LISTINGS = [
-    { name: "Maison Sterling", loc: "New York, Albany",  type: "House",     cost: "$15M",  leads: 32,  views: 125, status: "occupied",  statusLabel: "9/12 Occupied" },
-    { name: "The Orchid",      loc: "Ohio, Columbus",    type: "Villa",     cost: "$520K", leads: 15,  views: 930, status: "available", statusLabel: "Available" },
-    { name: "Echelon West",    loc: "Ohio, Columbus",    type: "House",     cost: "$700K", leads: 140, views: 855, status: "available", statusLabel: "Available" },
-    { name: "Le Résidence",    loc: "Ohio, Columbus",    type: "Apartment", cost: "$700K", leads: 11,  views: 425, status: "sold",      statusLabel: "Sold Out" },
+const TEAM = [
+    { name: "Sarah", bg: "#e2d4b8" },
+    { name: "Marc",  bg: "#b8ccd8" },
+    { name: "Lina",  bg: "#dbb8c0" },
+    { name: "Omar",  bg: "#c8b8d8" },
+    { name: "Tina",  bg: "#b8d4c0" },
 ]
 
-const LEADS = [
-    { name: "Jessica Chen", loc: "New York, Albany" },
-    { name: "John Doe",     loc: "California, LA" },
-    { name: "Hailee S.",    loc: "New York, Troy" },
-    { name: "Evan Chris",   loc: "Ohio, Columbus" },
-    { name: "Emily Paris",  loc: "California, LA" },
+const ACTIVITY = [
+    { date: "Nov 29, 2025", type: "Tenant Application",   desc: "Tenant signed lease for Unit 3C – Emerald Apartments",  status: "cancelled" },
+    { date: "Nov 15, 2025", type: "Property Viewing",     desc: "Property viewing scheduled for real estate dashboard",  status: "cancelled" },
+    { date: "Nov 08, 2025", type: "Rent Payment",         desc: "Rent payment processed for Unit 7A – Azure Apartments", status: "pending"   },
+    { date: "Nov 18, 2025", type: "Inspection Scheduled", desc: "KÔRÂ Inspection scheduled for management suite",        status: "pending"   },
+    { date: "Nov 03, 2025", type: "Offer Accepted",       desc: "Offer accepted for 12A – Skyview Apartments",           status: "finished"  },
+    { date: "Oct 28, 2025", type: "Lease Renewal",        desc: "Lease renewal completed for Unit 5B – Garden Court",    status: "finished"  },
 ]
 
-const CALENDAR_DAYS = ["","","","","","1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30"]
+// ── FLAT / CARTOON house — matches Image 2 exactly ──────────────────
+const HouseSVG = () => (
+    <svg viewBox="0 0 560 360" className="adm-house-svg" preserveAspectRatio="xMidYMax meet">
+        <defs>
+            <linearGradient id="bg-grad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#c8dff0"/>
+                <stop offset="55%" stopColor="#d8eaf8"/>
+                <stop offset="100%" stopColor="#e8f2f8"/>
+            </linearGradient>
+            <linearGradient id="grass-g" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#82b856"/>
+                <stop offset="100%" stopColor="#6a9e44"/>
+            </linearGradient>
+        </defs>
 
-const PageAction = () => (
-    <>
-        <button className="dl-export-btn">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Export
-        </button>
-        <button className="dl-add-btn">
-            <IconPlus size={15} color="white" />
-            Add Property
-        </button>
-    </>
+        {/* Sky */}
+        <rect width="560" height="360" fill="#e8e8e6"/>
+        {/* Gradient sky panel right side */}
+        <rect x="100" width="460" height="360" fill="url(#bg-grad)" opacity=".7"/>
+
+        {/* Ground strip */}
+        <rect x="0" y="298" width="560" height="62" fill="url(#grass-g)"/>
+        {/* Ground highlight */}
+        <rect x="0" y="296" width="560" height="4" fill="#96cc68" opacity=".6"/>
+
+        {/* ── LEFT GREEN TREE (round, tall) ── */}
+        {/* trunk */}
+        <rect x="137" y="244" width="10" height="58" rx="3" fill="#5a7040"/>
+        {/* canopy — layered ellipses for depth */}
+        <ellipse cx="142" cy="232" rx="44" ry="50" fill="#4a8830"/>
+        <ellipse cx="136" cy="215" rx="36" ry="44" fill="#5a9840"/>
+        <ellipse cx="150" cy="212" rx="32" ry="40" fill="#6aaa50"/>
+        <ellipse cx="142" cy="198" rx="28" ry="36" fill="#78bb5e"/>
+        {/* highlight */}
+        <ellipse cx="148" cy="194" rx="14" ry="18" fill="#8ece70" opacity=".4"/>
+
+        {/* ── RIGHT RED TREE (Japanese maple) ── */}
+        <rect x="468" y="240" width="10" height="62" rx="3" fill="#7a4030"/>
+        <ellipse cx="473" cy="228" rx="48" ry="54" fill="#b03828"/>
+        <ellipse cx="462" cy="210" rx="38" ry="46" fill="#c84838"/>
+        <ellipse cx="484" cy="208" rx="36" ry="44" fill="#a02818"/>
+        <ellipse cx="473" cy="194" rx="30" ry="38" fill="#d05840"/>
+        <ellipse cx="480" cy="190" rx="16" ry="20" fill="#e06848" opacity=".4"/>
+
+        {/* ── SMALL RIGHT GREEN SHRUB ── */}
+        <rect x="516" y="266" width="7" height="36" rx="2" fill="#5a7040"/>
+        <ellipse cx="519" cy="258" rx="22" ry="26" fill="#5a9840"/>
+        <ellipse cx="519" cy="246" rx="17" ry="22" fill="#6aaa50"/>
+
+        {/* ── MAIN HOUSE BODY ── */}
+        {/* Shadow under house */}
+        <ellipse cx="310" cy="302" rx="185" ry="9" fill="#00000018"/>
+
+        {/* Lower / garage wing */}
+        <rect x="360" y="218" width="120" height="82" fill="#e8e2d8" rx="2"/>
+
+        {/* Main house body */}
+        <rect x="165" y="158" width="220" height="142" fill="#f0ece4"/>
+
+        {/* Upper floor box (recessed) */}
+        <rect x="185" y="108" width="180" height="60" fill="#eae4da"/>
+
+        {/* ── ROOFS (flat, dark) ── */}
+        {/* Upper roof slab */}
+        <rect x="175" y="100" width="200" height="14" rx="2" fill="#1e1e1e"/>
+        {/* Lower roof slab (main) */}
+        <rect x="150" y="150" width="250" height="14" rx="2" fill="#1e1e1e"/>
+        {/* Garage roof slab */}
+        <rect x="348" y="210" width="144" height="12" rx="2" fill="#2a2a2a"/>
+
+        {/* ── WINDOWS upper floor ── */}
+        <rect x="196" y="118" width="52" height="36" rx="3" fill="#b8d8f0" opacity=".85"/>
+        {/* window grid */}
+        <line x1="222" y1="118" x2="222" y2="154" stroke="#fff" strokeWidth="1.5" opacity=".6"/>
+        <line x1="196" y1="136" x2="248" y2="136" stroke="#fff" strokeWidth="1" opacity=".5"/>
+
+        <rect x="262" y="118" width="52" height="36" rx="3" fill="#b8d8f0" opacity=".85"/>
+        <line x1="288" y1="118" x2="288" y2="154" stroke="#fff" strokeWidth="1.5" opacity=".6"/>
+        <line x1="262" y1="136" x2="314" y2="136" stroke="#fff" strokeWidth="1" opacity=".5"/>
+
+        {/* ── WINDOWS main floor (large floor-to-ceiling) ── */}
+        <rect x="175" y="170" width="75" height="100" rx="2" fill="#b0d4ec" opacity=".88"/>
+        <line x1="212" y1="170" x2="212" y2="270" stroke="#fff" strokeWidth="2" opacity=".55"/>
+        <line x1="175" y1="218" x2="250" y2="218" stroke="#fff" strokeWidth="1" opacity=".35"/>
+
+        <rect x="262" y="170" width="55" height="100" rx="2" fill="#b0d4ec" opacity=".78"/>
+        <line x1="262" y1="218" x2="317" y2="218" stroke="#fff" strokeWidth="1" opacity=".35"/>
+
+        {/* ── DOOR ── */}
+        <rect x="325" y="216" width="30" height="84" rx="2" fill="#c8a870"/>
+        <rect x="327" y="218" width="26" height="80" rx="1" fill="#d8b880"/>
+        <circle cx="351" cy="260" r="3" fill="#8a6030"/>
+
+        {/* ── GARAGE ── */}
+        <rect x="372" y="226" width="96" height="72" rx="1" fill="#ccc4b4"/>
+        {/* Garage door panels */}
+        {[234, 248, 262, 276].map(y => (
+            <line key={y} x1="372" y1={y} x2="468" y2={y} stroke="#b8b0a0" strokeWidth="1" opacity=".55"/>
+        ))}
+        <line x1="420" y1="226" x2="420" y2="298" stroke="#b8b0a0" strokeWidth="1" opacity=".55"/>
+
+        {/* Concrete base ledge */}
+        <rect x="162" y="296" width="332" height="6" rx="1" fill="#d4cfc4"/>
+
+        {/* Path to door */}
+        <path d="M328 300 L346 300 L354 320 L320 320 Z" fill="#ccc0a8" opacity=".8"/>
+
+        {/* Shrubs at base */}
+        <ellipse cx="178" cy="298" rx="16" ry="10" fill="#5a8840" opacity=".8"/>
+        <ellipse cx="354" cy="297" rx="14" ry="9" fill="#5a8840" opacity=".7"/>
+        <ellipse cx="372" cy="296" rx="10" ry="7" fill="#4a7830" opacity=".7"/>
+    </svg>
 )
 
-const AdminDashboard = () => (
-    <DashboardLayout navItems={NAV_ITEMS} pageTitle="Dashboard Overview" pageAction={<PageAction />}>
-        <div>
-            {/* Stats */}
-            <div className="stats-row">
-                {[
-                    { label: "Properties Managed", value: "4,860",  change: "+12%", up: true,  icon: <IconBuilding size={18} color="#15803d" />,  bg: "var(--green-bg)" },
-                    { label: "Asset Value",         value: "$2B",    change: "+8%",  up: true,  icon: <IconBarChart size={18} color="#b8922a" />, bg: "var(--gold-bg)"  },
-                    { label: "Properties Sold",     value: "1,037",  change: "+5%",  up: true,  icon: <IconCreditCard size={18} color="#1d4ed8" />,bg: "var(--blue-bg)"  },
-                    { label: "New Clients",         value: "895",    change: "-2%",  up: false, icon: <IconUsers size={18} color="#c0392b" />,     bg: "var(--red-bg)"   },
-                ].map(s => (
-                    <div className="stat-card" key={s.label}>
-                        <div className="stat-icon-wrap" style={{ background: s.bg }}>{s.icon}</div>
-                        <div className="stat-body">
-                            <span className="stat-label">{s.label}</span>
-                            <span className="stat-value">{s.value}</span>
-                            <span className={`stat-change ${s.up ? "stat-up" : "stat-down"}`}>
-                                <IconTrendUp size={10} color={s.up ? "var(--green)" : "var(--red)"} />
-                                {s.change} this month
-                            </span>
-                        </div>
-                    </div>
-                ))}
-            </div>
+const PageAction = () => (
+    <button className="dl-add-btn">
+        <IconPlus size={15} color="white" /> Add New
+    </button>
+)
 
-            {/* Middle */}
-            <div className="admin-grid-top">
-                {/* Chart */}
-                <div className="card">
-                    <div className="card-hd">
-                        <span className="card-title">Revenue Performance</span>
-                        <select style={{ background:"var(--bg)", border:"1px solid var(--border)", borderRadius:6, padding:"4px 8px", fontSize:12, color:"var(--text2)", fontFamily:"DM Sans,sans-serif" }}><option>Monthly</option></select>
-                    </div>
-                    <div className="chart-legend">
-                        <div className="legend-item"><div className="legend-dot" style={{ background:"#b8922a" }} />Revenue</div>
-                        <div className="legend-item"><div className="legend-dot" style={{ background:"#d4cfc7" }} />Visits</div>
-                    </div>
-                    <svg viewBox="0 0 380 100" style={{ width:"100%", height:90, overflow:"visible" }}>
-                        <defs>
-                            <linearGradient id="rg" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#b8922a" stopOpacity="0.12" />
-                                <stop offset="100%" stopColor="#b8922a" stopOpacity="0" />
-                            </linearGradient>
-                        </defs>
-                        {[0,33,66,100].map(y => <line key={y} x1="0" y1={y} x2="380" y2={y} stroke="#e5e1da" strokeWidth="1"/>)}
-                        <polygon points="0,85 47,65 95,72 143,38 190,52 238,28 285,46 333,32 380,42 380,100 0,100" fill="url(#rg)"/>
-                        <polyline points="0,85 47,65 95,72 143,38 190,52 238,28 285,46 333,32 380,42" fill="none" stroke="#b8922a" strokeWidth="2.5" strokeLinejoin="round"/>
-                        <polyline points="0,92 47,88 95,95 143,78 190,88 238,70 285,75 333,65 380,70" fill="none" stroke="#d4cfc7" strokeWidth="2" strokeDasharray="4 2"/>
-                        <circle cx="238" cy="28" r="4" fill="#b8922a"/>
-                        <rect x="208" y="10" width="68" height="16" rx="4" fill="var(--text)"/>
-                        <text x="215" y="21" fill="white" fontSize="9" fontFamily="DM Sans,sans-serif">$96,700,050</text>
-                    </svg>
-                    <div className="chart-months">
-                        {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug"].map(m => (
-                            <span key={m} className={m === "Jun" ? "active" : ""}>{m}</span>
-                        ))}
-                    </div>
-                </div>
+const AdminDashboard = () => {
+    // Gauge math
+    const r = 66, cx = 88, cy = 86
+    const toRad = (d: number) => (d * Math.PI) / 180
+    const pt = (pct: number) => {
+        const a = -210 + 240 * pct
+        return { x: +(cx + r * Math.cos(toRad(a))).toFixed(2), y: +(cy + r * Math.sin(toRad(a))).toFixed(2) }
+    }
+    const s = pt(0), e = pt(1), f = pt(0.68)
 
-                {/* Featured */}
-                <div className="card">
-                    <div className="card-hd">
-                        <div>
-                            <span className="card-title">The Somerset</span>
-                            <div style={{ fontSize:11, color:"var(--text3)", marginTop:2 }}>Featured property</div>
-                        </div>
-                    </div>
-                    <div className="featured-img"><div className="featured-badge">Recommended · 4 Leads</div></div>
-                    <div className="feat-stats">
-                        <div><span className="feat-stat-val">175</span><span className="feat-stat-lbl">Sold</span></div>
-                        <div><span className="feat-stat-val">125</span><span className="feat-stat-lbl">Rented</span></div>
-                        <div><span className="feat-stat-val">2K+</span><span className="feat-stat-lbl">Views</span></div>
-                    </div>
-                    <div style={{ borderTop:"1px solid var(--border)", paddingTop:12 }}>
-                        <div className="card-hd" style={{ marginBottom:8 }}>
-                            <span style={{ fontSize:13, fontWeight:600 }}>Deals</span>
-                            <span className="card-action">See all</span>
-                        </div>
-                        <div className="deals-bar-wrap"><div className="deals-bar-fill" style={{ width:"24%" }}/></div>
-                        <div className="deals-nums"><span><strong>42</strong> Closed</span><span><strong>132</strong> In Progress</span></div>
-                    </div>
-                </div>
+    return (
+        <DashboardLayout navItems={NAV_ITEMS} pageTitle="Real estate management" pageAction={<PageAction />}>
+            <div className="adm">
 
-                {/* Reminders + Calendar */}
-                <div className="card">
-                    <div className="card-hd">
-                        <span className="card-title">Reminders</span>
-                        <span className="card-action">See all</span>
-                    </div>
-                    {[
-                        { label:"Follow-Ups",      desc:"15 leads need follow-up",      color:"#b8922a" },
-                        { label:"Documents",       desc:"3 documents awaiting review",  color:"#15803d" },
-                        { label:"Expire Listings", desc:"2 listings expire in 3 days",  color:"#c0392b" },
-                    ].map(r => (
-                        <div className="reminder-item" key={r.label}>
-                            <div className="reminder-dot" style={{ background:r.color }}/>
-                            <div style={{ flex:1 }}>
-                                <span className="reminder-lbl">{r.label}</span>
-                                <span className="reminder-desc">{r.desc}</span>
+                {/* ── HERO ── */}
+                <div className="adm-hero">
+                    <div className="adm-hero-left">
+                        <div className="adm-breadcrumb">Main Menu <span>/</span> Dashboard</div>
+                        <h1 className="adm-hero-title">Real estate management</h1>
+                        <p className="adm-hero-desc">
+                            A smart dashboard providing real estate insights,<br/>
+                            performance metrics, and portfolio monitoring.
+                        </p>
+                        <div className="adm-hero-actions">
+                            <button className="adm-btn-add">
+                                <IconPlus size={14} color="white"/> Add New
+                            </button>
+                            <button className="adm-icon-btn">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+                            </button>
+                            <button className="adm-icon-btn">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg>
+                            </button>
+                            <div className="adm-team">
+                                {TEAM.map((m, i) => (
+                                    <div key={i} className="adm-team-av" style={{ background: m.bg, zIndex: TEAM.length - i }}>
+                                        {m.name.charAt(0)}
+                                    </div>
+                                ))}
                             </div>
-                            <span className="reminder-arr">›</span>
+                            <button className="adm-icon-btn">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="4" y1="5" x2="20" y2="5"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="19" x2="20" y2="19"/></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="adm-hero-img">
+                        <HouseSVG />
+                    </div>
+                </div>
+
+                {/* ── KPI PILLS ── */}
+                <div className="adm-pills">
+                    {[
+                        { val: "24", label: "PROPERTY", desc: "Ensuring portfolio stability through continuous property monitoring." },
+                        { val: "18", label: "AGENT",    desc: "Measuring agent engagement to elevate team productivity." },
+                        { val: "32", label: "SALES",    desc: "Visualizing sales trends to forecast revenue with precision." },
+                    ].map(k => (
+                        <div className="adm-pill" key={k.label}>
+                            <div className="adm-pill-left">
+                                <div className="adm-pill-ring">
+                                    <span className="adm-pill-val">{k.val}</span>
+                                </div>
+                                <span className="adm-pill-label">{k.label}</span>
+                            </div>
+                            <p className="adm-pill-desc">{k.desc}</p>
                         </div>
                     ))}
-                    <div className="mini-cal">
-                        <div className="cal-hd">
-                            <button>‹</button>
-                            <span>June 2025</span>
-                            <button>›</button>
+                </div>
+
+                {/* ── BOTTOM GRID ── */}
+                <div className="adm-bottom">
+
+                    {/* Risk */}
+                    <div className="adm-card">
+                        <div className="adm-card-hd">
+                            <div className="adm-card-hd-left">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+                                Risk Overview
+                            </div>
+                            <span className="adm-card-link">↗</span>
                         </div>
-                        <div className="cal-grid">
-                            {["Mo","Tu","We","Th","Fr","Sa","Su"].map(d => <span key={d} className="cal-day-lbl">{d}</span>)}
-                            {CALENDAR_DAYS.map((d,i) => (
-                                <span key={i} className={`cal-day ${d==="3"?"cal-day--today":""} ${!d?"cal-day--empty":""}`}>{d}</span>
+                        <div className="adm-gauge-wrap">
+                            <svg viewBox="0 0 176 110" className="adm-gauge-svg">
+                                <defs>
+                                    <linearGradient id="gg" x1="0" y1="0" x2="1" y2="0">
+                                        <stop offset="0%"   stopColor="#e8c040"/>
+                                        <stop offset="70%"  stopColor="#b89020"/>
+                                        <stop offset="100%" stopColor="#50a868"/>
+                                    </linearGradient>
+                                </defs>
+                                <path d={`M${s.x} ${s.y} A${r} ${r} 0 1 1 ${e.x} ${e.y}`} fill="none" stroke="#ede9e0" strokeWidth="9" strokeLinecap="round"/>
+                                <path d={`M${s.x} ${s.y} A${r} ${r} 0 0 1 ${f.x} ${f.y}`} fill="none" stroke="url(#gg)"   strokeWidth="9" strokeLinecap="round"/>
+                                <circle cx={f.x} cy={f.y} r="5" fill="#b8922a" stroke="white" strokeWidth="2"/>
+                            </svg>
+                            <div className="adm-gauge-center">
+                                <div className="adm-gauge-val">$487K</div>
+                                <div className="adm-gauge-lbl">Estimated Property Value</div>
+                                <div className="adm-gauge-risk">Moderate Risk</div>
+                            </div>
+                        </div>
+                        <div className="adm-risk-bars">
+                            {[
+                                { label: "Structural Condition",   pct: 92, color: "#50a868" },
+                                { label: "Rental Market Strength", pct: 85, color: "#50a868" },
+                                { label: "Location Score",         pct: 78, color: "#c89828" },
+                                { label: "Vacancy Risk",           pct: 34, color: "#e05030" },
+                            ].map(b => (
+                                <div className="adm-rbar" key={b.label}>
+                                    <div className="adm-rbar-top"><span>{b.label}</span><span>{b.pct}%</span></div>
+                                    <div className="adm-rbar-track">
+                                        <div className="adm-rbar-fill" style={{ width: `${b.pct}%`, background: b.color }}/>
+                                    </div>
+                                </div>
                             ))}
                         </div>
                     </div>
-                </div>
-            </div>
 
-            {/* Bottom */}
-            <div className="admin-grid-bot">
-                <div className="card">
-                    <div className="card-hd">
-                        <span className="card-title">Active Listings</span>
-                        <div className="tbl-search-wrap">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
-                            <input placeholder="Search..."/>
+                    {/* Portfolio */}
+                    <div className="adm-card">
+                        <div className="adm-card-hd">
+                            <div className="adm-card-hd-left">
+                                <IconBarChart size={13} color="currentColor"/>
+                                Portfolio Performance Metrics
+                            </div>
+                            <span className="adm-card-link">↗</span>
+                        </div>
+                        <div className="adm-perf-kpis">
+                            <div className="adm-perf-kpi"><span className="adm-perf-val">9.4%</span><span className="adm-perf-lbl">Average ROI</span></div>
+                            <div className="adm-perf-kpi"><span className="adm-perf-val">4.1%</span><span className="adm-perf-lbl">Vacancy Rate</span></div>
+                            <div className="adm-perf-kpi"><span className="adm-perf-val">417</span><span className="adm-perf-lbl">Active Leases</span></div>
+                        </div>
+                        <div className="adm-bars-chart">
+                            {[58,75,48,88,65,82,55,92,70,85,45,78].map((h,i) => (
+                                <div key={i} className="adm-bar-col">
+                                    <div className="adm-bar" style={{ height: `${h}%` }}/>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="adm-bars-months">
+                            {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].map(m => <span key={m}>{m}</span>)}
                         </div>
                     </div>
-                    <table className="dash-table">
-                        <thead><tr><th>Property</th><th>Type</th><th>Cost</th><th>Leads</th><th>Views</th><th>Status</th></tr></thead>
-                        <tbody>
-                        {LISTINGS.map(item => (
-                            <tr key={item.name}>
-                                <td><div className="prop-cell"><div className="prop-thumb"/><div><span className="prop-n">{item.name}</span><span className="prop-l">{item.loc}</span></div></div></td>
-                                <td style={{ color:"var(--text2)", fontSize:13 }}>{item.type}</td>
-                                <td style={{ fontWeight:600, fontSize:13 }}>{item.cost}</td>
-                                <td style={{ fontSize:13 }}>{item.leads}</td>
-                                <td style={{ fontSize:13 }}>{item.views}</td>
-                                <td><span className={`badge badge-${item.status}`}>{item.statusLabel}</span></td>
-                            </tr>
-                        ))}
-                        </tbody>
-                    </table>
-                </div>
-                <div className="card">
-                    <div className="card-hd">
-                        <span className="card-title">Leads Contact</span>
-                        <span className="card-action">See all</span>
-                    </div>
-                    <div className="leads-list">
-                        {LEADS.map(l => (
-                            <div className="lead-row" key={l.name}>
-                                <div className="lead-av">{l.name.charAt(0)}</div>
-                                <div style={{ flex:1 }}><span className="lead-n">{l.name}</span><span className="lead-l">{l.loc}</span></div>
-                                <button className="lead-phone"><IconPhone size={13}/></button>
+
+                    {/* Activity */}
+                    <div className="adm-card adm-activity">
+                        <div className="adm-card-hd">
+                            <div className="adm-card-hd-left">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                                Recent Activity
                             </div>
-                        ))}
+                            <span className="adm-card-link">↗</span>
+                        </div>
+                        <table className="adm-act-table">
+                            <thead>
+                            <tr>
+                                <th>Date</th><th>Activity Type</th><th>Description</th><th>Status</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {ACTIVITY.map((a,i) => (
+                                <tr key={i}>
+                                    <td className="adm-act-date">{a.date}</td>
+                                    <td className="adm-act-type">{a.type}</td>
+                                    <td className="adm-act-desc">{a.desc}</td>
+                                    <td><span className={`adm-status adm-status--${a.status}`}>{a.status.charAt(0).toUpperCase()+a.status.slice(1)}</span></td>
+                                </tr>
+                            ))}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
-        </div>
-    </DashboardLayout>
-)
+        </DashboardLayout>
+    )
+}
 
 export default AdminDashboard

@@ -316,9 +316,9 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 .mock-btn { flex: 1; padding: 7px; border-radius: 6px; border: 1px solid #e5e1da; background: var(--white); color: #6b6560; font-size: 12px; font-weight: 500; cursor: pointer; transition: all .15s; font-family: 'DM Sans', sans-serif; }
 .mock-btn--active { background: #fffbf0; border-color: #b8922a; color: #b8922a; font-weight: 700; }
 
-/* ============================================================
+/*
    TOPBAR — Databrain style
-   ============================================================ */
+  */
 
 /* Override old topbar */
 .dl-topbar {
@@ -393,9 +393,9 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px 28px;
-    background: var(--white);
-    border-bottom: 1px solid var(--border);
+    padding: 14px 28px;
+    background: var(--bg);
+    border-bottom: none;
     flex-shrink: 0;
 }
 
