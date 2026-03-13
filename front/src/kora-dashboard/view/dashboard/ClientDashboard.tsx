@@ -108,71 +108,31 @@ const COMMENTS: Record<number, { name: string; date: string; rating: number; tex
 
 // ── 3D VIEWER DATA ───────────────────────────────────────────────────
 const ROOMS = [
-    {
-        id: "living",  label: "Living Room",   floor: 0, x: -1.2, z: -0.5, color: "#b8922a", area: "42 m²",
-        desc: "Open-plan with floor-to-ceiling windows and premium finishes.",
-        // Texture affichée sur le mur de la pièce en 3D (image principale de la propriété)
-        wallTex: null as string | null,
-        // Photos galerie plein écran (utilise prop.gallery + prop.img)
-        gallery: ["main", "g1", "g2"],
-    },
-    {
-        id: "kitchen", label: "Kitchen",        floor: 0, x:  1.2, z: -0.5, color: "#2a7ab8", area: "28 m²",
-        desc: "Modern kitchen with island, gas range, and premium appliances.",
-        wallTex: null as string | null,
-        gallery: ["g1", "g2", "g3"],
-    },
-    {
-        id: "bedroom", label: "Master Bedroom", floor: 1, x: -1.0, z:  0.2, color: "#7a2ab8", area: "35 m²",
-        desc: "En-suite with walk-in wardrobe and private terrace access.",
-        wallTex: null as string | null,
-        gallery: ["main", "g3", "g1"],
-    },
-    {
-        id: "office",  label: "Home Office",    floor: 1, x:  1.0, z:  0.2, color: "#2ab87a", area: "22 m²",
-        desc: "Quiet corner office with built-in shelving and city views.",
-        wallTex: null as string | null,
-        gallery: ["g2", "g3", "main"],
-    },
-    {
-        id: "pool",    label: "Pool & Garden",  floor: 0, x:  0.0, z:  1.8, color: "#2ab8b8", area: "60 m²",
-        desc: "Heated outdoor pool with sun deck and landscaped garden.",
-        wallTex: null as string | null,
-        gallery: ["main", "g1", "g3"],
-    },
+    { id: "living",  label: "Living Room",   floor: 0, x: -1.2, z: -0.5, color: "#b8922a", area: "42 m²", desc: "Open-plan with floor-to-ceiling windows and premium finishes." },
+    { id: "kitchen", label: "Kitchen",        floor: 0, x:  1.2, z: -0.5, color: "#2a7ab8", area: "28 m²", desc: "Modern kitchen with island, gas range, and premium appliances." },
+    { id: "bedroom", label: "Master Bedroom", floor: 1, x: -1.0, z:  0.2, color: "#7a2ab8", area: "35 m²", desc: "En-suite with walk-in wardrobe and private terrace access." },
+    { id: "office",  label: "Home Office",    floor: 1, x:  1.0, z:  0.2, color: "#2ab87a", area: "22 m²", desc: "Quiet corner office with built-in shelving and city views." },
+    { id: "pool",    label: "Pool & Garden",  floor: 0, x:  0.0, z:  1.8, color: "#2ab8b8", area: "60 m²", desc: "Heated outdoor pool with sun deck and landscaped garden." },
 ]
-
-// Helper — résout les clés de gallery vers les vraies URLs
-const resolveGallery = (prop: typeof PROPERTIES[0], keys: string[]) =>
-    keys.map(k => k === "main" ? prop.img : k === "g1" ? prop.gallery[0] : k === "g2" ? prop.gallery[1] : prop.gallery[2])
 
 // ── 3D VIEWER MODAL ──────────────────────────────────────────────────
 const Viewer3D = ({ prop, onClose }: { prop: typeof PROPERTIES[0]; onClose: () => void }) => {
-    const canvasRef    = useRef<HTMLCanvasElement>(null)
-    const textureCache = useRef<Record<string, any>>({})
-    const [activeRoom,  setActiveRoom]  = useState<typeof ROOMS[0] | null>(null)
-    const [tooltip,     setTooltip]     = useState<{ x: number; y: number; label: string } | null>(null)
-    const [loaded,      setLoaded]      = useState(false)
-    const [gallery,     setGallery]     = useState<string[] | null>(null)   // galerie plein écran
-    const [galleryIdx,  setGalleryIdx]  = useState(0)                       // photo active
-
-    // Ouvre la galerie plein écran pour une pièce
-    const openGallery = (room: typeof ROOMS[0]) => {
-        const urls = resolveGallery(prop, room.gallery)
-        setGallery(urls)
-        setGalleryIdx(0)
-    }
+    const canvasRef   = useRef<HTMLCanvasElement>(null)
+    const [activeRoom, setActiveRoom] = useState<typeof ROOMS[0] | null>(null)
+    const [tooltip,    setTooltip]    = useState<{ x: number; y: number; label: string } | null>(null)
+    const [loaded,     setLoaded]     = useState(false)
 
     useEffect(() => {
         let animId: number
         const canvas = canvasRef.current
         if (!canvas) return
         const THREE = (window as any).THREE
-        if (!THREE) { console.error("Three.js not loaded"); return }
+        if (!THREE) { console.error("Three.js not loaded — add CDN to index.html"); return }
 
+        // Scene
         const scene = new THREE.Scene()
         scene.background = new THREE.Color(0xf0ece4)
-        scene.fog = new THREE.FogExp2(0xf0ece4, 0.032)
+        scene.fog = new THREE.FogExp2(0xf0ece4, 0.035)
 
         const W = canvas.clientWidth, H = canvas.clientHeight
         const camera = new THREE.PerspectiveCamera(45, W / H, 0.1, 200)
@@ -188,18 +148,19 @@ const Viewer3D = ({ prop, onClose }: { prop: typeof PROPERTIES[0]; onClose: () =
         // Lights
         scene.add(new THREE.AmbientLight(0xfff8f0, 0.75))
         const sun = new THREE.DirectionalLight(0xfff4e0, 1.4)
-        sun.position.set(10, 18, 10); sun.castShadow = true
+        sun.position.set(10, 18, 10)
+        sun.castShadow = true
         sun.shadow.mapSize.set(2048, 2048)
-        sun.shadow.camera.left = -12; sun.shadow.camera.right = 12
-        sun.shadow.camera.top  =  12; sun.shadow.camera.bottom = -12
+        sun.shadow.camera.left   = -12; sun.shadow.camera.right = 12
+        sun.shadow.camera.top    =  12; sun.shadow.camera.bottom = -12
         scene.add(sun)
-        scene.add(Object.assign(new THREE.DirectionalLight(0xd0e8ff, 0.35), { position: { set: () => {} } }))
         const fill = new THREE.DirectionalLight(0xd0e8ff, 0.35)
         fill.position.set(-8, 4, -6); scene.add(fill)
 
-        const mat  = (col: number, opts: any = {}) => new THREE.MeshLambertMaterial({ color: col, ...opts })
+        // Materials
+        const mat = (col: number, opts: any = {}) => new THREE.MeshLambertMaterial({ color: col, ...opts })
         const mWall   = mat(0xf2ece0)
-        const mRoof   = mat(0x222222)
+        const mRoof   = mat(0x1e1e1e)
         const mGlass  = mat(0x90c8e8, { transparent: true, opacity: 0.45 })
         const mGround = mat(0x7ab85a)
         const mPath   = mat(0xd4c8a8)
@@ -211,136 +172,87 @@ const Viewer3D = ({ prop, onClose }: { prop: typeof PROPERTIES[0]; onClose: () =
 
         const box = (w: number, h: number, d: number, m: any, x=0, y=0, z=0) => {
             const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m)
-            mesh.position.set(x, y, z); mesh.castShadow = true; mesh.receiveShadow = true
+            mesh.position.set(x, y, z)
+            mesh.castShadow = true; mesh.receiveShadow = true
             scene.add(mesh); return mesh
         }
 
-        // Ground + pool
-        const g = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), mGround)
-        g.rotation.x = -Math.PI / 2; g.receiveShadow = true; scene.add(g)
-        box(1.2, 0.05, 4,   mPath, 0,   0.02, 3.5)
-        box(5,   0.1,  3.5, mDeck, 0,   0.05, 5.5)
-        box(3.5, 0.08, 2.5, mPool, 0,   0.12, 5.6)
+        // Ground & landscaping
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), mGround)
+        ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground)
+        box(1.2, 0.05, 4,   mPath,  0,    0.02,  3.5)   // path
+        box(5,   0.1,  3.5, mDeck,  0,    0.05,  5.5)   // pool deck
+        box(3.5, 0.08, 2.5, mPool,  0,    0.12,  5.6)   // pool water
 
-        // House
-        box(5.5, 2.6, 4.5, mWall, -0.4, 1.3,  0)
-        box(6.2, 0.22,5.2, mRoof, -0.4, 2.72, 0)
-        box(4.2, 2.4, 4.0, mWall, -0.6, 4.5,  0.1)
-        box(4.2, 0.5, 4.02,mWood, -0.6, 3.5,  0.1)
-        box(5.0, 0.22,4.7, mRoof, -0.6, 5.72, 0.1)
-        box(2.8, 2.0, 3.5, mGarage, 3.0, 1.0, 0.2)
-        box(3.2, 0.22,4.0, mRoof,   3.0, 2.12,0.2)
-        box(1.8, 1.8, 0.08,mGlass, -1.5, 1.5, -2.27)
-        box(1.8, 1.8, 0.08,mGlass,  0.5, 1.5, -2.27)
-        box(1.6, 1.4, 0.08,mGlass, -1.6, 4.6, -2.17)
-        box(1.6, 1.4, 0.08,mGlass,  0.2, 4.6, -2.17)
-        box(0.9, 2.1, 0.08,mDoor,  -0.5, 1.05,-2.27)
+        // Lower floor
+        box(5.5, 2.6, 4.5, mWall,  -0.4, 1.3,   0)
+        box(6.2, 0.22,5.2, mRoof,  -0.4, 2.72,  0)
+        // Upper floor
+        box(4.2, 2.4, 4.0, mWall,  -0.6, 4.5,   0.1)
+        box(4.2, 0.5, 4.02,mWood,  -0.6, 3.5,   0.1)   // wood strip
+        box(5.0, 0.22,4.7, mRoof,  -0.6, 5.72,  0.1)
+        // Garage
+        box(2.8, 2.0, 3.5, mGarage, 3.0, 1.0,   0.2)
+        box(3.2, 0.22,4.0, mRoof,   3.0, 2.12,  0.2)
+        // Windows
+        box(1.8, 1.8, 0.08, mGlass, -1.5, 1.5, -2.27)
+        box(1.8, 1.8, 0.08, mGlass,  0.5, 1.5, -2.27)
+        box(1.6, 1.4, 0.08, mGlass, -1.6, 4.6, -2.17)
+        box(1.6, 1.4, 0.08, mGlass,  0.2, 4.6, -2.17)
+        // Door
+        box(0.9, 2.1, 0.08, mDoor, -0.5, 1.05, -2.27)
 
         // Trees
         const tree = (x: number, z: number, h: number, cr: number, col: number) => {
-            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, h*.4, 8), mat(0x5a4030))
-            trunk.position.set(x, h*.2, z); trunk.castShadow = true; scene.add(trunk)
+            const trunk = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.12, 0.16, h * 0.4, 8),
+                mat(0x5a4030)
+            )
+            trunk.position.set(x, h * 0.2, z); trunk.castShadow = true; scene.add(trunk)
             const c1 = new THREE.Mesh(new THREE.SphereGeometry(cr, 10, 8), mat(col))
-            c1.position.set(x, h*.4+cr*.7, z); c1.castShadow = true; scene.add(c1)
+            c1.position.set(x, h * 0.4 + cr * 0.7, z); c1.castShadow = true; scene.add(c1)
+            const c2 = new THREE.Mesh(
+                new THREE.SphereGeometry(cr * 0.75, 10, 8),
+                mat(new THREE.Color(col).offsetHSL(0, 0, 0.08).getHex())
+            )
+            c2.position.set(x + 0.2, h * 0.4 + cr * 1.1, z - 0.2); c2.castShadow = true; scene.add(c2)
         }
-        tree(-5.5,-1,4.5,1.4,0x4a8830); tree(-6,0.5,4,1.2,0x5a9840)
-        tree(5.5,-0.5,3.5,1.6,0xb03828); tree(6.2,1,2.5,1,0xc84838); tree(5.8,2.5,2,.7,0x4a8830)
+        tree(-5.5, -1,   4.5, 1.4, 0x4a8830)
+        tree(-6.0,  0.5, 4.0, 1.2, 0x5a9840)
+        tree( 5.5, -0.5, 3.5, 1.6, 0xb03828)
+        tree( 6.2,  1.0, 2.5, 1.0, 0xc84838)
+        tree( 5.8,  2.5, 2.0, 0.7, 0x4a8830)
+
+        // Shrubs
         const shrubM = mat(0x5a8840)
-        ;[[-3.2,-2.1],[0.8,-2.1],[2.2,-1.5]].forEach(([sx,sz]) => {
-            const s = new THREE.Mesh(new THREE.SphereGeometry(0.35,8,6), shrubM)
+        ;[[-3.2, -2.1], [0.8, -2.1], [2.2, -1.5]].forEach(([sx, sz]) => {
+            const s = new THREE.Mesh(new THREE.SphereGeometry(0.35, 8, 6), shrubM)
             s.position.set(sx, 0.35, sz); s.castShadow = true; scene.add(s)
         })
 
-        // ── Photo panels sur les murs (une par pièce) ──────────────
-        const loader = new THREE.TextureLoader()
-        const photoPanels: THREE.Mesh[] = []
-
-        const PANEL_DATA = [
-            // living room — mur avant (z=-2.2), rez-de-chaussée
-            { imgKey: "main", pos: [-1.2, 1.6, -2.18], rot: [0,0,0],         size: [1.6, 1.1] },
-            // kitchen — mur avant, côté droit
-            { imgKey: "g1",   pos: [ 1.2, 1.6, -2.18], rot: [0,0,0],         size: [1.6, 1.1] },
-            // bedroom — mur avant, étage
-            { imgKey: "g2",   pos: [-1.0, 4.6, -2.14], rot: [0,0,0],         size: [1.5, 1.0] },
-            // office — mur avant, étage
-            { imgKey: "g3",   pos: [ 1.0, 4.6, -2.14], rot: [0,0,0],         size: [1.5, 1.0] },
-            // pool — sol de la terrasse (panel horizontal)
-            { imgKey: "main", pos: [ 0.0, 0.16, 5.6],  rot: [-Math.PI/2,0,0],size: [3.2, 2.2] },
-        ]
-
-        const getTexUrl = (key: string) => {
-            if (key === "main") return prop.img
-            if (key === "g1")   return prop.gallery[0]
-            if (key === "g2")   return prop.gallery[1]
-            return prop.gallery[2]
-        }
-
-        PANEL_DATA.forEach(({ imgKey, pos, rot, size }, i) => {
-            const url = getTexUrl(imgKey)
-            const geo = new THREE.PlaneGeometry(size[0], size[1])
-            // placeholder mat while texture loads
-            const pMat = new THREE.MeshLambertMaterial({ color: 0xddccbb })
-            const panel = new THREE.Mesh(geo, pMat)
-            panel.position.set(pos[0], pos[1], pos[2])
-            panel.rotation.set(rot[0], rot[1], rot[2])
-            panel.userData = { panelIdx: i }
-            photoPanels.push(panel)
-            scene.add(panel)
-
-            if (textureCache.current[url]) {
-                pMat.map = textureCache.current[url]
-                pMat.needsUpdate = true
-            } else {
-                loader.load(url, (tex: any) => {
-                    tex.minFilter = THREE.LinearFilter
-                    textureCache.current[url] = tex
-                    pMat.map = tex
-                    pMat.needsUpdate = true
-                }, undefined, () => {
-                    // fallback: keep placeholder color
-                })
-            }
-
-            // Frame border around each panel
-            const frameMat = mat(0x1a1814)
-            const frameGeo = new THREE.BoxGeometry(size[0] + 0.06, size[1] + 0.06, 0.02)
-            const frame = new THREE.Mesh(frameGeo, frameMat)
-            frame.position.set(pos[0], pos[1], pos[2] - 0.015)
-            frame.rotation.set(rot[0], rot[1], rot[2])
-            scene.add(frame)
-        })
-
-        // ── Hotspots ───────────────────────────────────────────────
+        // Room hotspots
         const hotspots: THREE.Mesh[] = []
         const raycaster = new THREE.Raycaster()
         const mouse = new THREE.Vector2()
 
         ROOMS.forEach(room => {
             const sphere = new THREE.Mesh(
-                new THREE.SphereGeometry(0.3, 14, 10),
-                mat(new THREE.Color(room.color).getHex(), { transparent: true, opacity: 0.92 })
+                new THREE.SphereGeometry(0.28, 12, 8),
+                mat(new THREE.Color(room.color).getHex(), { transparent: true, opacity: 0.9 })
             )
             sphere.position.set(room.x, room.floor === 0 ? 1.6 : 4.4, room.z)
             sphere.userData = { room }
             hotspots.push(sphere); scene.add(sphere)
 
-            // Pulsing ring
             const ring = new THREE.Mesh(
-                new THREE.TorusGeometry(0.42, 0.04, 8, 24),
-                mat(new THREE.Color(room.color).getHex(), { transparent: true, opacity: 0.6 })
+                new THREE.TorusGeometry(0.38, 0.03, 8, 24),
+                mat(new THREE.Color(room.color).getHex())
             )
             ring.position.copy(sphere.position)
             ring.rotation.x = Math.PI / 2; scene.add(ring)
-
-            // Label sprite (small plane with room color)
-            const lblGeo = new THREE.PlaneGeometry(0.8, 0.22)
-            const lblMat = new THREE.MeshLambertMaterial({ color: new THREE.Color(room.color).getHex(), transparent: true, opacity: 0.85 })
-            const lbl = new THREE.Mesh(lblGeo, lblMat)
-            lbl.position.set(room.x, (room.floor === 0 ? 1.6 : 4.4) + 0.55, room.z)
-            scene.add(lbl)
         })
 
-        // Orbit
+        // Manual orbit
         let drag = false, prev = { x: 0, y: 0 }
         let sph = { theta: 0.5, phi: 0.78, r: 14 }
         const tgt = new THREE.Vector3(0, 2, 0)
@@ -357,11 +269,11 @@ const Viewer3D = ({ prop, onClose }: { prop: typeof PROPERTIES[0]; onClose: () =
         updateCam()
 
         const onDown  = (e: MouseEvent) => { drag = true; autoRot = false; prev = { x: e.clientX, y: e.clientY } }
-        const onUp    = () => { drag = false }
+        const onUp    = ()              => { drag = false }
         const onMove  = (e: MouseEvent) => {
             if (drag) {
                 sph.theta -= (e.clientX - prev.x) * 0.008
-                sph.phi = Math.max(0.15, Math.min(Math.PI / 2.1, sph.phi + (e.clientY - prev.y) * 0.008))
+                sph.phi    = Math.max(0.15, Math.min(Math.PI / 2.1, sph.phi + (e.clientY - prev.y) * 0.008))
                 prev = { x: e.clientX, y: e.clientY }; updateCam()
             }
             const rect = canvas.getBoundingClientRect()
@@ -370,7 +282,7 @@ const Viewer3D = ({ prop, onClose }: { prop: typeof PROPERTIES[0]; onClose: () =
             raycaster.setFromCamera(mouse, camera)
             const hits = raycaster.intersectObjects(hotspots)
             if (hits.length) {
-                setTooltip({ x: e.clientX - rect.left, y: e.clientY - rect.top, label: hits[0].object.userData.room.label + " — cliquer pour voir les photos" })
+                setTooltip({ x: e.clientX - rect.left, y: e.clientY - rect.top, label: hits[0].object.userData.room.label })
                 canvas.style.cursor = "pointer"
             } else { setTooltip(null); canvas.style.cursor = "grab" }
         }
@@ -399,7 +311,7 @@ const Viewer3D = ({ prop, onClose }: { prop: typeof PROPERTIES[0]; onClose: () =
         const animate = () => {
             animId = requestAnimationFrame(animate)
             const t = clock.getElapsedTime()
-            if (autoRot) { sph.theta += 0.003; updateCam() }
+            if (autoRot) { sph.theta += 0.004; updateCam() }
             hotspots.forEach((h, i) => {
                 h.position.y = (h.userData.room.floor === 0 ? 1.6 : 4.4) + Math.sin(t * 1.5 + i) * 0.1
             })
@@ -430,33 +342,44 @@ const Viewer3D = ({ prop, onClose }: { prop: typeof PROPERTIES[0]; onClose: () =
     return (
         <div className="c3d-overlay" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
             <div className="c3d-modal">
+                {/* Header */}
                 <div className="c3d-header">
                     <div>
-                        <div className="c3d-modal-title">{prop.agent}'s Property — 3D View</div>
-                        <div className="c3d-modal-sub">Drag to rotate · Scroll to zoom · Click dot = galerie photos de la pièce</div>
+                        <div className="c3d-modal-title">
+                            {prop.agent}'s Property — 3D View
+                        </div>
+                        <div className="c3d-modal-sub">
+                            Drag to rotate · Scroll to zoom · Click a dot to explore rooms
+                        </div>
                     </div>
                     <button className="c3d-close" onClick={onClose}>✕</button>
                 </div>
 
                 <div className="c3d-body">
-                    {/* Canvas */}
+                    {/* Canvas zone */}
                     <div className="c3d-canvas-wrap">
                         {!loaded && (
-                            <div className="c3d-loading"><div className="c3d-spinner" /><span>Chargement 3D…</span></div>
+                            <div className="c3d-loading">
+                                <div className="c3d-spinner" />
+                                <span>Building 3D model…</span>
+                            </div>
                         )}
                         <canvas ref={canvasRef} className="c3d-canvas" />
                         {tooltip && (
-                            <div className="c3d-tooltip" style={{ left: tooltip.x + 14, top: tooltip.y - 10 }}>{tooltip.label}</div>
+                            <div className="c3d-tooltip" style={{ left: tooltip.x + 14, top: tooltip.y - 10 }}>
+                                {tooltip.label}
+                            </div>
                         )}
                         <div className="c3d-hints">
                             <span>🖱 Drag — Rotate</span>
                             <span>⚲ Scroll — Zoom</span>
-                            <span>● Click dot — Photos</span>
+                            <span>● Click dot — Room</span>
                         </div>
                     </div>
 
                     {/* Side panel */}
                     <div className="c3d-side">
+                        {/* Property info */}
                         <div className="c3d-prop-info">
                             <div className="c3d-prop-price">{prop.price}</div>
                             <div className="c3d-prop-addr">{prop.address}</div>
@@ -467,90 +390,45 @@ const Viewer3D = ({ prop, onClose }: { prop: typeof PROPERTIES[0]; onClose: () =
                             </div>
                         </div>
 
-                        <div className="c3d-rooms-title">Pièces — clic pour voir les photos</div>
+                        <div className="c3d-rooms-title">Explore Rooms</div>
 
+                        {/* Room buttons */}
                         <div className="c3d-rooms">
                             {ROOMS.map(r => (
                                 <button
                                     key={r.id}
                                     className={`c3d-room-btn ${activeRoom?.id === r.id ? "active" : ""}`}
                                     style={{ "--room-color": r.color } as any}
-                                    onClick={() => { setActiveRoom(r); openGallery(r) }}
+                                    onClick={() => setActiveRoom(r)}
                                 >
                                     <span className="c3d-room-dot" style={{ background: r.color }} />
                                     <div className="c3d-room-info">
                                         <span className="c3d-room-name">{r.label}</span>
                                         <span className="c3d-room-area">{r.area} · Floor {r.floor + 1}</span>
                                     </div>
-                                    <span className="c3d-room-gallery-icon">🖼</span>
                                 </button>
                             ))}
                         </div>
 
+                        {/* Room detail */}
                         {activeRoom ? (
                             <div className="c3d-room-detail" style={{ borderColor: activeRoom.color }}>
                                 <div className="c3d-room-detail-header" style={{ background: activeRoom.color }}>
-                                    <span>{activeRoom.label}</span><span>{activeRoom.area}</span>
+                                    <span>{activeRoom.label}</span>
+                                    <span>{activeRoom.area}</span>
                                 </div>
                                 <p className="c3d-room-detail-desc">{activeRoom.desc}</p>
-                                <button
-                                    className="c3d-gallery-open-btn"
-                                    style={{ background: activeRoom.color }}
-                                    onClick={() => openGallery(activeRoom)}
-                                >
-                                    📷 Voir les photos de cette pièce
-                                </button>
                             </div>
                         ) : (
-                            <div className="c3d-room-empty">Clique sur un point coloré pour explorer une pièce</div>
+                            <div className="c3d-room-empty">
+                                Click a colored dot on the model to explore a room
+                            </div>
                         )}
 
                         <button className="c3d-book-btn">Book a Visit</button>
                     </div>
                 </div>
             </div>
-
-            {/* ── GALERIE PLEIN ÉCRAN ── */}
-            {gallery && (
-                <div className="c3d-gallery-overlay" onClick={() => setGallery(null)}>
-                    <div className="c3d-gallery-modal" onClick={e => e.stopPropagation()}>
-                        <button className="c3d-gallery-close" onClick={() => setGallery(null)}>✕</button>
-
-                        {/* Image principale */}
-                        <div className="c3d-gallery-main">
-                            <img src={gallery[galleryIdx]} alt="room" className="c3d-gallery-img" />
-                            {/* Prev / Next */}
-                            {gallery.length > 1 && (
-                                <>
-                                    <button className="c3d-gallery-prev" onClick={() => setGalleryIdx(i => (i - 1 + gallery.length) % gallery.length)}>‹</button>
-                                    <button className="c3d-gallery-next" onClick={() => setGalleryIdx(i => (i + 1) % gallery.length)}>›</button>
-                                </>
-                            )}
-                            <div className="c3d-gallery-counter">{galleryIdx + 1} / {gallery.length}</div>
-                        </div>
-
-                        {/* Thumbnails */}
-                        <div className="c3d-gallery-thumbs">
-                            {gallery.map((src, i) => (
-                                <div
-                                    key={i}
-                                    className={`c3d-gallery-thumb ${i === galleryIdx ? "active" : ""}`}
-                                    onClick={() => setGalleryIdx(i)}
-                                >
-                                    <img src={src} alt={`photo ${i+1}`} />
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Nom de la pièce */}
-                        {activeRoom && (
-                            <div className="c3d-gallery-title" style={{ color: activeRoom.color }}>
-                                {activeRoom.label} · {activeRoom.area}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
         </div>
     )
 }
