@@ -1,4 +1,6 @@
-
+/* ══════════════════════════════════════════════════
+   CLIENT 3D VIEWER — KÔRÂ
+   ══════════════════════════════════════════════════ */
 
 /* ── OVERLAY ───────────────────────────────────── */
 .c3d-overlay {
@@ -158,7 +160,7 @@
     width: 100%;
 }
 .c3d-room-btn:hover  { background: #fff; border-color: #ece8e0; }
-.c3d-room-btn.active { background: #fff; border-color: var(--room-color, #b8922a); }
+.c3d-room-btn.active { background: #fff; border-color: var( #b8922a); }
 
 .c3d-room-dot {
     width: 9px; height: 9px; border-radius: 50%;
@@ -377,3 +379,257 @@
     transition: opacity .15s;
 }
 .c3d-room-btn:hover .c3d-room-gallery-icon { opacity: 1; }
+
+/* ══════════════════════════════════════════════════
+   360° ROOM VIEWER
+   ══════════════════════════════════════════════════ */
+
+.v360-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.95);
+    z-index: 10001;
+    display: flex; align-items: center; justify-content: center;
+    animation: c3d-fade .2s ease;
+}
+
+.v360-modal {
+    width: 100%; max-width: 960px;
+    background: #0e0d0b;
+    border-radius: 20px;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    max-height: 92vh;
+    box-shadow: 0 40px 100px rgba(0,0,0,0.8);
+    animation: c3d-up .25s cubic-bezier(.2,.8,.3,1);
+}
+
+/* Header */
+.v360-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px; background: #1a1814;
+    flex-shrink: 0;
+}
+.v360-header-left { display: flex; align-items: center; gap: 10px; }
+.v360-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.v360-title { font-size: 14px; font-weight: 700; color: #fff; }
+.v360-hint { font-size: 11px; color: rgba(255,255,255,0.4); }
+.v360-close {
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: none; color: #fff; font-size: 15px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all .15s;
+}
+.v360-close:hover { background: rgba(255,255,255,0.1); }
+
+/* Scene — perspective container */
+.v360-scene {
+    flex: 1; overflow: hidden;
+    perspective: 800px;
+    perspective-origin: 50% 50%;
+    background: radial-gradient(ellipse at center, #2a2520 0%, #0e0d0b 100%);
+    display: flex; align-items: center; justify-content: center;
+    min-height: 380px;
+    position: relative;
+    user-select: none;
+}
+
+/* Room — the rotating cube */
+.v360-room {
+    width: 640px; height: 340px;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.05s linear;
+}
+
+/* Each wall */
+.v360-wall {
+    position: absolute;
+    width: 640px; height: 340px;
+    backface-visibility: hidden;
+    background-size: cover;
+    background-position: center;
+    cursor: pointer;
+    transition: filter .2s;
+    display: flex; align-items: flex-end; justify-content: flex-start;
+    padding: 12px;
+}
+.v360-wall:hover { filter: brightness(1.1); }
+
+.v360-wall-label {
+    font-size: 11px; font-weight: 700;
+    border: 1.5px solid; border-radius: 20px;
+    padding: 3px 10px; background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px);
+    pointer-events: none;
+    letter-spacing: .4px;
+}
+
+/* Floor */
+.v360-floor {
+    position: absolute;
+    width: 640px; height: 640px;
+    background: linear-gradient(135deg, #2a2520, #1a1510);
+    transform: rotateX(90deg) translateZ(170px);
+    backface-visibility: hidden;
+}
+/* Ceiling */
+.v360-ceiling {
+    position: absolute;
+    width: 640px; height: 640px;
+    background: #1a1814;
+    transform: rotateX(-90deg) translateZ(170px);
+    backface-visibility: hidden;
+}
+
+/* Compass */
+.v360-compass {
+    position: absolute; bottom: 14px; left: 50%;
+    transform: translateX(-50%);
+    width: 260px;
+}
+.v360-compass-arc {
+    position: relative; height: 28px;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(8px);
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.1);
+    overflow: hidden;
+}
+.v360-compass-tick {
+    position: absolute; top: 0; bottom: 0;
+    display: flex; align-items: center;
+    transform: translateX(-50%);
+}
+.v360-compass-label {
+    font-size: 9px; color: rgba(255,255,255,0.5);
+    font-weight: 600; white-space: nowrap;
+}
+.v360-compass-cursor {
+    position: absolute; top: 4px; bottom: 4px;
+    width: 3px; background: #b8922a;
+    border-radius: 2px;
+    transform: translateX(-50%);
+    transition: left .05s linear;
+}
+
+/* Thumbnails strip */
+.v360-thumbs {
+    display: flex; gap: 6px;
+    padding: 10px 16px;
+    background: #1a1814;
+    flex-shrink: 0; overflow-x: auto;
+    scrollbar-width: thin;
+}
+.v360-thumb {
+    position: relative; flex-shrink: 0;
+    width: 100px; height: 64px;
+    border-radius: 8px; overflow: hidden;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color .15s;
+}
+.v360-thumb:hover { border-color: rgba(255,255,255,0.3); }
+.v360-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.v360-thumb-label {
+    position: absolute; bottom: 4px; left: 4px;
+    font-size: 9px; font-weight: 700;
+    color: #fff; padding: 2px 7px;
+    border-radius: 10px; letter-spacing: .4px;
+}
+
+/* Lightbox */
+.v360-lightbox {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.97);
+    z-index: 10002;
+    display: flex; align-items: center; justify-content: center;
+    animation: c3d-fade .15s ease;
+}
+.v360-lightbox-img {
+    max-width: 90vw; max-height: 90vh;
+    border-radius: 12px;
+    object-fit: contain;
+}
+.v360-lightbox-close {
+    position: absolute; top: 20px; right: 20px;
+    width: 40px; height: 40px; border-radius: 50%;
+    border: 1.5px solid rgba(255,255,255,0.3);
+    background: rgba(0,0,0,0.6); color: #fff;
+    font-size: 18px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .15s;
+}
+.v360-lightbox-close:hover { background: rgba(255,255,255,0.15); }
+
+/* 360° badge on room buttons */
+.c3d-360-icon {
+    font-size: 10px; font-weight: 800;
+    color: #b8922a; margin-left: auto;
+    letter-spacing: .5px;
+    background: rgba(184,146,42,0.1);
+    padding: 2px 7px; border-radius: 6px;
+    flex-shrink: 0;
+}
+
+/* Main photo in viewer */
+.c3d-main-photo-wrap {
+    position: relative; overflow: hidden;
+    background: #111;
+    display: flex; flex-direction: column;
+}
+.c3d-main-photo {
+    width: 100%; flex: 1;
+    object-fit: cover; display: block;
+    min-height: 0;
+}
+.c3d-main-photo-overlay {
+    position: absolute; bottom: 56px; left: 0; right: 0;
+    padding: 16px 20px;
+    background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%);
+}
+.c3d-main-photo-title { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 3px; }
+.c3d-main-photo-sub   { font-size: 11px; color: rgba(255,255,255,0.6); }
+.c3d-photo-strip {
+    display: flex; gap: 3px; padding: 0; flex-shrink: 0; height: 54px;
+}
+.c3d-strip-img { flex: 1; object-fit: cover; cursor: pointer; transition: opacity .15s; }
+.c3d-strip-img:hover { opacity: .85; }
+
+/* ══════════════════════════════════════════════════
+   OPENSTREETMAP
+   ══════════════════════════════════════════════════ */
+.detail-map-wrap {
+    margin-top: 16px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+}
+.detail-map-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px;
+    background: #faf9f7;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px; font-weight: 600; color: var(--text2);
+}
+.detail-map-addr {
+    font-size: 11px; font-weight: 400;
+    color: var(--text3); margin-left: auto;
+    white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; max-width: 160px;
+}
+.detail-map-frame { position: relative; }
+.detail-map-iframe {
+    width: 100%; height: 200px;
+    border: none; display: block;
+}
+.detail-map-link {
+    display: block; text-align: right;
+    font-size: 11px; color: var(--gold);
+    padding: 6px 12px;
+    background: #faf9f7;
+    border-top: 1px solid var(--border);
+    text-decoration: none;
+    transition: opacity .15s;
+}
+.detail-map-link:hover { opacity: .7; }

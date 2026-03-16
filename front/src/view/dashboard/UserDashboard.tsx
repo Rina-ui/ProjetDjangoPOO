@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react"
+import * as T from "three"
 import DashboardLayout from "../../component/sidebar"
 import {
     IconSearch, IconHeart, IconMapPin, IconBed, IconBath,
@@ -18,376 +19,347 @@ const NAV_ITEMS = [
 
 const PROPERTIES = [
     {
-        id: 1, agent: "Brandon Levin", price: "$389,781", address: "6391 Elgin St, Celina, Delaware 10299",
-        beds: 4, baths: 2, sqft: "1090", status: "For Sale", tag: "New", saved: false, views: 1240, rating: 4.8, reviews: 24,
-        img: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80&auto=format&fit=crop",
-        gallery: [
-            "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=400&q=75&auto=format&fit=crop",
-            "https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?w=400&q=75&auto=format&fit=crop",
-            "https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?w=400&q=75&auto=format&fit=crop",
-        ],
-        desc: "A beautifully crafted 4-bedroom home with open-plan living spaces, high ceilings, and a modern kitchen. Located in a quiet residential area close to schools and parks. Features include a large landscaped garden, double garage, and premium finishes throughout.",
-        features: ["Garden", "Double Garage", "Modern Kitchen", "High Ceilings", "Quiet Street", "Near Schools"],
-    },
-    {
-        id: 2, agent: "Gustavo Calzoni", price: "$160,581", address: "2715 Ash Dr, San Jose, South Dakota 83475",
-        beds: 5, baths: 4, sqft: "2240", status: "For Sale", tag: null, saved: true, views: 876, rating: 4.5, reviews: 18,
-        img: "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80&auto=format&fit=crop",
-        gallery: [
-            "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=400&q=75&auto=format&fit=crop",
-            "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&q=75&auto=format&fit=crop",
-            "https://images.unsplash.com/photo-1484154218962-a197022b5858?w=400&q=75&auto=format&fit=crop",
-        ],
-        desc: "Spacious 5-bedroom property offering generous living space across two floors. Recently renovated kitchen and bathrooms, with new hardwood floors throughout. The large backyard is perfect for entertaining.",
-        features: ["Renovated Kitchen", "Hardwood Floors", "Large Backyard", "Cul-de-sac", "Two Stories", "New Bathrooms"],
-    },
-    {
-        id: 3, agent: "Chance Dorwart", price: "$2,400 /mo", address: "8502 Preston Rd, Inglewood, Maine 98380",
-        beds: 3, baths: 2, sqft: "1850", status: "For Rent", tag: "Featured", saved: false, views: 543, rating: 4.7, reviews: 11,
-        img: "https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=800&q=80&auto=format&fit=crop",
-        gallery: [
-            "https://images.unsplash.com/photo-1502005229762-cf1b2da7c5d6?w=400&q=75&auto=format&fit=crop",
-            "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400&q=75&auto=format&fit=crop",
-            "https://images.unsplash.com/photo-1524758631624-e2822e304c36?w=400&q=75&auto=format&fit=crop",
-        ],
-        desc: "Modern 3-bedroom rental with stunning city views from the rooftop terrace. Building amenities include a gym, concierge service, and secure underground parking. Available immediately.",
-        features: ["City Views", "Rooftop Terrace", "Gym Access", "Concierge", "Underground Parking", "Furnished"],
-    },
-    {
-        id: 4, agent: "Craig Herwitz", price: "$778,100", address: "4140 Parker Rd, New Mexico 31134",
-        beds: 4, baths: 2, sqft: "1090", status: "For Sale", tag: null, saved: true, views: 2100, rating: 4.9, reviews: 37,
+        id: 1, agent: "Brandon Levin", price: "$389,781",
+        address: "6391 Elgin St, Celina, Delaware 10299",
+        beds: 4, baths: 2, sqft: "1090", status: "For Sale", tag: "New",
+        saved: false, views: 1240, rating: 4.8, reviews: 24,
+        // Façade extérieure
         img: "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800&q=80&auto=format&fit=crop",
         gallery: [
-            "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=400&q=75&auto=format&fit=crop",
-            "https://images.unsplash.com/photo-1574362848149-11496d93a7c7?w=400&q=75&auto=format&fit=crop",
-            "https://images.unsplash.com/photo-1600566752355-35792bedcfea?w=400&q=75&auto=format&fit=crop",
+            // Salon moderne épuré
+            "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=600&q=80&auto=format&fit=crop",
+            // Cuisine blanche avec îlot — sans personne
+            "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=600&q=80&auto=format&fit=crop",
+            // Chambre master minimaliste
+            "https://images.unsplash.com/photo-1540518614846-7eded433c457?w=600&q=80&auto=format&fit=crop",
         ],
-        desc: "A premium 4-bedroom estate with chef's kitchen, formal dining room, home office, and a resort-style pool. The master suite includes a walk-in wardrobe and spa-inspired ensuite.",
-        features: ["Swimming Pool", "Chef Kitchen", "Home Office", "Walk-in Wardrobe", "Formal Dining", "Spa Ensuite"],
+        desc: "A beautifully crafted 4-bedroom modern home with open-plan living, white kitchen and resort-style pool. Stone facade with flat roof architecture.",
+        features: ["Swimming Pool", "White Kitchen", "Open Plan", "Master Suite", "Flat Roof", "Double Garage"],
     },
     {
-        id: 5, agent: "Livia Rhiel", price: "$1,200 /mo", address: "1234 Sunset Blvd, Los Angeles, CA 90028",
-        beds: 2, baths: 1, sqft: "850", status: "For Rent", tag: null, saved: false, views: 390, rating: 4.2, reviews: 8,
-        img: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=80&auto=format&fit=crop",
+        id: 2, agent: "Gustavo Calzoni", price: "$160,581",
+        address: "2715 Ash Dr, San Jose, South Dakota 83475",
+        beds: 5, baths: 4, sqft: "2240", status: "For Sale", tag: null,
+        saved: true, views: 876, rating: 4.5, reviews: 18,
+        img: "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800&q=80&auto=format&fit=crop",
         gallery: [
-            "https://images.unsplash.com/photo-1630699144867-37acec97df5a?w=400&q=75&auto=format&fit=crop",
-            "https://images.unsplash.com/photo-1556909114-44e3e70034e2?w=400&q=75&auto=format&fit=crop",
-            "https://images.unsplash.com/photo-1507089947368-19c1da9775ae?w=400&q=75&auto=format&fit=crop",
+            // Living room avec baies vitrées
+            "https://images.unsplash.com/photo-1567767292278-a4f21aa2d36e?w=600&q=80&auto=format&fit=crop",
+            // Cuisine moderne îlot marbre
+            "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=600&q=80&auto=format&fit=crop",
+            // Salle de bain spa épurée
+            "https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?w=600&q=80&auto=format&fit=crop",
         ],
-        desc: "Charming 2-bedroom apartment in the heart of West Hollywood. Walking distance to restaurants, cafes, and nightlife. Renovated with new appliances and fresh interiors.",
-        features: ["Rooftop Garden", "Renovated", "New Appliances", "Parking Spot", "West Hollywood", "Walk to Shops"],
+        desc: "Spacious 5-bedroom villa with pool, generous terrace and two floors. Renovated kitchen with island, hardwood floors and spa bathroom.",
+        features: ["Pool Terrace", "Kitchen Island", "Spa Bathroom", "Hardwood Floors", "Two Stories", "Large Garden"],
     },
     {
-        id: 6, agent: "Nolan Saris", price: "$245,000", address: "9876 Maple Ave, Chicago, IL 60601",
-        beds: 3, baths: 2, sqft: "1400", status: "For Sale", tag: "Price Drop", saved: false, views: 720, rating: 4.4, reviews: 14,
-        img: "https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=800&q=80&auto=format&fit=crop",
+        id: 3, agent: "Chance Dorwart", price: "$2,400 /mo",
+        address: "8502 Preston Rd, Inglewood, Maine 98380",
+        beds: 3, baths: 2, sqft: "1850", status: "For Rent", tag: "Featured",
+        saved: false, views: 543, rating: 4.7, reviews: 11,
+        img: "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800&q=80&auto=format&fit=crop",
         gallery: [
-            "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&q=75&auto=format&fit=crop",
-            "https://images.unsplash.com/photo-1583608205776-bfd35f0d9f83?w=400&q=75&auto=format&fit=crop",
-            "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400&q=75&auto=format&fit=crop",
+            // Salon ouvert lumineux
+            "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=600&q=80&auto=format&fit=crop",
+            // Bureau home office propre
+            "https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=600&q=80&auto=format&fit=crop",
+            // Chambre avec vue
+            "https://images.unsplash.com/photo-1540518614846-7eded433c457?w=600&q=80&auto=format&fit=crop",
         ],
-        desc: "Charming brick home in Chicago's Maple Avenue corridor. Three bedrooms, two bathrooms, and a cozy fireplace. Basement ideal as media room or home gym.",
-        features: ["Fireplace", "Finished Basement", "Brick Exterior", "Near L-Train", "Media Room", "Updated HVAC"],
+        desc: "Modern 3-bedroom rental with pool and rooftop terrace. Bright living spaces, home office and premium finishes throughout.",
+        features: ["Rooftop Terrace", "Pool", "Home Office", "Concierge", "Underground Parking", "Furnished"],
+    },
+    {
+        id: 4, agent: "Craig Herwitz", price: "$778,100",
+        address: "4140 Parker Rd, New Mexico 31134",
+        beds: 4, baths: 2, sqft: "1090", status: "For Sale", tag: null,
+        saved: true, views: 2100, rating: 4.9, reviews: 37,
+        img: "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800&q=80&auto=format&fit=crop",
+        gallery: [
+            // Cuisine chef haut de gamme
+            "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=600&q=80&auto=format&fit=crop",
+            // Salon luxueux sans personnes
+            "https://images.unsplash.com/photo-1567767292278-a4f21aa2d36e?w=600&q=80&auto=format&fit=crop",
+            // Salle de bain marbre
+            "https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?w=600&q=80&auto=format&fit=crop",
+        ],
+        desc: "Premium 4-bedroom estate with chef kitchen, home office and resort-style pool. Master suite with walk-in wardrobe and spa ensuite.",
+        features: ["Swimming Pool", "Chef Kitchen", "Home Office", "Walk-in Wardrobe", "Spa Ensuite", "Stone Facade"],
+    },
+    {
+        id: 5, agent: "Livia Rhiel", price: "$1,200 /mo",
+        address: "1234 Sunset Blvd, Los Angeles, CA 90028",
+        beds: 2, baths: 1, sqft: "850", status: "For Rent", tag: null,
+        saved: false, views: 390, rating: 4.2, reviews: 8,
+        img: "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800&q=80&auto=format&fit=crop",
+        gallery: [
+            // Chambre épurée moderne
+            "https://images.unsplash.com/photo-1540518614846-7eded433c457?w=600&q=80&auto=format&fit=crop",
+            // Salle de bain minimaliste
+            "https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?w=600&q=80&auto=format&fit=crop",
+            // Bureau moderne lumineux
+            "https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=600&q=80&auto=format&fit=crop",
+        ],
+        desc: "Charming 2-bedroom modern unit in West Hollywood. Pool access, private terrace and renovated interiors with premium appliances.",
+        features: ["Pool Access", "Private Terrace", "Modern Bedroom", "New Appliances", "Parking", "Walk to Shops"],
+    },
+    {
+        id: 6, agent: "Nolan Saris", price: "$245,000",
+        address: "9876 Maple Ave, Chicago, IL 60601",
+        beds: 3, baths: 2, sqft: "1400", status: "For Sale", tag: "Price Drop",
+        saved: false, views: 720, rating: 4.4, reviews: 14,
+        img: "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800&q=80&auto=format&fit=crop",
+        gallery: [
+            // Salon open-plan
+            "https://images.unsplash.com/photo-1567767292278-a4f21aa2d36e?w=600&q=80&auto=format&fit=crop",
+            // Cuisine blanche moderne
+            "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=600&q=80&auto=format&fit=crop",
+            // Terrasse vue piscine
+            "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=600&q=80&auto=format&fit=crop",
+        ],
+        desc: "Modern home with flat roof design and private pool. Open plan living, white kitchen and spacious terrace perfect for entertaining.",
+        features: ["Private Pool", "Flat Roof", "Open Plan", "White Kitchen", "Terrace", "Updated HVAC"],
     },
 ]
 
-const COMMENTS: Record<number, { name: string; date: string; rating: number; text: string }[]> = {
-    1: [
-        { name: "Amina Touré", date: "2 days ago", rating: 5, text: "Visited this property last weekend — absolutely stunning. The garden is even more beautiful in person and the open-plan living area is very well designed." },
-        { name: "James W.",    date: "1 week ago", rating: 4, text: "Great location and the house is immaculate. The only downside is parking can be a bit tricky on weekends due to the nearby market." },
-    ],
-    2: [{ name: "Sofia Chen",    date: "3 days ago", rating: 5, text: "Great value for money! The renovation quality is excellent and the neighborhood is peaceful. Highly recommend visiting." }],
-    3: [{ name: "Rania M.",      date: "5 days ago", rating: 5, text: "The rooftop terrace has an incredible view. Building management is responsive and the gym is well-equipped." }],
-    4: [
-        { name: "Lucas Bernard", date: "1 day ago",  rating: 5, text: "Dream property. The pool and chef kitchen are worth every cent. Viewing was impressive, the agent was very professional." },
-        { name: "Nadia P.",      date: "4 days ago", rating: 5, text: "By far the most impressive listing I've visited. The spa ensuite is a showstopper." },
-    ],
-    5: [{ name: "Marco F.",      date: "1 week ago", rating: 4, text: "Perfect location for anyone who enjoys the LA lifestyle. The rooftop garden is a real bonus." }],
-    6: [{ name: "Ella D.",       date: "3 days ago", rating: 4, text: "Great starter home in a convenient location. The finished basement is a big plus — used it as a home office." }],
+
+
+// ── ROOMS ────────────────────────────────────────────────────────────
+interface Room {
+    id: string; label: string; floor: number
+    x: number; z: number; color: string
+    area: string; desc: string
 }
 
-// ── 3D VIEWER DATA ───────────────────────────────────────────────────
-const ROOMS = [
-    {
-        id: "living",  label: "Living Room",   floor: 0, x: -1.2, z: -0.5, color: "#b8922a", area: "42 m²",
-        desc: "Open-plan with floor-to-ceiling windows and premium finishes.",
-        // Texture affichée sur le mur de la pièce en 3D (image principale de la propriété)
-        wallTex: null as string | null,
-        // Photos galerie plein écran (utilise prop.gallery + prop.img)
-        gallery: ["main", "g1", "g2"],
-    },
-    {
-        id: "kitchen", label: "Kitchen",        floor: 0, x:  1.2, z: -0.5, color: "#2a7ab8", area: "28 m²",
-        desc: "Modern kitchen with island, gas range, and premium appliances.",
-        wallTex: null as string | null,
-        gallery: ["g1", "g2", "g3"],
-    },
-    {
-        id: "bedroom", label: "Master Bedroom", floor: 1, x: -1.0, z:  0.2, color: "#7a2ab8", area: "35 m²",
-        desc: "En-suite with walk-in wardrobe and private terrace access.",
-        wallTex: null as string | null,
-        gallery: ["main", "g3", "g1"],
-    },
-    {
-        id: "office",  label: "Home Office",    floor: 1, x:  1.0, z:  0.2, color: "#2ab87a", area: "22 m²",
-        desc: "Quiet corner office with built-in shelving and city views.",
-        wallTex: null as string | null,
-        gallery: ["g2", "g3", "main"],
-    },
-    {
-        id: "pool",    label: "Pool & Garden",  floor: 0, x:  0.0, z:  1.8, color: "#2ab8b8", area: "60 m²",
-        desc: "Heated outdoor pool with sun deck and landscaped garden.",
-        wallTex: null as string | null,
-        gallery: ["main", "g1", "g3"],
-    },
+const ROOMS: Room[] = [
+    { id: "living",  label: "Living Room",    floor: 0, x: -1.2, z: -0.5, color: "#b8922a", area: "42 m²", desc: "Open-plan with floor-to-ceiling windows and premium finishes." },
+    { id: "kitchen", label: "Kitchen",         floor: 0, x:  1.2, z: -0.5, color: "#2a7ab8", area: "28 m²", desc: "Modern kitchen with island, gas range, and premium appliances." },
+    { id: "bedroom", label: "Master Bedroom",  floor: 1, x: -1.0, z:  0.2, color: "#7a2ab8", area: "35 m²", desc: "En-suite with walk-in wardrobe and private terrace access." },
+    { id: "office",  label: "Home Office",     floor: 1, x:  1.0, z:  0.2, color: "#2ab87a", area: "22 m²", desc: "Quiet corner office with built-in shelving and city views." },
+    { id: "pool",    label: "Pool & Garden",   floor: 0, x:  0.0, z:  1.8, color: "#2ab8b8", area: "60 m²", desc: "Heated outdoor pool with sun deck and landscaped garden." },
 ]
 
-// Helper — résout les clés de gallery vers les vraies URLs
-const resolveGallery = (prop: typeof PROPERTIES[0], keys: string[]) =>
-    keys.map(k => k === "main" ? prop.img : k === "g1" ? prop.gallery[0] : k === "g2" ? prop.gallery[1] : prop.gallery[2])
-
-// ── 3D VIEWER MODAL ──────────────────────────────────────────────────
+// ── 3D HOUSE VIEWER — GLB MODEL ─────────────────────────────────────
 const Viewer3D = ({ prop, onClose }: { prop: typeof PROPERTIES[0]; onClose: () => void }) => {
-    const canvasRef    = useRef<HTMLCanvasElement>(null)
-    const textureCache = useRef<Record<string, any>>({})
-    const [activeRoom,  setActiveRoom]  = useState<typeof ROOMS[0] | null>(null)
-    const [tooltip,     setTooltip]     = useState<{ x: number; y: number; label: string } | null>(null)
+    const canvasRef = useRef<HTMLCanvasElement>(null)
+    const sRef = useRef({ theta: 0.5, phi: 0.72, r: 18, drag: false, px: 0, py: 0, autoRot: true })
+    const [activeRoom,  setActiveRoom]  = useState<typeof ROOMS[number] | null>(null)
     const [loaded,      setLoaded]      = useState(false)
-    const [gallery,     setGallery]     = useState<string[] | null>(null)   // galerie plein écran
-    const [galleryIdx,  setGalleryIdx]  = useState(0)                       // photo active
+    const [loadErr,     setLoadErr]     = useState("")
+    const [tooltip,     setTooltip]     = useState<{ x: number; y: number; label: string } | null>(null)
+    const [gallery,     setGallery]     = useState<string[] | null>(null)
+    const [galleryIdx,  setGalleryIdx]  = useState(0)
+    const allImgs = [prop.img, ...prop.gallery]
 
-    // Ouvre la galerie plein écran pour une pièce
-    const openGallery = (room: typeof ROOMS[0]) => {
-        const urls = resolveGallery(prop, room.gallery)
-        setGallery(urls)
+    const openGallery = (room: typeof ROOMS[number]) => {
+        const ri = ROOMS.findIndex(r => r.id === room.id)
+        setGallery([allImgs[ri % allImgs.length], allImgs[(ri+1) % allImgs.length], allImgs[(ri+2) % allImgs.length]])
         setGalleryIdx(0)
+        setActiveRoom(room)
     }
 
     useEffect(() => {
         let animId: number
         const canvas = canvasRef.current
         if (!canvas) return
-        const THREE = (window as any).THREE
-        if (!THREE) { console.error("Three.js not loaded"); return }
 
-        const scene = new THREE.Scene()
-        scene.background = new THREE.Color(0xf0ece4)
-        scene.fog = new THREE.FogExp2(0xf0ece4, 0.032)
+        // ── Scene ─────────────────────────────────────────────────
+        const scene = new T.Scene()
+        scene.background = new T.Color(0x2a2a2a)
+        scene.fog = new T.FogExp2(0x2a2a2a, 0.018)
 
-        const W = canvas.clientWidth, H = canvas.clientHeight
-        const camera = new THREE.PerspectiveCamera(45, W / H, 0.1, 200)
-        camera.position.set(8, 6, 12)
-        camera.lookAt(0, 1.5, 0)
+        const W = canvas.clientWidth || 760
+        const H = canvas.clientHeight || 480
+        const camera = new T.PerspectiveCamera(45, W / H, 0.1, 300)
 
-        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
+        const renderer = new T.WebGLRenderer({ canvas, antialias: true })
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
         renderer.setSize(W, H)
         renderer.shadowMap.enabled = true
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap
+        renderer.shadowMap.type = T.PCFSoftShadowMap
+        renderer.outputColorSpace = T.SRGBColorSpace
 
-        // Lights
-        scene.add(new THREE.AmbientLight(0xfff8f0, 0.75))
-        const sun = new THREE.DirectionalLight(0xfff4e0, 1.4)
-        sun.position.set(10, 18, 10); sun.castShadow = true
+        // ── Lights ────────────────────────────────────────────────
+        scene.add(new T.AmbientLight(0xffffff, 1.5))
+        const sun = new T.DirectionalLight(0xfffbe0, 1.8)
+        sun.position.set(12, 20, 12); sun.castShadow = true
         sun.shadow.mapSize.set(2048, 2048)
-        sun.shadow.camera.left = -12; sun.shadow.camera.right = 12
-        sun.shadow.camera.top  =  12; sun.shadow.camera.bottom = -12
+        sun.shadow.camera.left = -20; sun.shadow.camera.right = 20
+        sun.shadow.camera.top  =  20; sun.shadow.camera.bottom = -20
         scene.add(sun)
-        scene.add(Object.assign(new THREE.DirectionalLight(0xd0e8ff, 0.35), { position: { set: () => {} } }))
-        const fill = new THREE.DirectionalLight(0xd0e8ff, 0.35)
-        fill.position.set(-8, 4, -6); scene.add(fill)
+        const fill = new T.DirectionalLight(0xd0e8ff, 0.5)
+        fill.position.set(-10, 8, -8); scene.add(fill)
+        const back = new T.DirectionalLight(0xfff0e0, 0.3)
+        back.position.set(0, 5, -15); scene.add(back)
 
-        const mat  = (col: number, opts: any = {}) => new THREE.MeshLambertMaterial({ color: col, ...opts })
-        const mWall   = mat(0xf2ece0)
-        const mRoof   = mat(0x222222)
-        const mGlass  = mat(0x90c8e8, { transparent: true, opacity: 0.45 })
-        const mGround = mat(0x7ab85a)
-        const mPath   = mat(0xd4c8a8)
-        const mDoor   = mat(0xc8a870)
-        const mPool   = mat(0x40a8c8, { transparent: true, opacity: 0.8 })
-        const mDeck   = mat(0xe0d4b8)
-        const mGarage = mat(0xd8d0c0)
-        const mWood   = mat(0x8b6840)
+        // ── Ground ────────────────────────────────────────────────
+        const ground = new T.Mesh(
+            new T.PlaneGeometry(80, 80),
+            new T.MeshLambertMaterial({ color: 0x3a3a3a })
+        )
+        ground.rotation.x = -Math.PI / 2
+        ground.receiveShadow = true
+        scene.add(ground)
 
-        const box = (w: number, h: number, d: number, m: any, x=0, y=0, z=0) => {
-            const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m)
-            mesh.position.set(x, y, z); mesh.castShadow = true; mesh.receiveShadow = true
-            scene.add(mesh); return mesh
-        }
+        // ── Load GLB model ────────────────────────────────────────
+        // Dynamic import to avoid TypeScript issues
+        import("three/addons/loaders/GLTFLoader.js").then(({ GLTFLoader }) => {
+            const loader = new GLTFLoader()
+            loader.load(
+                "/models/modern_house.glb",
+                (gltf) => {
+                    const model = gltf.scene
 
-        // Ground + pool
-        const g = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), mGround)
-        g.rotation.x = -Math.PI / 2; g.receiveShadow = true; scene.add(g)
-        box(1.2, 0.05, 4,   mPath, 0,   0.02, 3.5)
-        box(5,   0.1,  3.5, mDeck, 0,   0.05, 5.5)
-        box(3.5, 0.08, 2.5, mPool, 0,   0.12, 5.6)
+                    // Auto-center and scale the model
+                    const box  = new T.Box3().setFromObject(model)
+                    const size = box.getSize(new T.Vector3())
+                    const maxDim = Math.max(size.x, size.y, size.z)
+                    const scale = 10 / maxDim
+                    model.scale.setScalar(scale)
 
-        // House
-        box(5.5, 2.6, 4.5, mWall, -0.4, 1.3,  0)
-        box(6.2, 0.22,5.2, mRoof, -0.4, 2.72, 0)
-        box(4.2, 2.4, 4.0, mWall, -0.6, 4.5,  0.1)
-        box(4.2, 0.5, 4.02,mWood, -0.6, 3.5,  0.1)
-        box(5.0, 0.22,4.7, mRoof, -0.6, 5.72, 0.1)
-        box(2.8, 2.0, 3.5, mGarage, 3.0, 1.0, 0.2)
-        box(3.2, 0.22,4.0, mRoof,   3.0, 2.12,0.2)
-        box(1.8, 1.8, 0.08,mGlass, -1.5, 1.5, -2.27)
-        box(1.8, 1.8, 0.08,mGlass,  0.5, 1.5, -2.27)
-        box(1.6, 1.4, 0.08,mGlass, -1.6, 4.6, -2.17)
-        box(1.6, 1.4, 0.08,mGlass,  0.2, 4.6, -2.17)
-        box(0.9, 2.1, 0.08,mDoor,  -0.5, 1.05,-2.27)
+                    // Place on ground
+                    const box2 = new T.Box3().setFromObject(model)
+                    model.position.y = -box2.min.y
+                    model.position.x = 0
+                    model.position.z = 0
 
-        // Trees
-        const tree = (x: number, z: number, h: number, cr: number, col: number) => {
-            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, h*.4, 8), mat(0x5a4030))
-            trunk.position.set(x, h*.2, z); trunk.castShadow = true; scene.add(trunk)
-            const c1 = new THREE.Mesh(new THREE.SphereGeometry(cr, 10, 8), mat(col))
-            c1.position.set(x, h*.4+cr*.7, z); c1.castShadow = true; scene.add(c1)
-        }
-        tree(-5.5,-1,4.5,1.4,0x4a8830); tree(-6,0.5,4,1.2,0x5a9840)
-        tree(5.5,-0.5,3.5,1.6,0xb03828); tree(6.2,1,2.5,1,0xc84838); tree(5.8,2.5,2,.7,0x4a8830)
-        const shrubM = mat(0x5a8840)
-        ;[[-3.2,-2.1],[0.8,-2.1],[2.2,-1.5]].forEach(([sx,sz]) => {
-            const s = new THREE.Mesh(new THREE.SphereGeometry(0.35,8,6), shrubM)
-            s.position.set(sx, 0.35, sz); s.castShadow = true; scene.add(s)
-        })
+                    // Enable shadows on all meshes
+                    model.traverse((child: T.Object3D) => {
+                        if ((child as T.Mesh).isMesh) {
+                            const mesh = child as T.Mesh
+                            mesh.castShadow = true
+                            mesh.receiveShadow = true
+                        }
+                    })
 
-        // ── Photo panels sur les murs (une par pièce) ──────────────
-        const loader = new THREE.TextureLoader()
-        const photoPanels: THREE.Mesh[] = []
+                    scene.add(model)
 
-        const PANEL_DATA = [
-            // living room — mur avant (z=-2.2), rez-de-chaussée
-            { imgKey: "main", pos: [-1.2, 1.6, -2.18], rot: [0,0,0],         size: [1.6, 1.1] },
-            // kitchen — mur avant, côté droit
-            { imgKey: "g1",   pos: [ 1.2, 1.6, -2.18], rot: [0,0,0],         size: [1.6, 1.1] },
-            // bedroom — mur avant, étage
-            { imgKey: "g2",   pos: [-1.0, 4.6, -2.14], rot: [0,0,0],         size: [1.5, 1.0] },
-            // office — mur avant, étage
-            { imgKey: "g3",   pos: [ 1.0, 4.6, -2.14], rot: [0,0,0],         size: [1.5, 1.0] },
-            // pool — sol de la terrasse (panel horizontal)
-            { imgKey: "main", pos: [ 0.0, 0.16, 5.6],  rot: [-Math.PI/2,0,0],size: [3.2, 2.2] },
-        ]
+                    // Adjust camera distance based on model size
+                    const box3  = new T.Box3().setFromObject(model)
+                    const size3 = box3.getSize(new T.Vector3())
+                    const center = box3.getCenter(new T.Vector3())
+                    tgt.copy(center)
+                    sRef.current.r = Math.max(size3.x, size3.z) * 2.2
+                    updateCam()
 
-        const getTexUrl = (key: string) => {
-            if (key === "main") return prop.img
-            if (key === "g1")   return prop.gallery[0]
-            if (key === "g2")   return prop.gallery[1]
-            return prop.gallery[2]
-        }
-
-        PANEL_DATA.forEach(({ imgKey, pos, rot, size }, i) => {
-            const url = getTexUrl(imgKey)
-            const geo = new THREE.PlaneGeometry(size[0], size[1])
-            // placeholder mat while texture loads
-            const pMat = new THREE.MeshLambertMaterial({ color: 0xddccbb })
-            const panel = new THREE.Mesh(geo, pMat)
-            panel.position.set(pos[0], pos[1], pos[2])
-            panel.rotation.set(rot[0], rot[1], rot[2])
-            panel.userData = { panelIdx: i }
-            photoPanels.push(panel)
-            scene.add(panel)
-
-            if (textureCache.current[url]) {
-                pMat.map = textureCache.current[url]
-                pMat.needsUpdate = true
-            } else {
-                loader.load(url, (tex: any) => {
-                    tex.minFilter = THREE.LinearFilter
-                    textureCache.current[url] = tex
-                    pMat.map = tex
-                    pMat.needsUpdate = true
-                }, undefined, () => {
-                    // fallback: keep placeholder color
-                })
-            }
-
-            // Frame border around each panel
-            const frameMat = mat(0x1a1814)
-            const frameGeo = new THREE.BoxGeometry(size[0] + 0.06, size[1] + 0.06, 0.02)
-            const frame = new THREE.Mesh(frameGeo, frameMat)
-            frame.position.set(pos[0], pos[1], pos[2] - 0.015)
-            frame.rotation.set(rot[0], rot[1], rot[2])
-            scene.add(frame)
-        })
-
-        // ── Hotspots ───────────────────────────────────────────────
-        const hotspots: THREE.Mesh[] = []
-        const raycaster = new THREE.Raycaster()
-        const mouse = new THREE.Vector2()
-
-        ROOMS.forEach(room => {
-            const sphere = new THREE.Mesh(
-                new THREE.SphereGeometry(0.3, 14, 10),
-                mat(new THREE.Color(room.color).getHex(), { transparent: true, opacity: 0.92 })
+                    setLoaded(true)
+                },
+                (xhr) => {
+                    // progress — could show % if needed
+                    console.log((xhr.loaded / xhr.total * 100).toFixed(0) + "% loaded")
+                },
+                (err) => {
+                    console.error("GLB load error:", err)
+                    setLoadErr("Impossible de charger le modèle 3D")
+                    setLoaded(true)
+                }
             )
-            sphere.position.set(room.x, room.floor === 0 ? 1.6 : 4.4, room.z)
+        }).catch(err => {
+            console.error("GLTFLoader import error:", err)
+            setLoadErr("GLTFLoader non disponible")
+            setLoaded(true)
+        })
+
+        // ── Hotspots — numbered badges ────────────────────────────
+        const hotspots: T.Mesh[] = []
+        const raycaster = new T.Raycaster()
+        const mouse = new T.Vector2()
+
+        const makeNumberSprite = (num: number, color: string): T.Sprite => {
+            const size = 128
+            const cv = document.createElement("canvas")
+            cv.width = size; cv.height = size
+            const ctx = cv.getContext("2d")!
+            // Outer ring
+            ctx.beginPath()
+            ctx.arc(size/2, size/2, size/2 - 4, 0, Math.PI*2)
+            ctx.fillStyle = color
+            ctx.fill()
+            // White inner circle
+            ctx.beginPath()
+            ctx.arc(size/2, size/2, size/2 - 18, 0, Math.PI*2)
+            ctx.fillStyle = "rgba(255,255,255,0.92)"
+            ctx.fill()
+            // Number
+            ctx.fillStyle = color
+            ctx.font = "bold 58px Arial"
+            ctx.textAlign = "center"
+            ctx.textBaseline = "middle"
+            ctx.fillText(String(num), size/2, size/2 + 3)
+            const tex = new T.CanvasTexture(cv)
+            const mat = new T.SpriteMaterial({ map: tex, transparent: true })
+            const sprite = new T.Sprite(mat)
+            sprite.scale.set(1.2, 1.2, 1.2)
+            return sprite
+        }
+
+        ROOMS.forEach((room, idx) => {
+            // Invisible sphere for raycasting
+            const sphere = new T.Mesh(
+                new T.SphereGeometry(0.6, 10, 8),
+                new T.MeshBasicMaterial({ transparent: true, opacity: 0 })
+            )
+            sphere.position.set(room.x * 0.8, room.floor === 0 ? 1.5 : 3.5, room.z * 0.8)
             sphere.userData = { room }
             hotspots.push(sphere); scene.add(sphere)
 
-            // Pulsing ring
-            const ring = new THREE.Mesh(
-                new THREE.TorusGeometry(0.42, 0.04, 8, 24),
-                mat(new THREE.Color(room.color).getHex(), { transparent: true, opacity: 0.6 })
-            )
-            ring.position.copy(sphere.position)
-            ring.rotation.x = Math.PI / 2; scene.add(ring)
+            // Numbered sprite
+            const sprite = makeNumberSprite(idx + 1, room.color)
+            sprite.position.copy(sphere.position)
+            sprite.userData = { isSprite: true, idx }
+            scene.add(sprite)
 
-            // Label sprite (small plane with room color)
-            const lblGeo = new THREE.PlaneGeometry(0.8, 0.22)
-            const lblMat = new THREE.MeshLambertMaterial({ color: new THREE.Color(room.color).getHex(), transparent: true, opacity: 0.85 })
-            const lbl = new THREE.Mesh(lblGeo, lblMat)
-            lbl.position.set(room.x, (room.floor === 0 ? 1.6 : 4.4) + 0.55, room.z)
-            scene.add(lbl)
+            // Store sprite ref on sphere for animation
+            sphere.userData.sprite = sprite
         })
 
-        // Orbit
-        let drag = false, prev = { x: 0, y: 0 }
-        let sph = { theta: 0.5, phi: 0.78, r: 14 }
-        const tgt = new THREE.Vector3(0, 2, 0)
-        let autoRot = true
+        // ── Orbit ─────────────────────────────────────────────────
+        const s = sRef.current
+        const tgt = new T.Vector3(0, 2, 0)
 
         const updateCam = () => {
             camera.position.set(
-                tgt.x + sph.r * Math.sin(sph.phi) * Math.sin(sph.theta),
-                tgt.y + sph.r * Math.cos(sph.phi),
-                tgt.z + sph.r * Math.sin(sph.phi) * Math.cos(sph.theta)
+                tgt.x + s.r * Math.sin(s.phi) * Math.sin(s.theta),
+                tgt.y + s.r * Math.cos(s.phi),
+                tgt.z + s.r * Math.sin(s.phi) * Math.cos(s.theta)
             )
             camera.lookAt(tgt)
         }
         updateCam()
 
-        const onDown  = (e: MouseEvent) => { drag = true; autoRot = false; prev = { x: e.clientX, y: e.clientY } }
-        const onUp    = () => { drag = false }
-        const onMove  = (e: MouseEvent) => {
-            if (drag) {
-                sph.theta -= (e.clientX - prev.x) * 0.008
-                sph.phi = Math.max(0.15, Math.min(Math.PI / 2.1, sph.phi + (e.clientY - prev.y) * 0.008))
-                prev = { x: e.clientX, y: e.clientY }; updateCam()
+        const onDown = (e: MouseEvent) => { s.drag=true; s.autoRot=false; s.px=e.clientX; s.py=e.clientY }
+        const onUp   = () => { s.drag=false }
+        const onMove = (e: MouseEvent) => {
+            if (s.drag) {
+                s.theta -= (e.clientX-s.px) * 0.007
+                s.phi    = Math.max(0.1, Math.min(Math.PI/2.1, s.phi+(e.clientY-s.py)*0.007))
+                s.px=e.clientX; s.py=e.clientY; updateCam()
             }
             const rect = canvas.getBoundingClientRect()
-            mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1
-            mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1
+            mouse.x = ((e.clientX-rect.left)/rect.width)*2-1
+            mouse.y = -((e.clientY-rect.top)/rect.height)*2+1
             raycaster.setFromCamera(mouse, camera)
             const hits = raycaster.intersectObjects(hotspots)
             if (hits.length) {
-                setTooltip({ x: e.clientX - rect.left, y: e.clientY - rect.top, label: hits[0].object.userData.room.label + " — cliquer pour voir les photos" })
+                setTooltip({ x: e.clientX-rect.left, y: e.clientY-rect.top, label: hits[0].object.userData.room.label })
                 canvas.style.cursor = "pointer"
-            } else { setTooltip(null); canvas.style.cursor = "grab" }
+            } else { setTooltip(null); canvas.style.cursor = s.drag ? "grabbing" : "grab" }
         }
         const onClick = (e: MouseEvent) => {
             const rect = canvas.getBoundingClientRect()
-            mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1
-            mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1
+            mouse.x = ((e.clientX-rect.left)/rect.width)*2-1
+            mouse.y = -((e.clientY-rect.top)/rect.height)*2+1
             raycaster.setFromCamera(mouse, camera)
             const hits = raycaster.intersectObjects(hotspots)
             if (hits.length) {
-                const room = hits[0].object.userData.room
-                setActiveRoom(room)
-                tgt.set(room.x * 0.7, room.floor === 0 ? 1.5 : 4, room.z * 0.7)
-                sph.r = 7; updateCam()
+                const room = hits[0].object.userData.room as typeof ROOMS[number]
+                openGallery(room)
+                tgt.set(room.x*0.5, room.floor===0?1.5:3.5, room.z*0.5)
+                s.r = 8; updateCam()
             }
         }
-        const onWheel = (e: WheelEvent) => { sph.r = Math.max(4, Math.min(22, sph.r + e.deltaY * 0.02)); updateCam() }
+        const onWheel = (e: WheelEvent) => { s.r=Math.max(4,Math.min(40,s.r+e.deltaY*0.025)); updateCam() }
 
         canvas.addEventListener("mousedown", onDown)
         canvas.addEventListener("mouseup",   onUp)
@@ -395,18 +367,24 @@ const Viewer3D = ({ prop, onClose }: { prop: typeof PROPERTIES[0]; onClose: () =
         canvas.addEventListener("click",     onClick)
         canvas.addEventListener("wheel",     onWheel)
 
-        const clock = new THREE.Clock()
+        // ── Animate ───────────────────────────────────────────────
+        const clock = new T.Clock()
         const animate = () => {
             animId = requestAnimationFrame(animate)
             const t = clock.getElapsedTime()
-            if (autoRot) { sph.theta += 0.003; updateCam() }
+            if (s.autoRot) { s.theta += 0.003; updateCam() }
             hotspots.forEach((h, i) => {
-                h.position.y = (h.userData.room.floor === 0 ? 1.6 : 4.4) + Math.sin(t * 1.5 + i) * 0.1
+                const base = h.userData.room.floor === 0 ? 1.5 : 3.5
+                const newY = base + Math.sin(t * 1.6 + i) * 0.16
+                h.position.y = newY
+                // Animate the sprite too
+                if (h.userData.sprite) {
+                    h.userData.sprite.position.y = newY
+                }
             })
             renderer.render(scene, camera)
         }
         animate()
-        setLoaded(true)
 
         const onResize = () => {
             camera.aspect = canvas.clientWidth / canvas.clientHeight
@@ -432,30 +410,39 @@ const Viewer3D = ({ prop, onClose }: { prop: typeof PROPERTIES[0]; onClose: () =
             <div className="c3d-modal">
                 <div className="c3d-header">
                     <div>
-                        <div className="c3d-modal-title">{prop.agent}'s Property — 3D View</div>
-                        <div className="c3d-modal-sub">Drag to rotate · Scroll to zoom · Click dot = galerie photos de la pièce</div>
+                        <div className="c3d-modal-title">{prop.agent}'s Property — Vue 3D</div>
+                        <div className="c3d-modal-sub">Drag pour tourner · Scroll pour zoomer · Clic sur un point = photos de la pièce</div>
                     </div>
                     <button className="c3d-close" onClick={onClose}>✕</button>
                 </div>
 
                 <div className="c3d-body">
-                    {/* Canvas */}
                     <div className="c3d-canvas-wrap">
                         {!loaded && (
-                            <div className="c3d-loading"><div className="c3d-spinner" /><span>Chargement 3D…</span></div>
+                            <div className="c3d-loading">
+                                <div className="c3d-spinner"/>
+                                <span>Chargement du modèle 3D…</span>
+                            </div>
+                        )}
+                        {loadErr && (
+                            <div className="c3d-load-err">
+                                <span>⚠️ {loadErr}</span>
+                                <p>Vérifie que le fichier est dans <code>public/models/</code></p>
+                            </div>
                         )}
                         <canvas ref={canvasRef} className="c3d-canvas" />
                         {tooltip && (
-                            <div className="c3d-tooltip" style={{ left: tooltip.x + 14, top: tooltip.y - 10 }}>{tooltip.label}</div>
+                            <div className="c3d-tooltip" style={{ left: tooltip.x+14, top: tooltip.y-10 }}>
+                                {tooltip.label} — clic pour les photos
+                            </div>
                         )}
                         <div className="c3d-hints">
                             <span>🖱 Drag — Rotate</span>
                             <span>⚲ Scroll — Zoom</span>
-                            <span>● Click dot — Photos</span>
+                            <span>● Clic — Photos pièce</span>
                         </div>
                     </div>
 
-                    {/* Side panel */}
                     <div className="c3d-side">
                         <div className="c3d-prop-info">
                             <div className="c3d-prop-price">{prop.price}</div>
@@ -467,92 +454,83 @@ const Viewer3D = ({ prop, onClose }: { prop: typeof PROPERTIES[0]; onClose: () =
                             </div>
                         </div>
 
-                        <div className="c3d-rooms-title">Pièces — clic pour voir les photos</div>
-
+                        <div className="c3d-rooms-title">Pièces — clic pour les photos</div>
                         <div className="c3d-rooms">
                             {ROOMS.map(r => (
-                                <button
-                                    key={r.id}
-                                    className={`c3d-room-btn ${activeRoom?.id === r.id ? "active" : ""}`}
-                                    style={{ "--room-color": r.color } as any}
-                                    onClick={() => { setActiveRoom(r); openGallery(r) }}
-                                >
-                                    <span className="c3d-room-dot" style={{ background: r.color }} />
+                                <button key={r.id}
+                                        className={`c3d-room-btn ${activeRoom?.id===r.id?"active":""}`}
+                                        style={{"--room-color":r.color} as any}
+                                        onClick={() => openGallery(r)}>
+                                    <span className="c3d-room-dot" style={{background:r.color}}/>
                                     <div className="c3d-room-info">
                                         <span className="c3d-room-name">{r.label}</span>
-                                        <span className="c3d-room-area">{r.area} · Floor {r.floor + 1}</span>
+                                        <span className="c3d-room-area">{r.area} · Floor {r.floor+1}</span>
                                     </div>
-                                    <span className="c3d-room-gallery-icon">🖼</span>
+                                    <span className="c3d-360-icon">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+        <circle cx="12" cy="13" r="4"/>
+    </svg>
+</span>
                                 </button>
                             ))}
                         </div>
 
                         {activeRoom ? (
-                            <div className="c3d-room-detail" style={{ borderColor: activeRoom.color }}>
-                                <div className="c3d-room-detail-header" style={{ background: activeRoom.color }}>
+                            <div className="c3d-room-detail" style={{borderColor:activeRoom.color}}>
+                                <div className="c3d-room-detail-header" style={{background:activeRoom.color}}>
                                     <span>{activeRoom.label}</span><span>{activeRoom.area}</span>
                                 </div>
                                 <p className="c3d-room-detail-desc">{activeRoom.desc}</p>
-                                <button
-                                    className="c3d-gallery-open-btn"
-                                    style={{ background: activeRoom.color }}
-                                    onClick={() => openGallery(activeRoom)}
-                                >
-                                    📷 Voir les photos de cette pièce
-                                </button>
                             </div>
                         ) : (
-                            <div className="c3d-room-empty">Clique sur un point coloré pour explorer une pièce</div>
+                            <div className="c3d-room-empty">Clique sur un point coloré ou une pièce</div>
                         )}
-
                         <button className="c3d-book-btn">Book a Visit</button>
                     </div>
                 </div>
             </div>
 
-            {/* ── GALERIE PLEIN ÉCRAN ── */}
             {gallery && (
                 <div className="c3d-gallery-overlay" onClick={() => setGallery(null)}>
                     <div className="c3d-gallery-modal" onClick={e => e.stopPropagation()}>
                         <button className="c3d-gallery-close" onClick={() => setGallery(null)}>✕</button>
-
-                        {/* Image principale */}
                         <div className="c3d-gallery-main">
-                            <img src={gallery[galleryIdx]} alt="room" className="c3d-gallery-img" />
-                            {/* Prev / Next */}
-                            {gallery.length > 1 && (
-                                <>
-                                    <button className="c3d-gallery-prev" onClick={() => setGalleryIdx(i => (i - 1 + gallery.length) % gallery.length)}>‹</button>
-                                    <button className="c3d-gallery-next" onClick={() => setGalleryIdx(i => (i + 1) % gallery.length)}>›</button>
-                                </>
-                            )}
-                            <div className="c3d-gallery-counter">{galleryIdx + 1} / {gallery.length}</div>
+                            <img src={gallery[galleryIdx]} alt="room" className="c3d-gallery-img"/>
+                            {gallery.length > 1 && <>
+                                <button className="c3d-gallery-prev" onClick={()=>setGalleryIdx(i=>(i-1+gallery.length)%gallery.length)}>‹</button>
+                                <button className="c3d-gallery-next" onClick={()=>setGalleryIdx(i=>(i+1)%gallery.length)}>›</button>
+                            </>}
+                            <div className="c3d-gallery-counter">{galleryIdx+1} / {gallery.length}</div>
                         </div>
-
-                        {/* Thumbnails */}
                         <div className="c3d-gallery-thumbs">
-                            {gallery.map((src, i) => (
-                                <div
-                                    key={i}
-                                    className={`c3d-gallery-thumb ${i === galleryIdx ? "active" : ""}`}
-                                    onClick={() => setGalleryIdx(i)}
-                                >
-                                    <img src={src} alt={`photo ${i+1}`} />
+                            {gallery.map((src,i) => (
+                                <div key={i} className={`c3d-gallery-thumb ${i===galleryIdx?"active":""}`} onClick={()=>setGalleryIdx(i)}>
+                                    <img src={src} alt=""/>
                                 </div>
                             ))}
                         </div>
-
-                        {/* Nom de la pièce */}
-                        {activeRoom && (
-                            <div className="c3d-gallery-title" style={{ color: activeRoom.color }}>
-                                {activeRoom.label} · {activeRoom.area}
-                            </div>
-                        )}
+                        {activeRoom && <div className="c3d-gallery-title" style={{color:activeRoom.color}}>{activeRoom.label} · {activeRoom.area}</div>}
                     </div>
                 </div>
             )}
         </div>
     )
+}
+
+const COMMENTS: Record<number, { name: string; date: string; rating: number; text: string }[]> = {
+    1: [
+        { name: "Amina Touré", date: "2 days ago", rating: 5, text: "Visited this property last weekend — absolutely stunning. The pool and stone facade are even more impressive in person." },
+        { name: "James W.",    date: "1 week ago", rating: 4, text: "Great location and the house is immaculate. The open-plan living space is very well designed." },
+    ],
+    2: [{ name: "Sofia Chen",    date: "3 days ago", rating: 5, text: "Great value! The stone architecture is excellent and the pool terrace is perfect for entertaining." }],
+    3: [{ name: "Rania M.",      date: "5 days ago", rating: 5, text: "The rooftop terrace has an incredible view. Building management is responsive and the gym is well-equipped." }],
+    4: [
+        { name: "Lucas Bernard", date: "1 day ago",  rating: 5, text: "Dream property. The pool and chef kitchen are worth every cent. Very professional agent." },
+        { name: "Nadia P.",      date: "4 days ago", rating: 5, text: "By far the most impressive listing. The spa ensuite and stone walls are a showstopper." },
+    ],
+    5: [{ name: "Marco F.",      date: "1 week ago", rating: 4, text: "Perfect location. The pool access and private terrace are a real bonus." }],
+    6: [{ name: "Ella D.",       date: "3 days ago", rating: 4, text: "Great modern home. The private pool and flat roof design are very stylish." }],
 }
 
 // ── MAIN DASHBOARD ───────────────────────────────────────────────────
@@ -602,27 +580,30 @@ const ClientDashboard = () => {
                     </button>
 
                     <div className="detail-grid">
-                        {/* LEFT — gallery + comments */}
+                        {/* LEFT — hero image + gallery + comments */}
                         <div>
-                            {/* Main image + 3D button */}
-                            <div className="detail-main-img">
-                                <img src={selectedProp.img} alt={selectedProp.address} className="detail-main-photo" />
-                                <button className="detail-3d-btn" onClick={() => setShow3D(true)}>
-                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                                        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                                        <path d="M2 17l10 5 10-5"/>
-                                        <path d="M2 12l10 5 10-5"/>
-                                    </svg>
-                                    View in 3D
-                                </button>
-                            </div>
-
-                            <div className="detail-gallery-row">
-                                {selectedProp.gallery.map((src, i) => (
-                                    <div key={i} className="detail-thumb">
-                                        <img src={src} alt={`view ${i+1}`} className="detail-thumb-photo" />
-                                    </div>
-                                ))}
+                            <div className="detail-hero-block">
+                                {/* Grande image principale */}
+                                <div className="detail-main-img">
+                                    <img src={selectedProp.img} alt={selectedProp.address} className="detail-main-photo" />
+                                    {/* Bouton 3D positionné en bas à droite de l'image */}
+                                    <button className="detail-3d-btn" onClick={() => setShow3D(true)}>
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                                            <path d="M2 17l10 5 10-5"/>
+                                            <path d="M2 12l10 5 10-5"/>
+                                        </svg>
+                                        View in 3D
+                                    </button>
+                                </div>
+                                {/* Gallery thumbnails collées sous l'image */}
+                                <div className="detail-gallery-row">
+                                    {selectedProp.gallery.map((src, i) => (
+                                        <div key={i} className="detail-thumb">
+                                            <img src={src} alt={`view ${i+1}`} className="detail-thumb-photo" />
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
 
                             {/* Comments */}
@@ -668,8 +649,8 @@ const ClientDashboard = () => {
                             </div>
                         </div>
 
-                        {/* RIGHT — info panel */}
-                        <div>
+                        {/* RIGHT — info panel sticky */}
+                        <div className="detail-right-panel">
                             <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
                                 <span className={`badge badge-${selectedProp.status === "For Sale" ? "sale" : "rent"}`}>
                                     {selectedProp.status}
@@ -719,10 +700,28 @@ const ClientDashboard = () => {
                                 </button>
                             </div>
 
-                            <div className="detail-map">
-                                <IconMap size={28} color="var(--border2)" />
-                                <div style={{ fontWeight: 600, fontSize: 12, color: "var(--text2)" }}>Location Map</div>
-                                <div style={{ fontSize: 11 }}>Integrate Mapbox / Google Maps here</div>
+                            <div className="detail-map-wrap">
+                                <div className="detail-map-header">
+                                    <IconMap size={14} color="var(--gold)" />
+                                    <span>Localisation</span>
+                                    <span className="detail-map-addr">{selectedProp.address}</span>
+                                </div>
+                                <div className="detail-map-frame">
+                                    <iframe
+                                        title="map"
+                                        className="detail-map-iframe"
+                                        src={`https://www.openstreetmap.org/export/embed.html?bbox=1.1309%2C6.1096%2C1.2309%2C6.1696&layer=mapnik&marker=6.1375%2C1.2123`}
+                                        loading="lazy"
+                                    />
+                                    <a
+                                        href="https://www.openstreetmap.org/?mlat=6.1375&mlon=1.2123#map=14/6.1375/1.2123"
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="detail-map-link"
+                                    >
+                                        Ouvrir dans OpenStreetMap ↗
+                                    </a>
+                                </div>
                             </div>
 
                             <div className="card" style={{ marginTop: 12 }}>
