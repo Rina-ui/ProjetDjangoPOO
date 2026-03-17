@@ -1,0 +1,336 @@
+/* ─────────────────────────────────────────────────────────
+   src/style/comparator.css
+   Styles du comparateur 3D côte-à-côte
+   Préfixe : .cmp-  (CoMParator)
+   ───────────────────────────────────────────────────────── */
+
+/* ── OVERLAY ─────────────────────────────────────────────── */
+.cmp-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(8px);
+    z-index: 9999;
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px;
+    animation: cmp-fade .2s ease;
+}
+@keyframes cmp-fade { from { opacity: 0 } to { opacity: 1 } }
+
+/* ── MODAL ───────────────────────────────────────────────── */
+.cmp-modal {
+    background: #fff;
+    border-radius: 22px;
+    width: 100%; max-width: 1200px;
+    height: 90vh; max-height: 700px;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 40px 100px rgba(0,0,0,0.45);
+    animation: cmp-up .28s cubic-bezier(.2,.8,.3,1);
+}
+@keyframes cmp-up {
+    from { transform: translateY(28px) scale(.97); opacity: 0 }
+    to   { transform: translateY(0)    scale(1);   opacity: 1 }
+}
+
+/* ── EN-TÊTE ─────────────────────────────────────────────── */
+.cmp-header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 20px;
+    border-bottom: 1px solid #ece8e0;
+    background: #faf9f7;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+.cmp-header-left { flex: 1; min-width: 0; }
+.cmp-title { font-size: 14px; font-weight: 700; color: #1a1814; margin-bottom: 2px; }
+.cmp-sub   { font-size: 11px; color: #aaa; }
+
+/* Toggle vue 3D / tableau */
+.cmp-tabs {
+    display: flex;
+    background: #f0ede8;
+    border-radius: 30px; padding: 3px; gap: 2px;
+}
+.cmp-tab {
+    padding: 6px 16px; border-radius: 30px;
+    border: none; background: none;
+    font-size: 12px; font-weight: 600;
+    color: #888; cursor: pointer;
+    transition: all .18s;
+    font-family: 'DM Sans', sans-serif;
+}
+.cmp-tab.active { background: #fff; color: #1a1814; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+
+/* Toggle sync */
+.cmp-sync-toggle {
+    display: flex; align-items: center; gap: 7px;
+    cursor: pointer; font-size: 12px; color: #888;
+}
+.cmp-sync-toggle input { accent-color: #b8922a; width: 14px; height: 14px; cursor: pointer; }
+.cmp-sync-label { white-space: nowrap; }
+
+/* Bouton fermer */
+.cmp-close {
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 1px solid #ece8e0; background: none;
+    font-size: 15px; color: #999; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .15s; flex-shrink: 0;
+}
+.cmp-close:hover { background: #fef2f2; color: #c0392b; border-color: #fca5a5; }
+
+/* ── SECTION 3D ──────────────────────────────────────────── */
+.cmp-3d-section {
+    flex: 1; display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    min-height: 0; overflow: hidden;
+}
+
+/* Viewer wrapper */
+.cmp-viewer-wrap {
+    position: relative; overflow: hidden;
+    background: #2a2a2a;
+    min-height: 0;
+}
+
+.cmp-canvas {
+    width: 100%; height: 100%;
+    display: block; cursor: grab;
+}
+.cmp-canvas:active { cursor: grabbing; }
+
+/* Badge A / B */
+.cmp-viewer-label {
+    position: absolute; top: 14px; left: 14px;
+    width: 32px; height: 32px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 800; color: #fff;
+    z-index: 5;
+}
+.cmp-label-a { background: #b8922a; }
+.cmp-label-b { background: #1d4ed8; }
+
+/* Infos overlay en bas du canvas */
+.cmp-viewer-info {
+    position: absolute; bottom: 14px; left: 14px; right: 14px;
+    background: rgba(0,0,0,0.62);
+    backdrop-filter: blur(8px);
+    border-radius: 10px; padding: 8px 12px;
+    z-index: 5;
+}
+.cmp-viewer-price { font-size: 16px; font-weight: 800; color: #fff; margin-bottom: 2px; }
+.cmp-viewer-addr  { font-size: 11px; color: rgba(255,255,255,0.65); }
+
+/* Loading */
+.cmp-loading {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 12px; background: #2a2a2a; z-index: 6;
+    font-size: 13px; color: #888;
+}
+.cmp-spinner {
+    width: 30px; height: 30px;
+    border: 3px solid #444;
+    border-top-color: #b8922a;
+    border-radius: 50%;
+    animation: cmp-spin .75s linear infinite;
+}
+@keyframes cmp-spin { to { transform: rotate(360deg) } }
+
+/* Séparateur central VS */
+.cmp-divider {
+    width: 48px; flex-shrink: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: #1a1814; gap: 8px;
+}
+.cmp-divider-line {
+    width: 1px; flex: 1;
+    background: rgba(255,255,255,0.08);
+}
+.cmp-vs {
+    font-size: 11px; font-weight: 800;
+    color: rgba(255,255,255,0.4);
+    letter-spacing: 1px;
+}
+
+/* ── SECTION TABLEAU ─────────────────────────────────────── */
+.cmp-table-section {
+    flex: 1; overflow-y: auto;
+    padding: 20px 24px;
+    display: flex; flex-direction: column; gap: 16px;
+}
+
+/* Photos */
+.cmp-photos-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+}
+.cmp-photo-card {
+    border: 1px solid #ece8e0; border-radius: 14px;
+    overflow: hidden; position: relative;
+}
+.cmp-photo {
+    width: 100%; height: 140px;
+    object-fit: cover; display: block;
+}
+.cmp-photo-info {
+    padding: 10px 12px;
+}
+.cmp-photo-agent { display: block; font-size: 13px; font-weight: 700; color: #1a1814; margin-bottom: 2px; }
+.cmp-photo-addr  { display: block; font-size: 11px; color: #aaa; }
+
+/* Score badge sur la photo */
+.cmp-score-badge {
+    position: absolute; top: 10px; right: 10px;
+    font-size: 12px; font-weight: 800;
+    padding: 4px 10px; border-radius: 20px;
+    color: #fff;
+}
+.cmp-score-a { background: #b8922a; }
+.cmp-score-b { background: #1d4ed8; }
+
+/* Tableau comparatif */
+.cmp-table {
+    border: 1px solid #ece8e0; border-radius: 14px;
+    overflow: hidden;
+}
+.cmp-table-header {
+    display: grid; grid-template-columns: 140px 1fr 1fr;
+    background: #faf9f7; padding: 10px 16px;
+    border-bottom: 1px solid #ece8e0;
+}
+.cmp-th {
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .5px;
+    color: #bbb;
+}
+.cmp-th-a { color: #b8922a; }
+.cmp-th-b { color: #1d4ed8; }
+
+.cmp-table-row {
+    display: grid; grid-template-columns: 140px 1fr 1fr;
+    padding: 10px 16px;
+    border-bottom: 1px solid #f5f2ee;
+    transition: background .1s;
+}
+.cmp-table-row:last-child { border-bottom: none; }
+.cmp-table-row:hover { background: #faf9f7; }
+
+.cmp-td { font-size: 13px; color: #1a1814; display: flex; align-items: center; gap: 6px; }
+.cmp-td-label { font-size: 12px; color: #888; font-weight: 500; }
+
+/* Cellule gagnante */
+.cmp-winner { font-weight: 700; }
+.cmp-win-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #15803d; flex-shrink: 0;
+}
+
+/* Verdict */
+.cmp-verdict {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 18px; border-radius: 14px;
+    border: 1.5px solid;
+}
+.cmp-verdict-a { background: #fdf6e7; border-color: rgba(184,146,42,.3); }
+.cmp-verdict-b { background: #eff6ff; border-color: rgba(29,78,216,.2); }
+
+.cmp-verdict-icon { font-size: 24px; flex-shrink: 0; }
+.cmp-verdict-title { font-size: 14px; font-weight: 700; color: #1a1814; margin-bottom: 2px; }
+.cmp-verdict-sub   { font-size: 12px; color: #888; }
+
+/* ── PIED DE PAGE ─────────────────────────────────────────── */
+.cmp-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 20px;
+    border-top: 1px solid #ece8e0;
+    background: #faf9f7;
+    flex-shrink: 0; gap: 12px; flex-wrap: wrap;
+}
+.cmp-footer-props { display: flex; gap: 20px; }
+.cmp-footer-prop  { display: flex; align-items: center; gap: 8px; }
+.cmp-footer-badge {
+    width: 22px; height: 22px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 800; color: #fff; flex-shrink: 0;
+}
+.cmp-footer-a { background: #b8922a; }
+.cmp-footer-b { background: #1d4ed8; }
+.cmp-footer-name  { font-size: 12px; font-weight: 600; color: #1a1814; }
+.cmp-footer-price { font-size: 12px; color: #888; }
+
+.cmp-footer-actions { display: flex; gap: 8px; }
+.cmp-btn-book {
+    padding: 8px 20px; border-radius: 20px;
+    border: none; background: #b8922a; color: #fff;
+    font-size: 12px; font-weight: 700; cursor: pointer;
+    transition: opacity .15s; font-family: 'DM Sans', sans-serif;
+}
+.cmp-btn-book-b { background: #1d4ed8; }
+.cmp-btn-book:hover { opacity: .85; }
+
+/* ── BOUTON COMPARER SUR LES CARTES ──────────────────────── */
+.p-compare-btn {
+    position: absolute;
+    bottom: 10px; right: 10px;
+    z-index: 2;
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.8);
+    background: rgba(26,24,20,0.6);
+    backdrop-filter: blur(4px);
+    color: #fff; font-size: 14px; font-weight: 700;
+    cursor: pointer; display: flex;
+    align-items: center; justify-content: center;
+    transition: all .15s; line-height: 1;
+}
+.p-compare-btn:hover { background: #b8922a; border-color: #b8922a; }
+.p-compare-btn--active { background: #b8922a; border-color: #b8922a; }
+
+/* ── BARRE DE COMPARAISON EN BAS ─────────────────────────── */
+.cmp-bar {
+    position: fixed; bottom: 20px; left: 50%;
+    transform: translateX(-50%);
+    display: flex; align-items: center; gap: 12px;
+    background: #1a1814;
+    border-radius: 40px;
+    padding: 12px 20px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+    z-index: 999;
+    animation: cmp-fade .2s ease;
+    white-space: nowrap;
+}
+.cmp-bar-text {
+    font-size: 13px; color: rgba(255,255,255,0.7);
+    font-weight: 500;
+}
+.cmp-bar-props { display: flex; gap: 8px; }
+.cmp-bar-chip {
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(255,255,255,0.12);
+    border-radius: 20px; padding: 4px 10px;
+    font-size: 12px; color: #fff; font-weight: 500;
+}
+.cmp-bar-chip button {
+    background: none; border: none; color: rgba(255,255,255,0.5);
+    cursor: pointer; font-size: 12px; line-height: 1; padding: 0;
+    transition: color .1s;
+}
+.cmp-bar-chip button:hover { color: #fff; }
+.cmp-bar-btn {
+    background: #b8922a; color: #fff;
+    border: none; border-radius: 20px;
+    padding: 7px 18px; font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: opacity .15s;
+    font-family: 'DM Sans', sans-serif;
+}
+.cmp-bar-btn:hover { opacity: .85; }
+.cmp-bar-clear {
+    background: none; border: none;
+    color: rgba(255,255,255,0.4);
+    font-size: 12px; cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    transition: color .15s;
+}
+.cmp-bar-clear:hover { color: rgba(255,255,255,0.8); }
