@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.exceptions import ValidationError
 
 
 class Paiement(models.Model):
@@ -34,15 +35,27 @@ class Paiement(models.Model):
     )
     date_creation = models.DateTimeField(auto_now_add=True)
 
+    def clean(self):
+        if self.montant is not None and self.montant <= 0:
+            raise ValidationError("Le montant doit être supérieur à 0.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
     def valider(self):
         """Valide le paiement."""
+        if self.statut in ('ANNULE', 'REFUSE'):
+            raise ValidationError("Impossible de valider un paiement annulé ou refusé.")
         self.statut = 'VALIDE'
-        self.save()
+        super().save()
 
     def annuler(self):
         """Annule le paiement."""
+        if self.statut == 'ANNULE':
+            raise ValidationError("Ce paiement est déjà annulé.")
         self.statut = 'ANNULE'
-        self.save()
+        super().save()
 
     def __str__(self):
         return f"Paiement {self.montant} - {self.get_statut_display()}"
@@ -79,6 +92,14 @@ class Depense(models.Model):
         upload_to='factures/', null=True, blank=True
     )
     date_creation = models.DateTimeField(auto_now_add=True)
+
+    def clean(self):
+        if self.montant is not None and self.montant <= 0:
+            raise ValidationError("Le montant doit être supérieur à 0.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.get_type_depense_display()} - {self.montant}"

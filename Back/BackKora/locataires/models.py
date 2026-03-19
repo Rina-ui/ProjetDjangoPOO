@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 
@@ -24,6 +25,21 @@ class Locataire(models.Model):
     garant_telephone = models.CharField(max_length=20, blank=True)
     actif = models.BooleanField(default=True)
     date_inscription = models.DateTimeField(auto_now_add=True)
+
+    def payer_loyer(self, bail, montant, methode='ESPECES'):
+        from comptabilite.models import Paiement
+        return Paiement.objects.create(
+            bail=bail,
+            montant=montant,
+            date_paiement=timezone.now().date(),
+            methode=methode,
+        )
+
+    def consulter_historique(self):
+        from comptabilite.models import Paiement
+        return Paiement.objects.filter(
+            bail__locataire=self
+        ).order_by('-date_paiement')
 
     def __str__(self):
         return f"{self.prenom} {self.nom}"
@@ -58,18 +74,33 @@ class Bail(models.Model):
     actif = models.BooleanField(default=True)
     date_creation = models.DateTimeField(auto_now_add=True)
 
+    def clean(self):
+        if self.date_sortie and self.date_sortie <= self.date_entree:
+            raise ValidationError("La date de sortie doit être postérieure à la date d'entrée.")
+
+        if self.actif:
+            bail_existant = Bail.objects.filter(
+                bien=self.bien, actif=True
+            ).exclude(pk=self.pk).exists()
+            if bail_existant:
+                raise ValidationError("Ce bien a déjà un bail actif.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
     def resilier(self):
         """Résilie le bail."""
         self.actif = False
         self.date_sortie = timezone.now().date()
-        self.save()
+        super().save()
 
     def reviser_loyer(self):
         """Applique la révision du loyer selon le taux défini."""
         from decimal import Decimal
         revision = self.loyer_initial * (self.taux_revision / Decimal('100'))
         self.loyer_initial += revision
-        self.save()
+        super().save()
         return self.loyer_initial
 
     def est_expire(self):
