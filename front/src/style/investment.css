@@ -1,0 +1,281 @@
+/**
+ * investment.css
+ * Styles pour InvestmentTimeline — Analyseur Vendre vs Louer
+ * Préfixe : .itl-  (Investment TimeLine)
+ */
+
+/* ── CONTENEUR ───────────────────────────────────────────────── */
+.itl-wrap {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 22px 24px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    margin-top: 16px;
+}
+
+/* ── EN-TÊTE ─────────────────────────────────────────────────── */
+.itl-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.itl-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+.itl-sub   { font-size: 11px; color: var(--text3); }
+
+.itl-view-toggle {
+    display: flex;
+    background: #f5f3ef;
+    border-radius: 30px;
+    padding: 3px;
+    gap: 2px;
+    flex-shrink: 0;
+}
+.itl-view-btn {
+    padding: 6px 14px;
+    border-radius: 30px;
+    border: none;
+    background: none;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text3);
+    cursor: pointer;
+    transition: all .18s;
+    font-family: 'DM Sans', sans-serif;
+    white-space: nowrap;
+}
+.itl-view-btn.active {
+    background: #fff;
+    color: var(--text);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+}
+
+/* ── VERDICT ─────────────────────────────────────────────────── */
+.itl-verdict {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 18px;
+    border-radius: 14px;
+    border: 1.5px solid;
+    flex-wrap: wrap;
+}
+.itl-verdict--vendre {
+    background: #fdf6e7;
+    border-color: rgba(184,146,42,0.35);
+}
+.itl-verdict--louer {
+    background: #f0fdf4;
+    border-color: rgba(21,128,61,0.3);
+}
+
+.itl-verdict-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.itl-verdict--vendre .itl-verdict-icon { background: rgba(184,146,42,0.15); color: #b8922a; }
+.itl-verdict--louer  .itl-verdict-icon { background: rgba(21,128,61,0.12);  color: #15803d; }
+
+.itl-verdict-text { flex: 1; min-width: 160px; }
+.itl-verdict-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 3px;
+}
+.itl-verdict-title strong { font-weight: 800; }
+.itl-verdict-sub { font-size: 11px; color: var(--text3); line-height: 1.5; }
+
+/* Scores Vente vs Location */
+.itl-verdict-scores {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+.itl-score {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: rgba(0,0,0,0.04);
+    opacity: 0.5;
+    transition: all .2s;
+}
+.itl-score.active {
+    opacity: 1;
+    background: rgba(0,0,0,0.07);
+}
+.itl-score-num {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1;
+}
+.itl-score-lbl { font-size: 10px; color: var(--text3); font-weight: 500; }
+.itl-score-sep  { font-size: 11px; color: var(--text3); }
+
+/* ── PRIX RECOMMANDÉS ────────────────────────────────────────── */
+.itl-prix {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+}
+@media (max-width: 600px) {
+    .itl-prix { grid-template-columns: 1fr; }
+}
+
+.itl-prix-card {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 13px 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.itl-prix--vente { border-top: 3px solid #b8922a; background: #fdf6e7; }
+.itl-prix--loyer { border-top: 3px solid #15803d; background: #f0fdf4; }
+.itl-prix--base  { border-top: 3px solid #ece8e0; background: #faf9f7; }
+
+.itl-prix-lbl  { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; color: var(--text3); }
+.itl-prix-val  { font-size: 20px; font-weight: 800; letter-spacing: -.5px; color: var(--text); }
+.itl-prix-diff { font-size: 11px; color: var(--text3); }
+
+/* Input prix de base */
+.itl-prix-input {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text);
+    background: none;
+    border: none;
+    border-bottom: 1.5px solid var(--border);
+    outline: none;
+    padding: 2px 0;
+    font-family: 'DM Sans', sans-serif;
+    width: 100%;
+    letter-spacing: -.4px;
+}
+.itl-prix-input:focus { border-bottom-color: #b8922a; }
+
+/* ── FACTEURS ────────────────────────────────────────────────── */
+.itl-facteurs {
+    background: #faf9f7;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+}
+.itl-facteurs-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text2);
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+}
+.itl-facteurs-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.itl-facteur-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.itl-facteur-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text2);
+    width: 170px;
+    flex-shrink: 0;
+}
+.itl-facteur-stars { display: flex; gap: 3px; }
+.itl-star {
+    background: none;
+    border: none;
+    font-size: 18px;
+    color: #ddd;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    transition: color .12s, transform .1s;
+}
+.itl-star.active { color: #b8922a; }
+.itl-star:hover  { transform: scale(1.2); }
+
+.itl-facteur-score {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text3);
+    margin-left: auto;
+    width: 28px;
+    text-align: right;
+}
+
+/* ── GRAPHIQUE ───────────────────────────────────────────────── */
+.itl-chart { display: flex; flex-direction: column; gap: 8px; }
+.itl-chart-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+}
+.itl-legend {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+.itl-leg { font-size: 11px; font-weight: 500; }
+.itl-leg--gold  { color: #b8922a; }
+.itl-leg--green { color: #15803d; }
+
+/* ── HORIZON ─────────────────────────────────────────────────── */
+.itl-horizon {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.itl-horizon-lbl {
+    font-size: 12px;
+    color: var(--text3);
+    font-weight: 500;
+    margin-right: 4px;
+}
+.itl-horizon-btn {
+    padding: 5px 14px;
+    border-radius: 20px;
+    border: 1.5px solid var(--border);
+    background: none;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text2);
+    cursor: pointer;
+    transition: all .15s;
+    font-family: 'DM Sans', sans-serif;
+}
+.itl-horizon-btn:hover  { border-color: #b8922a; color: #b8922a; }
+.itl-horizon-btn.active { background: var(--text); border-color: var(--text); color: #fff; }
+
+/* ── NOTE ────────────────────────────────────────────────────── */
+.itl-note {
+    font-size: 10.5px;
+    color: var(--text3);
+    line-height: 1.55;
+    padding-top: 4px;
+    border-top: 1px solid var(--border);
+    margin: 0;
+}
