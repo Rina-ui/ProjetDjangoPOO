@@ -1,0 +1,27 @@
+# Environnements virtuels
+env/
+venv/
+
+# Fichiers compilés Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Fichiers de logs
+*.log
+
+# Fichiers de configuration IDE
+.idea/
+.vscode/
+
+# Fichiers de base de données SQLite
+*.sqlite3
+
+# Migrations auto-générées
+*/migrations/__pycache__/
+*/migrations/*.py
+
+# Fichiers statiques générés
+staticfiles/
+media/
