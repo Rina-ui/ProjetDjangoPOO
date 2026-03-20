@@ -1,10 +1,10 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-from .views import LocataireViewSet, BailViewSet
+from .views import QuittanceViewSet, DemandeContactViewSet
 
 router = DefaultRouter()
-router.register(r'locataires', LocataireViewSet)
-router.register(r'baux', BailViewSet)
+router.register(r'quittances', QuittanceViewSet)
+router.register(r'demandes', DemandeContactViewSet)
 
 urlpatterns = [
     path('api/', include(router.urls)),

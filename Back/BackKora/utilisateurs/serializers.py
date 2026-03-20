@@ -2,18 +2,36 @@ from rest_framework import serializers
 from .models import Utilisateur, Proprietaire, AuditLog
 
 
+from rest_framework import serializers
+from .models import Utilisateur, Proprietaire, AuditLog
+
+
 class UtilisateurSerializer(serializers.ModelSerializer):
     class Meta:
         model = Utilisateur
-        fields = ['id', 'username', 'password', 'role', 'date_creation']
+        fields = '__all__'
         extra_kwargs = {
             'password': {'write_only': True}
         }
 
     def create(self, validated_data):
-        user = Utilisateur.objects.create_user(**validated_data)
-        return user
+        user = Utilisateur.objects.create_user(
+            username=validated_data['username'],
+            password=validated_data['password'],
+            email=validated_data.get('email', ''),
+            role=validated_data.get('role', 'LOCATAIRE')
+        )
 
+        if user.role == 'PROPRIETAIRE':
+            Proprietaire.objects.create(
+                utilisateur=user,
+                nom=user.username,
+                prenom="",
+                email=user.email,
+                telephone=""
+            )
+
+        return user
 
 class ProprietaireSerializer(serializers.ModelSerializer):
     class Meta:
