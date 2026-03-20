@@ -8,12 +8,15 @@ class PatrimoineConfig(AppConfig):
     Configuration de l'application patrimoine.
     """
 
-    default_auto_field = 'django.db.models.BigAutoField'  # 🔥 recommandé (id auto moderne)
-    name = 'patrimoine'  # nom de l'app
+    # 🔥 recommandé pour Django moderne (ID auto)
+    default_auto_field = 'django.db.models.BigAutoField'
+
+    # Nom de l'application
+    name = 'patrimoine'
 
     def ready(self):
         """
         Méthode appelée au démarrage de Django.
-        Sert à enregistrer des signaux ou initialisations.
+        Sert à enregistrer les signaux.
         """
-        import patrimoine.signals  # 🔥 pour activer les signaux
+        import patrimoine.signals  # 🔥 active les signaux

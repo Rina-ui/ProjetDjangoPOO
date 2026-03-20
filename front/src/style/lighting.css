@@ -1,0 +1,144 @@
+/* ── CONTENEUR ───────────────────────────────────────────── */
+.ltg-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 14px;
+    background: rgba(0,0,0,0.45);
+    backdrop-filter: blur(10px);
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.08);
+}
+
+/* ── BOUTONS MODE ────────────────────────────────────────── */
+.ltg-modes {
+    display: flex;
+    gap: 6px;
+}
+
+.ltg-mode-btn {
+    flex: 1;
+    display: flex; flex-direction: column;
+    align-items: center; gap: 5px;
+    padding: 8px 6px;
+    background: rgba(255,255,255,0.06);
+    border: 1.5px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    color: rgba(255,255,255,0.5);
+    cursor: pointer;
+    transition: all .18s;
+    font-family: 'DM Sans', sans-serif;
+}
+.ltg-mode-btn span {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .3px;
+}
+.ltg-mode-btn:hover {
+    background: rgba(255,255,255,0.12);
+    color: rgba(255,255,255,0.85);
+    border-color: rgba(255,255,255,0.2);
+}
+
+/* Bouton actif — couleur selon le mode */
+.ltg-mode-btn.active {
+    border-color: transparent;
+    color: #fff;
+}
+
+/* Jour — jaune */
+.ltg-mode-btn:nth-child(1).active {
+    background: rgba(255,220,80,0.25);
+    border-color: rgba(255,220,80,0.5);
+    color: #ffe055;
+}
+
+/* Golden — orange */
+.ltg-mode-btn:nth-child(2).active {
+    background: rgba(255,120,40,0.25);
+    border-color: rgba(255,120,40,0.5);
+    color: #ff8833;
+}
+
+/* Nuit — bleu */
+.ltg-mode-btn:nth-child(3).active {
+    background: rgba(60,100,220,0.25);
+    border-color: rgba(60,100,220,0.5);
+    color: #7aabff;
+}
+
+/* ── POSITION DANS LE VIEWER 3D ──────────────────────────── */
+/* Ce div est positionné en absolu dans .c3d-canvas-wrap     */
+/* Ajoute position: relative sur .c3d-canvas-wrap si absent  */
+.c3d-lighting-wrap {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    z-index: 10;
+    width: 186px;
+    pointer-events: all;
+}
+
+/* ── SLIDER HEURE ────────────────────────────────────────── */
+.ltg-slider-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.ltg-hour-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.6);
+    text-align: center;
+    letter-spacing: .5px;
+    font-family: 'DM Sans', monospace;
+}
+
+.ltg-slider-track {
+    position: relative;
+    height: 8px;
+    border-radius: 20px;
+    overflow: hidden;
+}
+
+/* Le slider input recouvre toute la track */
+.ltg-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%; height: 8px;
+    background: transparent;
+    cursor: pointer;
+    margin: 0;
+    display: block;
+}
+.ltg-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+    cursor: pointer;
+    margin-top: -4px;
+}
+.ltg-slider::-moz-range-thumb {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+    cursor: pointer;
+    border: none;
+}
+.ltg-slider::-webkit-slider-runnable-track { background: transparent; height: 8px; border-radius: 20px; }
+.ltg-slider::-moz-range-track            { background: transparent; height: 8px; border-radius: 20px; }
+
+/* Ticks horaires */
+.ltg-slider-ticks {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    color: rgba(255,255,255,0.3);
+    font-weight: 500;
+    padding: 0 2px;
+}

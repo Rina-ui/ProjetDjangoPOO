@@ -1,3 +1,4 @@
+
 # patrimoine/views.py
 
 # ================================
@@ -225,3 +226,6 @@ class TypeBienViewSet(viewsets.ModelViewSet):
     """
     queryset = TypeBien.objects.all()
     serializer_class = TypeBienSerializer
+
+
+
