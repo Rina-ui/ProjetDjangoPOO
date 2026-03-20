@@ -3,7 +3,7 @@ import DashboardLayout from "../../../component/sidebar"
 import { useAuth } from "../../../context/AuthContext"
 import { useChat } from "../../../context/Chatcontext"
 import "../../../style/dashboard.css"
-import "../../../style/messages.css"
+import "../../../style/message.css"
 
 const NAV_ITEMS = [
     { label: "Overview",      path: "/dashboard/owner" },

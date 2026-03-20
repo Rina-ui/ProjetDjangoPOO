@@ -2,7 +2,7 @@ import { useState } from "react"
 import DashboardLayout from "../../../component/sidebar"
 import { useChat } from "../../../context/Chatcontext"
 import "../../../style/dashboard.css"
-import "../../../style/messages.css"
+import "../../../style/message.css"
 
 const NAV_ITEMS = [
     { label: "Dashboard",    path: "/dashboard/admin" },
