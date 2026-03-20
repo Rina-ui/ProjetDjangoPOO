@@ -1,7 +1,10 @@
-
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import { AuthProvider, useAuth } from "./context/AuthContext"
 import ProtectedRoute from "./routes/ProtectedRoute"
+
+// ── Pages 2FA
+import TwoFactorSetup  from "./view/auth/TwoFactorSetup"
+import TwoFactorVerify from "./view/auth/TwoFactorVerify"
 
 // ── Pages publiques
 import Home         from "./view/home"
@@ -31,7 +34,7 @@ import AdminTransactions from "./view/dashboard/admin/Transactions"
 import AdminCalendar    from "./view/dashboard/admin/Calendar"
 import AdminSettings    from "./view/dashboard/admin/Settings"
 
-// ── Redirect selon le rôle ────────────────────────────────
+// ── Redirect selon le rôle
 const DashboardRedirect = () => {
     const { user } = useAuth()
     if (!user) return <Navigate to="/login" replace />
@@ -40,19 +43,21 @@ const DashboardRedirect = () => {
     return <Navigate to="/dashboard/client" replace />
 }
 
-// ── App principal ─────────────────────────────────────────
+// ── App principal
 const App = () => (
     <AuthProvider>
         <BrowserRouter>
             <Routes>
-                {/* ── Public ─────────────────────────────── */}
+                {/* ── Public */}
                 <Route path="/"              element={<Home />} />
                 <Route path="/login"         element={<Login />} />
                 <Route path="/register"      element={<Register />} />
                 <Route path="/not-authorized" element={<NotAuthorized />} />
+                <Route path="/2fa/setup"  element={<TwoFactorSetup />} />
+                <Route path="/2fa/verify" element={<TwoFactorVerify />} />
                 <Route path="/dashboard"     element={<DashboardRedirect />} />
 
-                {/* ── Admin ──────────────────────────────── */}
+                {/* ── Admin */}
                 <Route path="/dashboard/admin" element={
                     <ProtectedRoute allowedRoles={["admin"]}><AdminDashboard /></ProtectedRoute>
                 }/>
@@ -72,7 +77,7 @@ const App = () => (
                     <ProtectedRoute allowedRoles={["admin"]}><AdminSettings /></ProtectedRoute>
                 }/>
 
-                {/* ── Owner ──────────────────────────────── */}
+                {/* ── Owner */}
                 <Route path="/dashboard/owner" element={
                     <ProtectedRoute allowedRoles={["owner"]}><OwnerOverview /></ProtectedRoute>
                 }/>
@@ -89,7 +94,7 @@ const App = () => (
                     <ProtectedRoute allowedRoles={["owner"]}><OwnerSettings /></ProtectedRoute>
                 }/>
 
-                {/* ── Client ─────────────────────────────── */}
+                {/* ── Client  */}
                 <Route path="/dashboard/client" element={
                     <ProtectedRoute allowedRoles={["client"]}><ClientBrowse /></ProtectedRoute>
                 }/>
@@ -106,7 +111,7 @@ const App = () => (
                     <ProtectedRoute allowedRoles={["client"]}><ClientSettings /></ProtectedRoute>
                 }/>
 
-                {/* ── Fallback ───────────────────────────── */}
+                {/* ── Fallback  */}
                 <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
         </BrowserRouter>
