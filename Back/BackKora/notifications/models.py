@@ -1,6 +1,10 @@
+import os
+
+from django.conf import settings
 from django.core.mail import EmailMessage
 from django.db import models
 from django.utils import timezone
+from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -23,30 +27,61 @@ class Quittance(models.Model):
     # models.py
 
     def generer_pdf(self):
-        file_name = f"quittance_{self.pk}.pdf"
-        file_path = f"media/quittances/{file_name}"
+        """Génère un PDF stylé pour la quittance."""
+        nom_fichier = f"quittance_{self.pk}.pdf"
+        chemin = os.path.join(settings.MEDIA_ROOT, "quittances")
+        os.makedirs(chemin, exist_ok=True)
+        chemin_complet = os.path.join(chemin, nom_fichier)
 
-        c = canvas.Canvas(file_path)
-        c.drawString(100, 800, f"Quittance #{self.pk}")
-        c.drawString(100, 780, f"Montant: {self.paiement.montant}")
-        c.drawString(100, 760, f"Date: {self.paiement.date_paiement}")
+        c = canvas.Canvas(chemin_complet, pagesize=A4)
+        largeur, hauteur = A4
+
+        # Header
+        c.setFont("Helvetica-Bold", 20)
+        c.drawCentredString(largeur / 2, hauteur - 50, "QUITTANCE DE LOYER")
+
+        # Logo si tu veux
+        # c.drawImage("chemin/logo.png", x, y, width, height)
+
+        c.setFont("Helvetica", 12)
+        y = hauteur - 100
+
+        c.drawString(50, y, f"Numéro de quittance : {self.pk}")
+        y -= 20
+        c.drawString(50, y, f"Date : {self.date_generation.strftime('%d/%m/%Y')}")
+        y -= 20
+        c.drawString(50, y, f"Locataire : {self.paiement.bail.locataire.prenom} {self.paiement.bail.locataire.nom}")
+        y -= 20
+        c.drawString(50, y, f"Bien : {self.paiement.bail.bien.adresse}")
+        y -= 20
+        c.drawString(50, y, f"Montant payé : {self.paiement.montant} FCFA")
+        y -= 20
+        c.drawString(50, y, f"Méthode : {self.paiement.methode}")
+
+        # Footer
+        c.setFont("Helvetica-Oblique", 10)
+        c.drawString(50, 50, "Merci pour votre paiement !")
+
         c.save()
 
-        self.fichier_pdf = f"quittances/{file_name}"
+        # Enregistre le chemin dans le modèle
+        self.fichier_pdf.name = f"quittances/{nom_fichier}"
         self.save()
 
     def envoyer_par_email(self):
+        # ❌ sécurité
         if not self.fichier_pdf:
-            raise ValueError("PDF non généré")
+            raise Exception("PDF non généré")
 
         locataire = self.paiement.bail.locataire
 
         if not locataire.email:
-            raise ValueError("Email du locataire manquant")
+            raise Exception("Email du locataire manquant")
 
+        # 📧 envoi
         email = EmailMessage(
-            subject='Quittance de loyer',
-            body='Veuillez trouver votre quittance en pièce jointe.',
+            subject="Votre quittance de loyer",
+            body="Veuillez trouver votre quittance en pièce jointe.",
             to=[locataire.email]
         )
 

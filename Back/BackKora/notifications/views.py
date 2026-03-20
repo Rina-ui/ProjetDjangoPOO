@@ -29,8 +29,8 @@ class QuittanceViewSet(viewsets.ModelViewSet):
         if not quittance.fichier_pdf:
             return Response({'error': 'Générer le PDF avant'}, status=400)
 
-        if quittance.envoyee:
-            return Response({'message': 'Déjà envoyée'}, status=400)
+        # if quittance.envoyee:
+        #     return Response({'message': 'Déjà envoyée'}, status=400)
 
         quittance.envoyer_par_email()
         quittance.envoyee = True

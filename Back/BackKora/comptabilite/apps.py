@@ -3,3 +3,5 @@ from django.apps import AppConfig
 
 class ComptabiliteConfig(AppConfig):
     name = 'comptabilite'
+    def  ready(self):
+        import  comptabilite.signals
