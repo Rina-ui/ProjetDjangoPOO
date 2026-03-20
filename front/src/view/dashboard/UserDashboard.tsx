@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useNavigate } from "react-router-dom"
 import DashboardLayout from "../../component/sidebar"
 import Viewer3D from "../../component/viewer3d"
 import {
@@ -8,6 +9,7 @@ import {
 import { PROPERTIES, COMMENTS } from "../../data/property"
 import PropertyComparator from "../../component/PropertyComparator"
 import type { Property, Comment } from "../../data/property"
+import { useChat } from "../../context/Chatcontext"
 import "../../style/dashboard.css"
 import "../../style/client3d.css"
 
@@ -19,19 +21,22 @@ const NAV_ITEMS = [
     { label: "Settings", path: "/dashboard/client/settings" },
 ]
 
-// ── COMPOSANT PRINCIPAL ───────────────────────────────────
 const ClientDashboard = () => {
-    const [activeType,   setActiveType]   = useState<"Buy" | "Rent" | "Sell">("Buy")
-    const [activeFilter, setActiveFilter] = useState("House")
-    const [viewMode,     setViewMode]     = useState<"grid" | "map">("grid")
-    const [search,       setSearch]       = useState("")
-    const [savedIds,     setSavedIds]     = useState<number[]>([2, 4])
-    const [selectedProp, setSelectedProp] = useState<Property | null>(null)
-    const [comment,      setComment]      = useState("")
-    const [allComments,  setAllComments]  = useState(COMMENTS)
-    const [show3D,       setShow3D]       = useState(false)
-    const [compareIds,   setCompareIds]   = useState<number[]>([])
+    const navigate = useNavigate()
+    const { openConversation } = useChat()
+
+    const [activeType,     setActiveType]     = useState<"Buy" | "Rent" | "Sell">("Buy")
+    const [activeFilter,   setActiveFilter]   = useState("House")
+    const [viewMode,       setViewMode]       = useState<"grid" | "map">("grid")
+    const [search,         setSearch]         = useState("")
+    const [savedIds,       setSavedIds]       = useState<number[]>([2, 4])
+    const [selectedProp,   setSelectedProp]   = useState<Property | null>(null)
+    const [comment,        setComment]        = useState("")
+    const [allComments,    setAllComments]    = useState(COMMENTS)
+    const [show3D,         setShow3D]         = useState(false)
+    const [compareIds,     setCompareIds]     = useState<number[]>([])
     const [showComparator, setShowComparator] = useState(false)
+    const [contacting,     setContacting]     = useState(false) // ← AJOUT 5
 
     const toggleSave = (id: number, e: React.MouseEvent) => {
         e.stopPropagation()
@@ -43,6 +48,23 @@ const ClientDashboard = () => {
         const newComment: Comment = { name: "You", date: "Just now", rating: 5, text: comment }
         setAllComments(prev => ({ ...prev, [selectedProp.id]: [newComment, ...(prev[selectedProp.id] || [])] }))
         setComment("")
+    }
+
+    // ── AJOUT 6 : handler Contact Owner ──────────────────
+    const handleContactOwner = async () => {
+        if (!selectedProp) return
+        setContacting(true)
+        try {
+            await openConversation(
+                selectedProp.id,
+                selectedProp.owner_id ?? 0
+            )
+            navigate("/dashboard/client/messages")
+        } catch {
+            console.error("Failed to open conversation")
+        } finally {
+            setContacting(false)
+        }
     }
 
     const filtered = PROPERTIES.filter(p => {
@@ -66,7 +88,7 @@ const ClientDashboard = () => {
                     </button>
 
                     <div className="detail-grid">
-                        {/* GAUCHE — images + commentaires */}
+                        {/* GAUCHE */}
                         <div>
                             <div className="detail-hero-block">
                                 <div className="detail-main-img">
@@ -127,7 +149,7 @@ const ClientDashboard = () => {
                             </div>
                         </div>
 
-                        {/* DROITE — infos sticky */}
+                        {/* DROITE */}
                         <div className="detail-right-panel">
                             <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
                                 <span className={`badge badge-${selectedProp.status === "For Sale" ? "sale" : "rent"}`}>{selectedProp.status}</span>
@@ -189,6 +211,7 @@ const ClientDashboard = () => {
                                 </div>
                             </div>
 
+                            {/* ── AGENT CARD avec bouton Contact Owner ── */}
                             <div className="card" style={{ marginTop: 12 }}>
                                 <div style={{ fontSize: 11, color: "var(--text3)", marginBottom: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".4px" }}>Listed by</div>
                                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -197,7 +220,15 @@ const ClientDashboard = () => {
                                         <div style={{ fontSize: 13, fontWeight: 700 }}>{selectedProp.agent}</div>
                                         <div style={{ fontSize: 11, color: "var(--text3)" }}>Certified Agent · KÔRÂ</div>
                                     </div>
-                                    <button className="btn-ghost" style={{ padding: "6px 12px", fontSize: 12 }}>Contact</button>
+                                    {/* ══ BOUTON CONTACT OWNER ══ */}
+                                    <button
+                                        className="btn-ghost"
+                                        style={{ padding: "6px 12px", fontSize: 12 }}
+                                        disabled={contacting}
+                                        onClick={handleContactOwner}
+                                    >
+                                        {contacting ? "Opening…" : "Contact Owner"}
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -264,7 +295,6 @@ const ClientDashboard = () => {
                                     <span>{prop.agent}</span>
                                 </div>
                                 <span className="p-3d-badge">3D</span>
-                                {/* Bouton comparer — sélectionne max 2 propriétés */}
                                 <button
                                     className={`p-compare-btn ${compareIds.includes(prop.id) ? "p-compare-btn--active" : ""}`}
                                     onClick={e => {
@@ -308,7 +338,7 @@ const ClientDashboard = () => {
                     </div>
                 )}
             </div>
-            {/* Barre de comparaison — apparaît quand 1 ou 2 propriétés sélectionnées */}
+
             {compareIds.length > 0 && (
                 <div className="cmp-bar">
                     <span className="cmp-bar-text">
@@ -334,7 +364,6 @@ const ClientDashboard = () => {
                 </div>
             )}
 
-            {/* Modal comparateur */}
             {showComparator && compareIds.length === 2 && (
                 <PropertyComparator
                     propA={PROPERTIES.find(p => p.id === compareIds[0])!}
