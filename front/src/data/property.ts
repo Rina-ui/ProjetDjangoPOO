@@ -1,5 +1,5 @@
 export interface Property {
-    id: number; agent: string; price: string; address: string
+    id: number; owner_id: number; agent: string; price: string; address: string
     beds: number; baths: number; sqft: string
     status: "For Sale" | "For Rent"; tag: string | null
     saved: boolean; views: number; rating: number; reviews: number
@@ -15,10 +15,9 @@ export interface Room {
     x: number; z: number; color: string; area: string; desc: string
 }
 
-// ── PROPRIÉTÉS ────────────────────────────────────────────
 export const PROPERTIES: Property[] = [
     {
-        id: 1, agent: "Brandon Levin", price: "$389,781",
+        id: 1, owner_id: 10, agent: "Brandon Levin", price: "$389,781",
         address: "6391 Elgin St, Celina, Delaware 10299",
         beds: 4, baths: 2, sqft: "1090", status: "For Sale", tag: "New",
         saved: false, views: 1240, rating: 4.8, reviews: 24,
@@ -32,7 +31,7 @@ export const PROPERTIES: Property[] = [
         features: ["Swimming Pool", "White Kitchen", "Open Plan", "Master Suite", "Flat Roof", "Double Garage"],
     },
     {
-        id: 2, agent: "Gustavo Calzoni", price: "$160,581",
+        id: 2, owner_id: 11, agent: "Gustavo Calzoni", price: "$160,581",
         address: "2715 Ash Dr, San Jose, South Dakota 83475",
         beds: 5, baths: 4, sqft: "2240", status: "For Sale", tag: null,
         saved: true, views: 876, rating: 4.5, reviews: 18,
@@ -46,7 +45,7 @@ export const PROPERTIES: Property[] = [
         features: ["Pool Terrace", "Kitchen Island", "Spa Bathroom", "Hardwood Floors", "Two Stories", "Large Garden"],
     },
     {
-        id: 3, agent: "Chance Dorwart", price: "$2,400 /mo",
+        id: 3, owner_id: 12, agent: "Chance Dorwart", price: "$2,400 /mo",
         address: "8502 Preston Rd, Inglewood, Maine 98380",
         beds: 3, baths: 2, sqft: "1850", status: "For Rent", tag: "Featured",
         saved: false, views: 543, rating: 4.7, reviews: 11,
@@ -60,7 +59,7 @@ export const PROPERTIES: Property[] = [
         features: ["Rooftop Terrace", "Pool", "Home Office", "Concierge", "Underground Parking", "Furnished"],
     },
     {
-        id: 4, agent: "Craig Herwitz", price: "$778,100",
+        id: 4, owner_id: 13, agent: "Craig Herwitz", price: "$778,100",
         address: "4140 Parker Rd, New Mexico 31134",
         beds: 4, baths: 2, sqft: "1090", status: "For Sale", tag: null,
         saved: true, views: 2100, rating: 4.9, reviews: 37,
@@ -74,7 +73,7 @@ export const PROPERTIES: Property[] = [
         features: ["Swimming Pool", "Chef Kitchen", "Home Office", "Walk-in Wardrobe", "Spa Ensuite", "Stone Facade"],
     },
     {
-        id: 5, agent: "Livia Rhiel", price: "$1,200 /mo",
+        id: 5, owner_id: 14, agent: "Livia Rhiel", price: "$1,200 /mo",
         address: "1234 Sunset Blvd, Los Angeles, CA 90028",
         beds: 2, baths: 1, sqft: "850", status: "For Rent", tag: null,
         saved: false, views: 390, rating: 4.2, reviews: 8,
@@ -88,7 +87,7 @@ export const PROPERTIES: Property[] = [
         features: ["Pool Access", "Private Terrace", "Modern Bedroom", "New Appliances", "Parking", "Walk to Shops"],
     },
     {
-        id: 6, agent: "Nolan Saris", price: "$245,000",
+        id: 6, owner_id: 15, agent: "Nolan Saris", price: "$245,000",
         address: "9876 Maple Ave, Chicago, IL 60601",
         beds: 3, baths: 2, sqft: "1400", status: "For Sale", tag: "Price Drop",
         saved: false, views: 720, rating: 4.4, reviews: 14,
@@ -103,7 +102,6 @@ export const PROPERTIES: Property[] = [
     },
 ]
 
-// ── COMMENTAIRES ──────────────────────────────────────────
 export const COMMENTS: Record<number, Comment[]> = {
     1: [
         { name: "Amina Touré", date: "2 days ago", rating: 5, text: "Visited this property last weekend — absolutely stunning. The pool and stone facade are even more impressive in person." },
@@ -119,7 +117,6 @@ export const COMMENTS: Record<number, Comment[]> = {
     6: [{ name: "Ella D.",  date: "3 days ago", rating: 4, text: "Great modern home. The private pool and flat roof design are very stylish." }],
 }
 
-// ── PIÈCES (pour le viewer 3D) ────────────────────────────
 export const ROOMS: Room[] = [
     { id: "living",  label: "Living Room",   floor: 0, x: -1.2, z: -0.5, color: "#b8922a", area: "42 m²", desc: "Open-plan with floor-to-ceiling windows and premium finishes." },
     { id: "kitchen", label: "Kitchen",        floor: 0, x:  1.2, z: -0.5, color: "#2a7ab8", area: "28 m²", desc: "Modern kitchen with island, gas range, and premium appliances." },

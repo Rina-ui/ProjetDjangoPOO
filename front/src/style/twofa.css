@@ -1,0 +1,272 @@
+/* src/style/twofa.css */
+
+/* ── SETUP CARD (no scroll — fixed height) ──────────────── */
+.tfa-setup-card {
+    background: #fff;
+    border-radius: 24px;
+    width: 420px;
+    height: 580px;
+    display: flex;
+    flex-direction: column;
+    padding: 28px 32px 24px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    overflow: hidden;
+    position: relative;
+}
+
+/* ── LOGO ───────────────────────────────────────────────── */
+.auth-logo {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+.auth-logo-mark {
+    width: 32px;
+    height: 32px;
+    background: #b8922a;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 17px;
+    font-weight: 700;
+    color: #fff;
+    flex-shrink: 0;
+}
+.auth-logo-text {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 19px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: 3px;
+}
+
+/* ── PROGRESS DOTS ──────────────────────────────────────── */
+.tfa-progress {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+.tfa-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--border2);
+    transition: all .3s ease;
+}
+.tfa-dot--active {
+    width: 24px;
+    border-radius: 4px;
+    background: #b8922a;
+}
+.tfa-dot--done {
+    background: #15803d;
+}
+
+/* ── SLIDE ANIMATION ────────────────────────────────────── */
+@keyframes slideInFwd  { from { opacity: 0; transform: translateX(48px)  } to { opacity: 1; transform: translateX(0) } }
+@keyframes slideInBwd  { from { opacity: 0; transform: translateX(-48px) } to { opacity: 1; transform: translateX(0) } }
+@keyframes slideOutFwd { from { opacity: 1; transform: translateX(0) } to { opacity: 0; transform: translateX(-48px)  } }
+@keyframes slideOutBwd { from { opacity: 1; transform: translateX(0) } to { opacity: 0; transform: translateX(48px) } }
+
+.tfa-pane { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+.tfa-pane--enter.tfa-pane--fwd { animation: slideInFwd  .3s cubic-bezier(.2,.8,.3,1) forwards; }
+.tfa-pane--enter.tfa-pane--bwd { animation: slideInBwd  .3s cubic-bezier(.2,.8,.3,1) forwards; }
+.tfa-pane--exit.tfa-pane--fwd  { animation: slideOutFwd .3s cubic-bezier(.2,.8,.3,1) forwards; }
+.tfa-pane--exit.tfa-pane--bwd  { animation: slideOutBwd .3s cubic-bezier(.2,.8,.3,1) forwards; }
+
+/* ── STEP CONTENT ───────────────────────────────────────── */
+.tfa-step-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+.tfa-step-content--center {
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+/* Step icon badge */
+.tfa-step-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+    flex-shrink: 0;
+}
+.tfa-step-icon--blue { background: #eff6ff; color: #1d4ed8; }
+.tfa-step-icon--gold { background: #fdf6e7; color: #b8922a; }
+
+.tfa-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    margin: 0 0 6px;
+    letter-spacing: -.3px;
+}
+.tfa-sub {
+    font-size: 13px;
+    color: var(--text2);
+    line-height: 1.55;
+    margin: 0 0 14px;
+}
+
+/* ── QR BOX ─────────────────────────────────────────────── */
+.tfa-qr-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 14px;
+    background: #faf9f7;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 12px;
+}
+.tfa-qr-img   { width: 150px; height: 150px; border-radius: 6px; }
+.tfa-qr-label { font-size: 11px; color: var(--text3); font-weight: 500; letter-spacing: .3px; }
+
+/* ── SECRET ─────────────────────────────────────────────── */
+.tfa-secret-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: var(--bg2);
+    border-radius: 8px;
+    border: 1px dashed var(--border2);
+    margin-bottom: 16px;
+}
+.tfa-secret-label { font-size: 11px; color: var(--text3); font-weight: 600; text-transform: uppercase; letter-spacing: .4px; }
+.tfa-secret-code  { font-family: monospace; font-size: 13px; font-weight: 700; letter-spacing: 2px; color: var(--text); user-select: all; }
+
+/* ── CODE INPUT ─────────────────────────────────────────── */
+.tfa-code-input {
+    width: 100%;
+    height: 60px;
+    text-align: center;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 10px;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    background: var(--bg);
+    color: var(--text);
+    outline: none;
+    margin: 12px 0 6px;
+    font-family: 'DM Sans', monospace;
+    transition: border-color .2s, box-shadow .2s;
+}
+.tfa-code-input:focus {
+    border-color: #b8922a;
+    box-shadow: 0 0 0 3px rgba(184,146,42,0.12);
+    background: #fff;
+}
+.tfa-code-input::placeholder { color: var(--border2); letter-spacing: 6px; }
+
+.tfa-timer { font-size: 11px; color: var(--text3); margin: 0 0 10px; text-align: center; }
+.tfa-error { font-size: 12px; color: #c0392b; background: #fef2f2; border-radius: 8px; padding: 8px 12px; margin-bottom: 10px; }
+
+/* ── BUTTONS ────────────────────────────────────────────── */
+.tfa-btn {
+    width: 100%;
+    padding: 12px 20px;
+    background: #1a1814;
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: opacity .15s, background .2s;
+    font-family: 'DM Sans', sans-serif;
+    margin-top: auto;
+    flex-shrink: 0;
+}
+.tfa-btn:hover:not(:disabled) { opacity: .85; }
+.tfa-btn:disabled { opacity: .45; cursor: not-allowed; }
+.tfa-btn--green   { background: #15803d; }
+.tfa-btn--success { background: #15803d; }
+
+.tfa-back {
+    background: none;
+    border: none;
+    font-size: 13px;
+    color: var(--text3);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    justify-content: center;
+    padding: 8px 0 0;
+    font-family: 'DM Sans', sans-serif;
+    transition: color .15s;
+    flex-shrink: 0;
+}
+.tfa-back:hover { color: var(--text); }
+
+/* Spinner */
+.tfa-spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(255,255,255,.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: tfa-spin .7s linear infinite;
+    display: inline-block;
+}
+@keyframes tfa-spin { to { transform: rotate(360deg) } }
+
+/* Check mark */
+.tfa-check { font-size: 16px; }
+
+/* ── SUCCESS RING ───────────────────────────────────────── */
+.tfa-success-ring {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: #f0fdf4;
+    border: 2px solid #bbf7d0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+    animation: tfa-pop .4s cubic-bezier(.2,.8,.3,1);
+}
+@keyframes tfa-pop {
+    from { transform: scale(.6); opacity: 0 }
+    to   { transform: scale(1);  opacity: 1 }
+}
+
+/* ── VERIFY PAGE ────────────────────────────────────────── */
+.tfa-verify-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    transition: all .3s;
+}
+.tfa-verify-wrap--done { opacity: .6; }
+
+.tfa-verify-shield {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: #fdf6e7;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 14px;
+}
