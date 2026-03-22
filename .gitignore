@@ -3,3 +3,7 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+
+# Ignorer les fichiers IDE
+.idea/
+*.iml
