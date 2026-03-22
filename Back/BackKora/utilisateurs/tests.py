@@ -127,3 +127,52 @@ class AuditLogSignalTest(TestCase):
         )
         logs = AuditLog.objects.filter(modele='AuditLog')
         self.assertFalse(logs.exists())
+
+
+class TwoFactorAuthTest(TestCase):
+    """Tests pour l'authentification 2FA (TOTP)."""
+
+    def setUp(self):
+        self.user = Utilisateur.objects.create_user(
+            username='user2fa', password='pass123'
+        )
+
+    def test_2fa_desactive_par_defaut(self):
+        self.assertEqual(self.user.otp_secret, '')
+
+    def test_activer_2fa(self):
+        secret = self.user.activer_2fa()
+        self.user.refresh_from_db()
+        self.assertEqual(len(secret), 32)
+        self.assertEqual(self.user.otp_secret, secret)
+
+    def test_desactiver_2fa(self):
+        self.user.activer_2fa()
+        self.user.desactiver_2fa()
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.otp_secret, '')
+
+    def test_verifier_otp_sans_2fa(self):
+        """Sans 2FA activé, verifier_otp retourne toujours True."""
+        self.assertTrue(self.user.verifier_otp('123456'))
+
+    def test_verifier_otp_code_valide(self):
+        import pyotp
+        self.user.activer_2fa()
+        totp = pyotp.TOTP(self.user.otp_secret)
+        code = totp.now()
+        self.assertTrue(self.user.verifier_otp(code))
+
+    def test_verifier_otp_code_invalide(self):
+        self.user.activer_2fa()
+        self.assertFalse(self.user.verifier_otp('000000'))
+
+    def test_generer_otp_uri(self):
+        self.user.activer_2fa()
+        uri = self.user.generer_otp_uri()
+        self.assertIn('otpauth://totp/', uri)
+        self.assertIn('user2fa', uri)
+        self.assertIn('LocationApp', uri)
+
+    def test_generer_otp_uri_sans_2fa(self):
+        self.assertIsNone(self.user.generer_otp_uri())

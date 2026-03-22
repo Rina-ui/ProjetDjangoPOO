@@ -1,3 +1,4 @@
+import pyotp
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth import authenticate, login, logout
 from django.db import models
@@ -18,6 +19,35 @@ class Utilisateur(AbstractUser):
         default='LOCATAIRE',
     )
     date_creation = models.DateTimeField(auto_now_add=True)
+    otp_secret = models.CharField(max_length=32, blank=True, default='')
+
+    def activer_2fa(self):
+        """Active le 2FA en générant un secret TOTP."""
+        self.otp_secret = pyotp.random_base32()
+        self.save()
+        return self.otp_secret
+
+    def desactiver_2fa(self):
+        """Désactive le 2FA."""
+        self.otp_secret = ''
+        self.save()
+
+    def verifier_otp(self, code):
+        """Vérifie un code OTP. Retourne True si 2FA désactivé ou code valide."""
+        if not self.otp_secret:
+            return True
+        totp = pyotp.TOTP(self.otp_secret)
+        return totp.verify(code)
+
+    def generer_otp_uri(self):
+        """Génère l'URI otpauth:// pour le QR code."""
+        if not self.otp_secret:
+            return None
+        totp = pyotp.TOTP(self.otp_secret)
+        return totp.provisioning_uri(
+            name=self.username,
+            issuer_name='LocationApp',
+        )
 
     def se_connecter(self, request, password):
         utilisateur = authenticate(request, username=self.username, password=password)
