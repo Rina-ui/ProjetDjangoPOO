@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     # 'comptabilite',
     'notifications',
     'comptabilite.apps.ComptabiliteConfig',
+    'chat',
 ]
 
 AUTH_USER_MODEL = 'utilisateurs.Utilisateur'
@@ -143,4 +144,11 @@ EMAIL_HOST_PASSWORD = 'nxdjmsyetwdiybmg'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
+    ],
+}
 

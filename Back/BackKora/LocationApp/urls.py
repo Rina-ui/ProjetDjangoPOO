@@ -24,4 +24,5 @@ urlpatterns = [
     path('', include("locataires.urls")),
     path('', include("notifications.urls")),
     path('', include("patrimoine.urls")),
+    path('', include("chat.urls")),
 ]
