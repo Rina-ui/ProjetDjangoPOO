@@ -17,6 +17,8 @@ class Utilisateur(AbstractUser):
         default='LOCATAIRE',
     )
     date_creation = models.DateTimeField(auto_now_add=True)
+    totp_secret    = models.CharField(max_length=32, blank=True, default='')
+    totp_enabled   = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.username} ({self.get_role_display()})"
