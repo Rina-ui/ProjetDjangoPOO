@@ -2,3 +2,11 @@
 __pycache__/
 .idea/
 .vscode/
+
+# Ignorer la base de données SQLite
+db.sqlite3
+# Ignorer les fichiers compilés Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
