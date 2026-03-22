@@ -18,10 +18,3 @@ __pycache__/
 # Fichiers de base de données SQLite
 *.sqlite3
 
-# Migrations auto-générées
-*/migrations/__pycache__/
-*/migrations/*.py
-
-# Fichiers statiques générés
-staticfiles/
-media/
