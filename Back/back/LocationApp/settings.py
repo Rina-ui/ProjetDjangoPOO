@@ -22,6 +22,8 @@ INSTALLED_APPS = [
     'locataires',
     'comptabilite',
     'notifications',
+    'channels',
+    'chat',
 ]
 
 AUTH_USER_MODEL = 'utilisateurs.Utilisateur'
@@ -78,3 +80,12 @@ CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:5173',
 ]
 CORS_ALLOW_CREDENTIALS = True
+
+
+ASGI_APPLICATION = 'LocationApp.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    }
+}

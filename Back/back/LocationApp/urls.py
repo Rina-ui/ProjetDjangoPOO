@@ -19,4 +19,5 @@ urlpatterns = [
     path('api/locataires/',    include('locataires.urls')),
     path('api/comptabilite/',  include('comptabilite.urls')),
     path('api/notifications/', include('notifications.urls')),
+    path('api/chat/', include('chat.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
