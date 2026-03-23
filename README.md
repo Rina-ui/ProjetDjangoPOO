@@ -338,6 +338,72 @@ POST /api/demandes/{id}/rejeter/
 }
 ```
 ----------------------------------------------------
+
+
+#### Creer une conversation en tant que locataire
+
+```
+http://127.0.0.1:8000/api/conversations/
+```
+
+```json
+{
+  "property_id": 1,
+  "owner_id": 2
+}
+```
+
+----------------------------------------------------
+
+#### Creer une conversation en tant que Proprio
+
+```
+http://127.0.0.1:8000/api/conversations/
+```
+
+```json
+{
+  "property_id": 1,
+  "locataire_id": 2
+}
+```
+-----------------------------------------------------------------
+
+#### Creer une message en tant que loc
+
+```
+http://127.0.0.1:8000/api/conversations/2/messages/
+```
+
+```json
+{
+  "text": "est disponible"
+}
+```
+----------------------------------------------------
+#### Creer une message en tant que proprio
+
+```
+http://127.0.0.1:8000/api/conversations/2/messages/
+```
+
+```json
+{
+  "text": "oui c disponible"
+}
+```
+----------------------------------------------------
+#### mettre  une conversation comme lu
+
+```
+http://127.0.0.1:8000/api/conversations/2/read/```
+
+```json
+{
+  "text": "oui c disponible"
+}
+```
+----------------------------------------------------
 ---
 
 
