@@ -21,7 +21,7 @@ class BienViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if user.is_staff or getattr(user, 'role', '') == 'ADMIN':
             return Bien.objects.all()
-        return Bien.objects.filter(en_ligne=True, statut__in=['VACANT', 'LOUE', 'EN_VENTE'])
+        return Bien.objects.filter(en_ligne=True)
 
     def get_serializer_context(self):
         return {'request': self.request}

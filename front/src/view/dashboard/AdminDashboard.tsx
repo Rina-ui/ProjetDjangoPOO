@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import DashboardLayout from "../../component/sidebar"
 import { IconPlus, IconBarChart } from "../../component/Icons"
 import "../../style/dashboard.css"
@@ -23,292 +23,124 @@ const TEAM = [
     { name: "Tina",  bg: "#b8d4c0" },
 ]
 
-const ACTIVITY = [
-    { date: "Nov 29, 2025", type: "Tenant Application",   desc: "Tenant signed lease for Unit 3C – Emerald Apartments",  status: "cancelled" },
-    { date: "Nov 15, 2025", type: "Property Viewing",     desc: "Property viewing scheduled for real estate dashboard",  status: "cancelled" },
-    { date: "Nov 08, 2025", type: "Rent Payment",         desc: "Rent payment processed for Unit 7A – Azure Apartments", status: "pending"   },
-    { date: "Nov 18, 2025", type: "Inspection Scheduled", desc: "KÔRÂ Inspection scheduled for management suite",        status: "pending"   },
-    { date: "Nov 03, 2025", type: "Offer Accepted",       desc: "Offer accepted for 12A – Skyview Apartments",           status: "finished"  },
-    { date: "Oct 28, 2025", type: "Lease Renewal",        desc: "Lease renewal completed for Unit 5B – Garden Court",    status: "finished"  },
-]
-
-// ── MODAL CRÉATION PROPRIÉTAIRE EN 3 ÉTAPES ──────────────
+// ── MODAL CRÉATION PROPRIÉTAIRE ───────────────────────────
 const CreateOwnerModal = ({ onClose }: { onClose: () => void }) => {
     const [step,    setStep]    = useState(1)
     const [loading, setLoading] = useState(false)
     const [error,   setError]   = useState("")
     const [success, setSuccess] = useState(false)
-
     const [form, setForm] = useState({
-        // Étape 1 — Compte
-        username:   "",
-        email:      "",
-        password:   "",
-        password2:  "",
-        // Étape 2 — Profil
-        first_name: "",
-        last_name:  "",
-        telephone:  "",
-        adresse:    "",
+        username: "", email: "", password: "", password2: "",
+        first_name: "", last_name: "", telephone: "", adresse: "",
     })
-
     const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
 
     const validateStep1 = () => {
-        if (!form.username || !form.email || !form.password || !form.password2) {
-            setError("Fill all fields"); return false
-        }
-        if (form.password !== form.password2) {
-            setError("Passwords do not match"); return false
-        }
-        if (form.password.length < 6) {
-            setError("Password must be at least 6 characters"); return false
-        }
+        if (!form.username || !form.email || !form.password || !form.password2) { setError("Fill all fields"); return false }
+        if (form.password !== form.password2) { setError("Passwords do not match"); return false }
+        if (form.password.length < 6) { setError("Password must be at least 6 characters"); return false }
         return true
     }
-
     const validateStep2 = () => {
-        if (!form.first_name || !form.last_name || !form.telephone) {
-            setError("Fill all required fields"); return false
-        }
+        if (!form.first_name || !form.last_name || !form.telephone) { setError("Fill all required fields"); return false }
         return true
     }
-
     const handleNext = () => {
         setError("")
         if (step === 1 && !validateStep1()) return
         if (step === 2 && !validateStep2()) return
         setStep(s => s + 1)
     }
-
     const handleCreate = async () => {
         setLoading(true); setError("")
         try {
             const token = localStorage.getItem("access_token")
-
-            // 1. Créer le compte utilisateur
             const res = await fetch(`${BASE_URL}/api/auth/register/`, {
-                method:  "POST",
+                method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    username:   form.username,
-                    email:      form.email,
-                    first_name: form.first_name,
-                    last_name:  form.last_name,
-                    password:   form.password,
-                    password2:  form.password2,
-                    role:       "PROPRIETAIRE",
-                })
+                body: JSON.stringify({ ...form, role: "PROPRIETAIRE" })
             })
-            if (!res.ok) {
-                const err = await res.json()
-                throw new Error(JSON.stringify(err))
-            }
+            if (!res.ok) { const err = await res.json(); throw new Error(JSON.stringify(err)) }
             const data = await res.json()
-
-            // 2. Mettre à jour le profil propriétaire
-            await fetch(`${BASE_URL}/api/patrimoine/proprietaires/`, {
-                method:  "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization:  `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    utilisateur: data.user.id,
-                    nom:         form.last_name,
-                    prenom:      form.first_name,
-                    email:       form.email,
-                    telephone:   form.telephone,
-                    adresse:     form.adresse,
-                })
+            await fetch(`${BASE_URL}/api/utilisateurs/proprietaires/`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ utilisateur: data.user.id, nom: form.last_name, prenom: form.first_name, email: form.email, telephone: form.telephone, adresse: form.adresse })
             })
-
             setSuccess(true)
         } catch (err: any) {
             setError(err.message || "Creation failed")
-        } finally {
-            setLoading(false)
-        }
+        } finally { setLoading(false) }
     }
 
+    const inputStyle = { width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", fontSize: 14, background: "var(--bg)", color: "var(--text)", outline: "none", boxSizing: "border-box" as const }
+
     return (
-        <div style={{
-            position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            zIndex: 1000
-        }}>
-            <div style={{
-                background: "#fff", borderRadius: 20, padding: 32,
-                width: 460, boxShadow: "0 20px 60px rgba(0,0,0,0.2)"
-            }}>
-                {/* Header */}
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+            <div style={{ background: "#fff", borderRadius: 20, padding: 32, width: 460, boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
                     <div>
-                        <div style={{ fontSize: 17, fontWeight: 700, color: "var(--text)" }}>Add Owner</div>
-                        <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}>
-                            Step {success ? "3" : step} of 3
-                        </div>
+                        <div style={{ fontSize: 17, fontWeight: 700 }}>Add Owner</div>
+                        <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}>Step {success ? 3 : step} of 3</div>
                     </div>
-                    <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "var(--text3)" }}>×</button>
+                    <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer" }}>×</button>
                 </div>
-
-                {/* Progress bar */}
                 <div style={{ display: "flex", gap: 6, marginBottom: 28 }}>
-                    {[1,2,3].map(n => (
-                        <div key={n} style={{
-                            flex: 1, height: 4, borderRadius: 2,
-                            background: n <= (success ? 3 : step) ? "#b8922a" : "var(--border)"
-                        }}/>
-                    ))}
+                    {[1,2,3].map(n => <div key={n} style={{ flex: 1, height: 4, borderRadius: 2, background: n <= (success ? 3 : step) ? "#b8922a" : "var(--border)" }}/>)}
                 </div>
 
-                {/* ── ÉTAPE 1 : Compte ── */}
                 {step === 1 && !success && (
                     <div>
-                        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16, color: "var(--text)" }}>
-                            Account credentials
-                        </div>
-                        {[
-                            { label: "Username",         key: "username",  type: "text" },
-                            { label: "Email",            key: "email",     type: "email" },
-                            { label: "Password",         key: "password",  type: "password" },
-                            { label: "Confirm password", key: "password2", type: "password" },
-                        ].map(f => (
+                        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Account credentials</div>
+                        {[{label:"Username",key:"username",type:"text"},{label:"Email",key:"email",type:"email"},{label:"Password",key:"password",type:"password"},{label:"Confirm password",key:"password2",type:"password"}].map(f => (
                             <div key={f.key} style={{ marginBottom: 14 }}>
-                                <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text2)", display: "block", marginBottom: 5 }}>
-                                    {f.label}
-                                </label>
-                                <input
-                                    type={f.type}
-                                    value={form[f.key as keyof typeof form]}
-                                    onChange={e => set(f.key, e.target.value)}
-                                    style={{
-                                        width: "100%", padding: "10px 12px", borderRadius: 10,
-                                        border: "1px solid var(--border)", fontSize: 14,
-                                        background: "var(--bg)", color: "var(--text)",
-                                        outline: "none", boxSizing: "border-box"
-                                    }}
-                                />
+                                <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text2)", display: "block", marginBottom: 5 }}>{f.label}</label>
+                                <input type={f.type} value={form[f.key as keyof typeof form]} onChange={e => set(f.key, e.target.value)} style={inputStyle}/>
                             </div>
                         ))}
                     </div>
                 )}
-
-                {/* ── ÉTAPE 2 : Profil ── */}
                 {step === 2 && !success && (
                     <div>
-                        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16, color: "var(--text)" }}>
-                            Owner profile
-                        </div>
-                        {[
-                            { label: "First name",   key: "first_name", type: "text",  required: true },
-                            { label: "Last name",    key: "last_name",  type: "text",  required: true },
-                            { label: "Phone",        key: "telephone",  type: "tel",   required: true },
-                            { label: "Address",      key: "adresse",    type: "text",  required: false },
-                        ].map(f => (
+                        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Owner profile</div>
+                        {[{label:"First name",key:"first_name",type:"text",req:true},{label:"Last name",key:"last_name",type:"text",req:true},{label:"Phone",key:"telephone",type:"tel",req:true},{label:"Address",key:"adresse",type:"text",req:false}].map(f => (
                             <div key={f.key} style={{ marginBottom: 14 }}>
-                                <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text2)", display: "block", marginBottom: 5 }}>
-                                    {f.label} {f.required && <span style={{ color: "#c0392b" }}>*</span>}
-                                </label>
-                                <input
-                                    type={f.type}
-                                    value={form[f.key as keyof typeof form]}
-                                    onChange={e => set(f.key, e.target.value)}
-                                    style={{
-                                        width: "100%", padding: "10px 12px", borderRadius: 10,
-                                        border: "1px solid var(--border)", fontSize: 14,
-                                        background: "var(--bg)", color: "var(--text)",
-                                        outline: "none", boxSizing: "border-box"
-                                    }}
-                                />
+                                <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text2)", display: "block", marginBottom: 5 }}>{f.label} {f.req && <span style={{ color: "#c0392b" }}>*</span>}</label>
+                                <input type={f.type} value={form[f.key as keyof typeof form]} onChange={e => set(f.key, e.target.value)} style={inputStyle}/>
                             </div>
                         ))}
                     </div>
                 )}
-
-                {/* ── ÉTAPE 3 : Confirmation ── */}
                 {step === 3 && !success && (
                     <div>
-                        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16, color: "var(--text)" }}>
-                            Confirm details
-                        </div>
+                        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Confirm details</div>
                         <div style={{ background: "var(--bg)", borderRadius: 12, padding: 16, marginBottom: 16 }}>
-                            {[
-                                { label: "Username",  value: form.username },
-                                { label: "Email",     value: form.email },
-                                { label: "Full name", value: `${form.first_name} ${form.last_name}` },
-                                { label: "Phone",     value: form.telephone },
-                                { label: "Address",   value: form.adresse || "—" },
-                                { label: "Role",      value: "Owner (Propriétaire)" },
-                            ].map(r => (
+                            {[{label:"Username",value:form.username},{label:"Email",value:form.email},{label:"Full name",value:`${form.first_name} ${form.last_name}`},{label:"Phone",value:form.telephone},{label:"Role",value:"Owner (Propriétaire)"}].map(r => (
                                 <div key={r.label} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--border)", fontSize: 13 }}>
-                                    <span style={{ color: "var(--text3)", fontWeight: 500 }}>{r.label}</span>
-                                    <span style={{ color: "var(--text)", fontWeight: 600 }}>{r.value}</span>
+                                    <span style={{ color: "var(--text3)" }}>{r.label}</span>
+                                    <span style={{ fontWeight: 600 }}>{r.value}</span>
                                 </div>
                             ))}
                         </div>
                     </div>
                 )}
-
-                {/* ── SUCCÈS ── */}
                 {success && (
                     <div style={{ textAlign: "center", padding: "20px 0" }}>
-                        <div style={{
-                            width: 64, height: 64, borderRadius: "50%",
-                            background: "#f0fdf4", border: "2px solid #bbf7d0",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            margin: "0 auto 16px"
-                        }}>
-                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#15803d" strokeWidth="2.5" strokeLinecap="round">
-                                <polyline points="20 6 9 17 4 12"/>
-                            </svg>
+                        <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#f0fdf4", border: "2px solid #bbf7d0", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#15803d" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
                         </div>
                         <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>Owner created!</div>
                         <div style={{ fontSize: 13, color: "var(--text3)", marginBottom: 24 }}>
-                            <strong>{form.first_name} {form.last_name}</strong> can now log in with username <strong>{form.username}</strong>
+                            <strong>{form.first_name} {form.last_name}</strong> can log in as <strong>{form.username}</strong>
                         </div>
-                        <button onClick={onClose} style={{
-                            background: "#1a1814", color: "#fff", border: "none",
-                            borderRadius: 12, padding: "12px 32px", fontSize: 14,
-                            fontWeight: 600, cursor: "pointer"
-                        }}>
-                            Done
-                        </button>
+                        <button onClick={onClose} style={{ background: "#1a1814", color: "#fff", border: "none", borderRadius: 12, padding: "12px 32px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Done</button>
                     </div>
                 )}
-
-                {/* Error */}
-                {error && (
-                    <div style={{ fontSize: 12, color: "#c0392b", background: "#fef2f2", borderRadius: 8, padding: "8px 12px", marginBottom: 14 }}>
-                        {error}
-                    </div>
-                )}
-
-                {/* Actions */}
+                {error && <div style={{ fontSize: 12, color: "#c0392b", background: "#fef2f2", borderRadius: 8, padding: "8px 12px", marginBottom: 14 }}>{error}</div>}
                 {!success && (
                     <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-                        {step > 1 && (
-                            <button
-                                onClick={() => { setError(""); setStep(s => s - 1) }}
-                                style={{
-                                    flex: 1, padding: "12px", borderRadius: 12,
-                                    border: "1px solid var(--border)", background: "transparent",
-                                    fontSize: 14, fontWeight: 600, cursor: "pointer", color: "var(--text)"
-                                }}
-                            >
-                                Back
-                            </button>
-                        )}
-                        <button
-                            onClick={step === 3 ? handleCreate : handleNext}
-                            disabled={loading}
-                            style={{
-                                flex: 1, padding: "12px", borderRadius: 12,
-                                border: "none", background: "#1a1814", color: "#fff",
-                                fontSize: 14, fontWeight: 600, cursor: "pointer",
-                                opacity: loading ? 0.6 : 1
-                            }}
-                        >
+                        {step > 1 && <button onClick={() => { setError(""); setStep(s => s - 1) }} style={{ flex: 1, padding: "12px", borderRadius: 12, border: "1px solid var(--border)", background: "transparent", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Back</button>}
+                        <button onClick={step === 3 ? handleCreate : handleNext} disabled={loading} style={{ flex: 1, padding: "12px", borderRadius: 12, border: "none", background: "#1a1814", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer", opacity: loading ? 0.6 : 1 }}>
                             {loading ? "Creating…" : step === 3 ? "Create Owner" : "Next →"}
                         </button>
                     </div>
@@ -323,13 +155,10 @@ const HouseSVG = () => (
     <svg viewBox="0 0 560 360" className="adm-house-svg" preserveAspectRatio="xMidYMax meet">
         <defs>
             <linearGradient id="bg-grad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#c8dff0"/>
-                <stop offset="55%" stopColor="#d8eaf8"/>
-                <stop offset="100%" stopColor="#e8f2f8"/>
+                <stop offset="0%" stopColor="#c8dff0"/><stop offset="55%" stopColor="#d8eaf8"/><stop offset="100%" stopColor="#e8f2f8"/>
             </linearGradient>
             <linearGradient id="grass-g" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#82b856"/>
-                <stop offset="100%" stopColor="#6a9e44"/>
+                <stop offset="0%" stopColor="#82b856"/><stop offset="100%" stopColor="#6a9e44"/>
             </linearGradient>
         </defs>
         <rect width="560" height="360" fill="#e8e8e6"/>
@@ -364,16 +193,94 @@ const HouseSVG = () => (
     </svg>
 )
 
+// ── DASHBOARD PRINCIPAL ───────────────────────────────────
 const AdminDashboard = () => {
     const [showCreateOwner, setShowCreateOwner] = useState(false)
+    const [pendingBiens,    setPendingBiens]    = useState<any[]>([])
+    const [showPending,     setShowPending]     = useState(false)
+    const [rejectMotif,     setRejectMotif]     = useState("")
+    const [rejectingId,     setRejectingId]     = useState<number|null>(null)
 
-    const r = 66, cx = 88, cy = 86
+    // Stats dynamiques
+    const [stats, setStats] = useState({
+        totalBiens:      0,
+        totalOwners:     0,
+        totalTenants:    0,
+        biensEnLigne:    0,
+        biensEnAttente:  0,
+    })
+
+    const token = localStorage.getItem("access_token")
+
+    useEffect(() => {
+        // Biens en attente de validation
+        fetch(`${BASE_URL}/api/patrimoine/biens/?statut=EN_ATTENTE_VALIDATION`, {
+            headers: { Authorization: `Bearer ${token}` }
+        })
+            .then(r => r.json())
+            .then(data => setPendingBiens(Array.isArray(data) ? data : data.results ?? []))
+            .catch(() => {})
+
+        // Stats — tous les biens
+        fetch(`${BASE_URL}/api/patrimoine/biens/`, {
+            headers: { Authorization: `Bearer ${token}` }
+        })
+            .then(r => r.json())
+            .then(data => {
+                const list = Array.isArray(data) ? data : data.results ?? []
+                setStats(s => ({
+                    ...s,
+                    totalBiens:     list.length,
+                    biensEnLigne:   list.filter((b: any) => b.en_ligne).length,
+                    biensEnAttente: list.filter((b: any) => b.statut === 'EN_ATTENTE_VALIDATION').length,
+                }))
+            })
+            .catch(() => {})
+
+        // Stats — utilisateurs
+        fetch(`${BASE_URL}/api/utilisateurs/users/`, {
+            headers: { Authorization: `Bearer ${token}` }
+        })
+            .then(r => r.json())
+            .then(data => {
+                const list = Array.isArray(data) ? data : data.results ?? []
+                setStats(s => ({
+                    ...s,
+                    totalOwners:  list.filter((u: any) => u.role === 'PROPRIETAIRE').length,
+                    totalTenants: list.filter((u: any) => u.role === 'LOCATAIRE').length,
+                }))
+            })
+            .catch(() => {})
+    }, [])
+
+    const handleValider = async (id: number) => {
+        await fetch(`${BASE_URL}/api/patrimoine/biens/${id}/valider/`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` }
+        })
+        setPendingBiens(prev => prev.filter(b => b.id !== id))
+        setStats(s => ({ ...s, biensEnAttente: s.biensEnAttente - 1, biensEnLigne: s.biensEnLigne + 1 }))
+    }
+
+    const handleRejeter = async (id: number) => {
+        if (!rejectMotif.trim()) return
+        await fetch(`${BASE_URL}/api/patrimoine/biens/${id}/rejeter/`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ motif: rejectMotif })
+        })
+        setPendingBiens(prev => prev.filter(b => b.id !== id))
+        setStats(s => ({ ...s, biensEnAttente: s.biensEnAttente - 1 }))
+        setRejectingId(null)
+        setRejectMotif("")
+    }
+
+    const r2 = 66, cx = 88, cy = 86
     const toRad = (d: number) => (d * Math.PI) / 180
     const pt = (pct: number) => {
         const a = -210 + 240 * pct
-        return { x: +(cx + r * Math.cos(toRad(a))).toFixed(2), y: +(cy + r * Math.sin(toRad(a))).toFixed(2) }
+        return { x: +(cx + r2 * Math.cos(toRad(a))).toFixed(2), y: +(cy + r2 * Math.sin(toRad(a))).toFixed(2) }
     }
-    const s = pt(0), e = pt(1), f = pt(0.68)
 
     return (
         <DashboardLayout
@@ -386,6 +293,69 @@ const AdminDashboard = () => {
             }
         >
             {showCreateOwner && <CreateOwnerModal onClose={() => setShowCreateOwner(false)}/>}
+
+            {/* ── PENDING VALIDATION BANNER ── */}
+            {pendingBiens.length > 0 && (
+                <div style={{
+                    background: "#fffbeb", border: "1px solid #f0d980", borderRadius: 14,
+                    padding: "14px 20px", marginBottom: 20,
+                    display: "flex", alignItems: "center", justifyContent: "space-between"
+                }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#fef3c7", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#b8922a" strokeWidth="2">
+                                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                                <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: "#92400e" }}>{pendingBiens.length} property pending validation</div>
+                            <div style={{ fontSize: 12, color: "#b45309" }}>Review and approve or reject listings</div>
+                        </div>
+                    </div>
+                    <button onClick={() => setShowPending(!showPending)} style={{
+                        padding: "8px 16px", borderRadius: 10, border: "1px solid #f0d980",
+                        background: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", color: "#92400e"
+                    }}>
+                        {showPending ? "Hide" : "Review →"}
+                    </button>
+                </div>
+            )}
+
+            {/* ── PENDING LIST ── */}
+            {showPending && pendingBiens.length > 0 && (
+                <div style={{ background: "#fff", borderRadius: 14, padding: 20, border: "1px solid var(--border)", marginBottom: 20 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Properties awaiting validation</div>
+                    {pendingBiens.map(b => (
+                        <div key={b.id} style={{ display: "flex", alignItems: "flex-start", gap: 14, padding: "14px 0", borderBottom: "1px solid var(--border)" }}>
+                            <div style={{ width: 56, height: 56, borderRadius: 10, background: "var(--bg2)", flexShrink: 0, overflow: "hidden" }}>
+                                {b.photos_list?.[0] && <img src={`${BASE_URL}${b.photos_list[0].image}`} style={{ width: "100%", height: "100%", objectFit: "cover" }}/>}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: 13, fontWeight: 700 }}>{b.adresse}</div>
+                                <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}>
+                                    {b.proprietaire_nom} · {b.loyer_hc} / mo
+                                </div>
+                                {b.description && <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.description}</div>}
+                                {rejectingId === b.id && (
+                                    <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
+                                        <input placeholder="Reason for rejection…" value={rejectMotif} onChange={e => setRejectMotif(e.target.value)}
+                                               style={{ flex: 1, padding: "8px 12px", borderRadius: 8, border: "1px solid #f0d980", fontSize: 13, outline: "none", background: "#fffbeb" }}/>
+                                        <button onClick={() => handleRejeter(b.id)} style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: "#c0392b", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Send</button>
+                                        <button onClick={() => { setRejectingId(null); setRejectMotif("") }} style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid var(--border)", background: "transparent", fontSize: 13, cursor: "pointer" }}>Cancel</button>
+                                    </div>
+                                )}
+                            </div>
+                            {rejectingId !== b.id && (
+                                <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                                    <button onClick={() => handleValider(b.id)} style={{ padding: "8px 16px", borderRadius: 10, border: "none", background: "#15803d", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>✓ Approve</button>
+                                    <button onClick={() => setRejectingId(b.id)} style={{ padding: "8px 16px", borderRadius: 10, border: "1px solid #c0392b", background: "transparent", color: "#c0392b", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>✕ Reject</button>
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            )}
 
             <div className="adm">
                 <div className="adm-hero">
@@ -412,11 +382,12 @@ const AdminDashboard = () => {
                     <div className="adm-hero-img"><HouseSVG /></div>
                 </div>
 
+                {/* ── KPI PILLS DYNAMIQUES ── */}
                 <div className="adm-pills">
                     {[
-                        { val: "24", label: "PROPERTY", desc: "Ensuring portfolio stability through continuous property monitoring." },
-                        { val: "18", label: "OWNER",    desc: "Measuring owner engagement to elevate team productivity." },
-                        { val: "32", label: "TENANTS",  desc: "Visualizing tenant trends to forecast revenue with precision." },
+                        { val: String(stats.totalBiens),     label: "PROPERTIES", desc: "Total properties in the platform." },
+                        { val: String(stats.totalOwners),    label: "OWNERS",     desc: "Registered property owners." },
+                        { val: String(stats.totalTenants),   label: "TENANTS",    desc: "Registered tenants on KÔRÂ." },
                     ].map(k => (
                         <div className="adm-pill" key={k.label}>
                             <div className="adm-pill-left">
@@ -435,35 +406,15 @@ const AdminDashboard = () => {
                         <div className="adm-card-hd">
                             <div className="adm-card-hd-left">
                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
-                                Risk Overview
-                            </div>
-                            <span className="adm-card-link">↗</span>
-                        </div>
-                        <div className="adm-gauge-wrap">
-                            <svg viewBox="0 0 176 110" className="adm-gauge-svg">
-                                <defs>
-                                    <linearGradient id="gg" x1="0" y1="0" x2="1" y2="0">
-                                        <stop offset="0%"   stopColor="#e8c040"/>
-                                        <stop offset="70%"  stopColor="#b89020"/>
-                                        <stop offset="100%" stopColor="#50a868"/>
-                                    </linearGradient>
-                                </defs>
-                                <path d={`M${s.x} ${s.y} A${r} ${r} 0 1 1 ${e.x} ${e.y}`} fill="none" stroke="#ede9e0" strokeWidth="9" strokeLinecap="round"/>
-                                <path d={`M${s.x} ${s.y} A${r} ${r} 0 0 1 ${f.x} ${f.y}`} fill="none" stroke="url(#gg)"   strokeWidth="9" strokeLinecap="round"/>
-                                <circle cx={f.x} cy={f.y} r="5" fill="#b8922a" stroke="white" strokeWidth="2"/>
-                            </svg>
-                            <div className="adm-gauge-center">
-                                <div className="adm-gauge-val">$487K</div>
-                                <div className="adm-gauge-lbl">Estimated Property Value</div>
-                                <div className="adm-gauge-risk">Moderate Risk</div>
+                                Platform Overview
                             </div>
                         </div>
                         <div className="adm-risk-bars">
                             {[
-                                { label: "Structural Condition",   pct: 92, color: "#50a868" },
-                                { label: "Rental Market Strength", pct: 85, color: "#50a868" },
-                                { label: "Location Score",         pct: 78, color: "#c89828" },
-                                { label: "Vacancy Risk",           pct: 34, color: "#e05030" },
+                                { label: "Properties Online",    pct: stats.totalBiens > 0 ? Math.round(stats.biensEnLigne / stats.totalBiens * 100) : 0,   color: "#50a868" },
+                                { label: "Pending Validation",   pct: stats.totalBiens > 0 ? Math.round(stats.biensEnAttente / stats.totalBiens * 100) : 0, color: "#e8c040" },
+                                { label: "Owner Engagement",     pct: 78, color: "#c89828" },
+                                { label: "Tenant Satisfaction",  pct: 91, color: "#50a868" },
                             ].map(b => (
                                 <div className="adm-rbar" key={b.label}>
                                     <div className="adm-rbar-top"><span>{b.label}</span><span>{b.pct}%</span></div>
@@ -479,14 +430,13 @@ const AdminDashboard = () => {
                         <div className="adm-card-hd">
                             <div className="adm-card-hd-left">
                                 <IconBarChart size={13} color="currentColor"/>
-                                Portfolio Performance Metrics
+                                Portfolio Performance
                             </div>
-                            <span className="adm-card-link">↗</span>
                         </div>
                         <div className="adm-perf-kpis">
-                            <div className="adm-perf-kpi"><span className="adm-perf-val">9.4%</span><span className="adm-perf-lbl">Average ROI</span></div>
-                            <div className="adm-perf-kpi"><span className="adm-perf-val">4.1%</span><span className="adm-perf-lbl">Vacancy Rate</span></div>
-                            <div className="adm-perf-kpi"><span className="adm-perf-val">417</span><span className="adm-perf-lbl">Active Leases</span></div>
+                            <div className="adm-perf-kpi"><span className="adm-perf-val">{stats.biensEnLigne}</span><span className="adm-perf-lbl">Online</span></div>
+                            <div className="adm-perf-kpi"><span className="adm-perf-val">{stats.biensEnAttente}</span><span className="adm-perf-lbl">Pending</span></div>
+                            <div className="adm-perf-kpi"><span className="adm-perf-val">{stats.totalBiens}</span><span className="adm-perf-lbl">Total</span></div>
                         </div>
                         <div className="adm-bars-chart">
                             {[58,75,48,88,65,82,55,92,70,85,45,78].map((h,i) => (
@@ -506,23 +456,24 @@ const AdminDashboard = () => {
                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
                                 Recent Activity
                             </div>
-                            <span className="adm-card-link">↗</span>
                         </div>
-                        <table className="adm-act-table">
-                            <thead>
-                            <tr><th>Date</th><th>Activity Type</th><th>Description</th><th>Status</th></tr>
-                            </thead>
-                            <tbody>
-                            {ACTIVITY.map((a,i) => (
-                                <tr key={i}>
-                                    <td className="adm-act-date">{a.date}</td>
-                                    <td className="adm-act-type">{a.type}</td>
-                                    <td className="adm-act-desc">{a.desc}</td>
-                                    <td><span className={`adm-status adm-status--${a.status}`}>{a.status.charAt(0).toUpperCase()+a.status.slice(1)}</span></td>
-                                </tr>
-                            ))}
-                            </tbody>
-                        </table>
+                        {pendingBiens.length > 0 ? (
+                            <table className="adm-act-table">
+                                <thead><tr><th>Property</th><th>Owner</th><th>Rent</th><th>Status</th></tr></thead>
+                                <tbody>
+                                {pendingBiens.slice(0, 6).map((b, i) => (
+                                    <tr key={i}>
+                                        <td className="adm-act-type">{b.adresse}</td>
+                                        <td className="adm-act-desc">{b.proprietaire_nom}</td>
+                                        <td className="adm-act-date">{b.loyer_hc}</td>
+                                        <td><span className="adm-status adm-status--pending">Pending</span></td>
+                                    </tr>
+                                ))}
+                                </tbody>
+                            </table>
+                        ) : (
+                            <div style={{ padding: "20px 0", color: "var(--text3)", fontSize: 13 }}>No pending activity</div>
+                        )}
                     </div>
                 </div>
             </div>
