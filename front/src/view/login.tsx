@@ -1,29 +1,32 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { useAuth, type Role } from "../context/AuthContext"
+import { useAuth } from "../context/AuthContext"
 import "../style/auth.css"
 
 const Login = () => {
     const navigate = useNavigate()
     const { login } = useAuth()
-    const [email, setEmail] = useState("")
-    const [password, setPassword] = useState("")
-    const [mockRole, setMockRole] = useState<Role>("client")
-    const [error, setError] = useState(false)
-    const [loading, setLoading] = useState(false)
 
-    const handleSubmit = () => {
-        if (!email || !password) {
-            setError(true)
-            setTimeout(() => setError(false), 500)
+    const [username, setUsername] = useState("")
+    const [password, setPassword] = useState("")
+    const [error,    setError]    = useState("")
+    const [loading,  setLoading]  = useState(false)
+
+    const handleSubmit = async () => {
+        if (!username || !password) {
+            setError("Remplis tous les champs")
             return
         }
         setLoading(true)
-        setTimeout(() => {
-            login(mockRole)
-            setLoading(false)
+        setError("")
+        try {
+            await login(username, password)
             navigate("/dashboard")
-        }, 1200)
+        } catch (err: any) {
+            setError("Identifiants incorrects")
+        } finally {
+            setLoading(false)
+        }
     }
 
     return (
@@ -39,32 +42,35 @@ const Login = () => {
                     <p>Sign in to your account</p>
                 </div>
 
-                {/* Dev role selector */}
-                <div className="mock-selector">
-                    <span className="mock-selector-lbl">Dev mode — Select role to preview</span>
-                    <div className="mock-btns">
-                        {(["client", "owner", "admin"] as Role[]).map(r => (
-                            <button
-                                key={r}
-                                className={`mock-btn ${mockRole === r ? "mock-btn--active" : ""}`}
-                                onClick={() => setMockRole(r)}
-                            >
-                                {r === "client" ? "Client" : r === "owner" ? "Owner" : "Admin"}
-                            </button>
-                        ))}
-                    </div>
+                <div className="input-group">
+                    <input
+                        type="text"
+                        placeholder=" "
+                        value={username}
+                        onChange={e => setUsername(e.target.value)}
+                        onKeyDown={e => e.key === "Enter" && handleSubmit()}
+                    />
+                    <label>Username</label>
                 </div>
-
-                <div className={`input-group ${error ? "input-error" : ""}`}>
-                    <input type="email" placeholder=" " value={email} onChange={e => setEmail(e.target.value)} />
-                    <label>Email address</label>
-                </div>
-                <div className={`input-group ${error ? "input-error" : ""}`}>
-                    <input type="password" placeholder=" " value={password} onChange={e => setPassword(e.target.value)} />
+                <div className="input-group">
+                    <input
+                        type="password"
+                        placeholder=" "
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        onKeyDown={e => e.key === "Enter" && handleSubmit()}
+                    />
                     <label>Password</label>
                 </div>
+
+                {error && <div className="auth-error">{error}</div>}
+
                 <div className="auth-forgot"><span>Forgot password?</span></div>
-                <button className={`btn-auth ${loading ? "loading" : ""}`} onClick={handleSubmit} disabled={loading}>
+                <button
+                    className={`btn-auth ${loading ? "loading" : ""}`}
+                    onClick={handleSubmit}
+                    disabled={loading}
+                >
                     {loading ? <span className="spinner" /> : "Sign In"}
                 </button>
                 <p className="auth-footer">
