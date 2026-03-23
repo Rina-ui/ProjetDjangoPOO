@@ -8,6 +8,51 @@ from .models import Conversation, Message
 from .serializers import ConversationSerializer, MessageSerializer
 
 
+def push_message_to_channels(conv, msg, sender):
+    """Pousse le message dans le groupe chat ET dans les notifs du destinataire."""
+    try:
+        from channels.layers import get_channel_layer
+        from asgiref.sync import async_to_sync
+
+        channel_layer = get_channel_layer()
+
+        msg_payload = {
+            'id':          msg.id,
+            'sender_id':   sender.id,
+            'sender_name': f"{sender.first_name} {sender.last_name}".strip() or sender.username,
+            'text':        msg.text,
+            'created_at':  msg.created_at.isoformat(),
+            'read':        False,
+        }
+
+        # 1. Pousser dans le groupe de la conversation (les deux participants l'écoutent)
+        async_to_sync(channel_layer.group_send)(
+            f"chat_{conv.id}",
+            {
+                'type':            'chat_message',
+                'conversation_id': conv.id,
+                'message':         msg_payload,
+            }
+        )
+
+        # 2. Pousser une notification au destinataire (celui qui n'a pas envoyé)
+        recipient = conv.proprietaire if sender == conv.client else conv.client
+        async_to_sync(channel_layer.group_send)(
+            f"notifs_{recipient.id}",
+            {
+                'type': 'notification',
+                'data': {
+                    'type':            'new_message',
+                    'conversation_id': conv.id,
+                    'message':         msg_payload,
+                }
+            }
+        )
+
+    except Exception as e:
+        print(f"[WS push error] {e}")
+
+
 class ConversationViewSet(viewsets.ModelViewSet):
     serializer_class   = ConversationSerializer
     permission_classes = [IsAuthenticated]
@@ -54,28 +99,7 @@ class ConversationViewSet(viewsets.ModelViewSet):
             text=text
         )
 
-        # Pousser via WebSocket
-        try:
-            from channels.layers import get_channel_layer
-            from asgiref.sync import async_to_sync
-            channel_layer = get_channel_layer()
-            async_to_sync(channel_layer.group_send)(
-                f"chat_{conv.id}",
-                {
-                    'type': 'chat_message',
-                    'conversation_id': conv.id,
-                    'message': {
-                        'id':          msg.id,
-                        'sender_id':   request.user.id,
-                        'sender_name': f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username,
-                        'text':        msg.text,
-                        'created_at':  msg.created_at.isoformat(),
-                        'read':        False,
-                    }
-                }
-            )
-        except Exception:
-            pass
+        push_message_to_channels(conv, msg, request.user)
 
         return Response(MessageSerializer(msg).data, status=status.HTTP_201_CREATED)
 

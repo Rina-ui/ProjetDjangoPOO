@@ -18,8 +18,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_add(self.room_name, self.channel_name)
         await self.accept()
 
-    async def disconnect(self, code):
-        await self.channel_layer.group_discard(self.room_name, self.channel_name)
+    async def disconnect(self, close_code):
+        room_name = getattr(self, 'room_name', None)
+        if room_name:
+            await self.channel_layer.group_discard(room_name, self.channel_name)
 
     async def receive(self, text_data=None, bytes_data=None):
         data = json.loads(text_data)
@@ -30,13 +32,29 @@ class ChatConsumer(AsyncWebsocketConsumer):
             if not text:
                 return
 
-            msg = await self.save_message(self.conv_id, user, text)
+            msg, conv = await self.save_message(self.conv_id, user, text)
 
+            # Pousser dans le groupe de la conversation
             await self.channel_layer.group_send(self.room_name, {
                 'type':            'chat_message',
                 'conversation_id': int(self.conv_id),
                 'message':         msg,
             })
+
+            # Pousser une notification au destinataire
+            recipient_id = await self.get_recipient_id(conv, user)
+            if recipient_id:
+                await self.channel_layer.group_send(
+                    f"notifs_{recipient_id}",
+                    {
+                        'type': 'notification',
+                        'data': {
+                            'type':            'new_message',
+                            'conversation_id': int(self.conv_id),
+                            'message':         msg,
+                        }
+                    }
+                )
 
     async def chat_message(self, event):
         await self.send(text_data=json.dumps({
@@ -57,7 +75,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'text':        msg.text,
             'created_at':  msg.created_at.isoformat(),
             'read':        False,
-        }
+        }, conv
+
+    @database_sync_to_async
+    def get_recipient_id(self, conv, sender):
+        if conv.client == sender:
+            return conv.proprietaire.id
+        return conv.client.id
 
 
 class NotificationConsumer(AsyncWebsocketConsumer):
@@ -73,7 +97,9 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         await self.accept()
 
     async def disconnect(self, code):
-        await self.channel_layer.group_discard(self.room_name, self.channel_name)
+        room_name = getattr(self, 'room_name', None)
+        if room_name:
+            await self.channel_layer.group_discard(room_name, self.channel_name)
 
     async def receive(self, text_data=None, bytes_data=None):
         pass

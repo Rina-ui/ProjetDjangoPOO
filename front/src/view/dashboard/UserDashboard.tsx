@@ -59,7 +59,7 @@ const ClientDashboard = () => {
 
     const [properties,     setProperties]     = useState<Property[]>([])
     const [loadingProps,   setLoadingProps]   = useState(true)
-    const [activeType,     setActiveType]     = useState<"Buy" | "Rent" | "Sell">("Buy")
+    const [activeType, setActiveType] = useState<"Buy" | "Rent" | "Sell">("Rent")
     const [activeFilter,   setActiveFilter]   = useState("House")
     const [viewMode,       setViewMode]       = useState<"grid" | "map">("grid")
     const [search,         setSearch]         = useState("")
@@ -113,6 +113,7 @@ const ClientDashboard = () => {
     }
 
     const filtered = properties.filter(p => {
+        if (activeType === "Sell") return false
         if (activeType === "Rent" && p.status !== "For Rent") return false
         if (activeType === "Buy"  && p.status !== "For Sale") return false
         if (search && !p.address.toLowerCase().includes(search.toLowerCase())

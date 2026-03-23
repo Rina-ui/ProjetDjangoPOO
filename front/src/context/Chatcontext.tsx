@@ -1,6 +1,9 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react"
 import { useAuth } from "./AuthContext"
 
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000"
+const WS_URL   = (import.meta.env.VITE_WS_URL || "http://localhost:8001").replace("http", "ws")
+
 // ── TYPES ─────────────────────────────────────────────────
 export interface Message {
     id:          number
@@ -12,18 +15,18 @@ export interface Message {
 }
 
 export interface Conversation {
-    id:            number
-    property_id:   number
-    property_name: string
-    property_img?: string
-    client_id:     number
-    client_name:   string
-    owner_id:      number
-    owner_name:    string
-    last_message:  string
+    id:              number
+    bien:            number
+    property_name:   string
+    property_img?:   string
+    client:          number
+    client_name:     string
+    proprietaire:    number
+    owner_name:      string
+    last_message:    string
     last_message_at: string
-    unread_count:  number
-    messages:      Message[]
+    unread_count:    number
+    messages:        Message[]
 }
 
 interface ChatContextType {
@@ -33,14 +36,13 @@ interface ChatContextType {
     setActiveConv:    (c: Conversation | null) => void
     sendMessage:      (convId: number, text: string) => void
     markAsRead:       (convId: number) => void
-    openConversation: (propertyId: number, ownerId: number) => void
+    openConversation: (propertyId: number, ownerId: number) => Promise<void>
     loading:          boolean
     connected:        boolean
 }
 
 const ChatContext = createContext<ChatContextType | null>(null)
 
-// ── PROVIDER ──────────────────────────────────────────────
 export const ChatProvider = ({ children }: { children: ReactNode }) => {
     const { user } = useAuth()
 
@@ -49,22 +51,22 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     const [loading,       setLoading]       = useState(true)
     const [connected,     setConnected]     = useState(false)
 
-    // WebSocket ref — persiste entre les renders
-    const wsRef    = useRef<WebSocket | null>(null)
+    const wsRef     = useRef<WebSocket | null>(null)
     const convWsRef = useRef<WebSocket | null>(null)
 
-    // ── Calcul des non-lus ────────────────────────────────
+    const token = () => localStorage.getItem("access_token")
+
     const totalUnread = conversations.reduce((sum, c) => sum + c.unread_count, 0)
 
-    // ── Charger les conversations au mount ────────────────
+    // ── Charger conversations + connecter WS global ───────
     useEffect(() => {
-        if (!user) return
+        if (!user) { setLoading(false); return }
         fetchConversations()
         connectGlobalWS()
         return () => { wsRef.current?.close() }
     }, [user])
 
-    // ── Ouvrir WS de conversation quand activeConv change ─
+    // ── WS de conversation quand activeConv change ────────
     useEffect(() => {
         convWsRef.current?.close()
         if (!activeConv) return
@@ -73,76 +75,113 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         return () => { convWsRef.current?.close() }
     }, [activeConv?.id])
 
-    // ── Fetch conversations depuis l'API REST ─────────────
+    // ── Fetch conversations ───────────────────────────────
     const fetchConversations = async () => {
         setLoading(true)
         try {
-            // TODO: ajuster l'URL selon ton backend Django
-            const res = await fetch("/api/chat/conversations/", {
-                headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+            const res = await fetch(`${BASE_URL}/api/chat/conversations/`, {
+                headers: { Authorization: `Bearer ${token()}` }
             })
+            if (!res.ok) throw new Error("Failed")
             const data = await res.json()
-            setConversations(data)
-        } catch (err) {
-            console.error("Failed to load conversations:", err)
-            // Données de démo — supprimer quand l'API est branchée
-            setConversations(DEMO_CONVERSATIONS)
+            const list = Array.isArray(data) ? data : data.results ?? []
+            const withMessages = await Promise.all(list.map(async (conv: any) => {
+                try {
+                    const r = await fetch(`${BASE_URL}/api/chat/conversations/${conv.id}/`, {
+                        headers: { Authorization: `Bearer ${token()}` }
+                    })
+                    const d = await r.json()
+                    return { ...conv, messages: d.messages ?? [] }
+                } catch {
+                    return { ...conv, messages: [] }
+                }
+            }))
+            setConversations(withMessages)
+        } catch {
+            setConversations([])
         } finally {
             setLoading(false)
         }
     }
 
-    // ── WebSocket global (notifications seulement) ────────
+    // ── WS global (notifications) ─────────────────────────
     const connectGlobalWS = () => {
-        // TODO: remplacer par l'URL de ton serveur Django Channels
-        const wsUrl = `ws://${window.location.host}/ws/chat/`
-        const ws = new WebSocket(wsUrl)
-
-        ws.onopen  = () => setConnected(true)
-        ws.onclose = () => { setConnected(false); setTimeout(connectGlobalWS, 3000) }
-        ws.onerror = () => ws.close()
-
-        ws.onmessage = (e) => {
-            const data = JSON.parse(e.data)
-            if (data.type === "new_message") {
-                handleNewMessage(data.conversation_id, data.message)
+        try {
+            const t = token()
+            const ws = new WebSocket(`${WS_URL}/ws/notifications/?token=${t}`)
+            ws.onopen  = () => setConnected(true)
+            ws.onclose = () => {
+                setConnected(false)
+                if (localStorage.getItem("access_token")) {
+                    setTimeout(connectGlobalWS, 5000)
+                }
             }
+            ws.onerror = () => ws.close()
+            ws.onmessage = (e) => {
+                try {
+                    const data = JSON.parse(e.data)
+                    if (data.type === "new_message") {
+                        // Ce canal reçoit uniquement les messages des AUTRES
+                        // (le backend pousse dans notifs_{recipient_id})
+                        // Donc on ajoute directement sans vérifier l'expéditeur
+                        handleIncomingMessage(data.conversation_id, data.message)
+                    }
+                } catch {}
+            }
+            wsRef.current = ws
+        } catch {
+            setConnected(false)
         }
-        wsRef.current = ws
     }
 
-    // ── WebSocket de conversation (messages temps réel) ───
+    // ── WS de conversation spécifique ─────────────────────
     const connectConvWS = (convId: number) => {
-        // TODO: remplacer par l'URL de ton serveur Django Channels
-        const wsUrl = `ws://${window.location.host}/ws/chat/${convId}/`
-        const ws = new WebSocket(wsUrl)
+        try {
+            const t = token()
+            const ws = new WebSocket(`${WS_URL}/ws/chat/${convId}/?token=${t}`)
+            ws.onmessage = (e) => {
+                try {
+                    const data = JSON.parse(e.data)
+                    if (data.type === "new_message") {
+                        const msg: Message = data.message
+                        const myId = user ? parseInt((user as any).id) : -1
 
-        ws.onmessage = (e) => {
-            const data = JSON.parse(e.data)
-            if (data.type === "new_message") {
-                handleNewMessage(convId, data.message)
+                        // Ignorer si c'est notre propre message
+                        // (déjà ajouté en optimistic dans sendMessage)
+                        if (msg.sender_id === myId) return
+
+                        handleIncomingMessage(convId, msg)
+                    }
+                } catch {}
             }
-        }
-        convWsRef.current = ws
+            convWsRef.current = ws
+        } catch {}
     }
 
-    // ── Réception d'un message ────────────────────────────
-    const handleNewMessage = (convId: number, msg: Message) => {
+    // ── Message entrant (de quelqu'un d'autre) ────────────
+    const handleIncomingMessage = (convId: number, msg: Message) => {
         setConversations(prev => prev.map(c => {
             if (c.id !== convId) return c
-            const isActive = activeConv?.id === convId
+            // Éviter les doublons par id
+            const alreadyExists = c.messages.some(m => m.id === msg.id)
+            if (alreadyExists) return c
             return {
                 ...c,
-                messages:       [...c.messages, msg],
-                last_message:   msg.text,
+                messages:        [...(c.messages ?? []), msg],
+                last_message:    msg.text,
                 last_message_at: msg.created_at,
-                unread_count:   isActive ? 0 : c.unread_count + 1,
+                unread_count:    c.unread_count + 1,
             }
         }))
-        // Mettre à jour activeConv si c'est la conv ouverte
         setActiveConv(prev => {
             if (!prev || prev.id !== convId) return prev
-            return { ...prev, messages: [...prev.messages, msg] }
+            const alreadyExists = prev.messages.some(m => m.id === msg.id)
+            if (alreadyExists) return prev
+            return {
+                ...prev,
+                messages:     [...(prev.messages ?? []), msg],
+                unread_count: 0,
+            }
         })
     }
 
@@ -150,32 +189,46 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     const sendMessage = (convId: number, text: string) => {
         if (!text.trim()) return
 
-        // Envoyer via WebSocket si connecté, sinon via REST
-        if (convWsRef.current?.readyState === WebSocket.OPEN) {
-            convWsRef.current.send(JSON.stringify({ type: "message", text }))
-        } else {
-            // Fallback REST
-            // TODO: POST /api/chat/conversations/{convId}/messages/
-            fetch(`/api/chat/conversations/${convId}/messages/`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${localStorage.getItem("token")}`
-                },
-                body: JSON.stringify({ text })
-            })
-        }
-
-        // Optimistic update — affiche le message immédiatement
+        // Optimistic update immédiat avec un id temporaire négatif
+        const tempId = -Date.now()
         const optimistic: Message = {
-            id:          Date.now(),
-            sender_id:   user!.id as unknown as number,
-            sender_name: user!.fullName,
+            id:          tempId,
+            sender_id:   parseInt((user as any)!.id),
+            sender_name: (user as any)!.fullName,
             text,
             created_at:  new Date().toISOString(),
             read:        true,
         }
-        handleNewMessage(convId, optimistic)
+
+        // Ajouter le message optimiste localement
+        setConversations(prev => prev.map(c => {
+            if (c.id !== convId) return c
+            return {
+                ...c,
+                messages:        [...(c.messages ?? []), optimistic],
+                last_message:    text,
+                last_message_at: optimistic.created_at,
+            }
+        }))
+        setActiveConv(prev => {
+            if (!prev || prev.id !== convId) return prev
+            return { ...prev, messages: [...(prev.messages ?? []), optimistic] }
+        })
+
+        // Envoyer via WS si connecté
+        if (convWsRef.current?.readyState === WebSocket.OPEN) {
+            convWsRef.current.send(JSON.stringify({ type: "message", text }))
+        } else {
+            // Fallback REST
+            fetch(`${BASE_URL}/api/chat/conversations/${convId}/messages/`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization:  `Bearer ${token()}`
+                },
+                body: JSON.stringify({ text })
+            }).catch(() => {})
+        }
     }
 
     // ── Marquer comme lu ──────────────────────────────────
@@ -183,34 +236,34 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         setConversations(prev => prev.map(c =>
             c.id === convId ? { ...c, unread_count: 0 } : c
         ))
-        // TODO: POST /api/chat/conversations/{convId}/read/
-        fetch(`/api/chat/conversations/${convId}/read/`, {
+        fetch(`${BASE_URL}/api/chat/conversations/${convId}/read/`, {
             method: "POST",
-            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+            headers: { Authorization: `Bearer ${token()}` }
         }).catch(() => {})
     }
 
     // ── Ouvrir/créer une conversation ─────────────────────
     const openConversation = async (propertyId: number, ownerId: number) => {
-        // Cherche si la conv existe déjà
-        const existing = conversations.find(c => c.property_id === propertyId)
+        const existing = conversations.find(c => c.bien === propertyId)
         if (existing) { setActiveConv(existing); return }
 
-        // TODO: POST /api/chat/conversations/
         try {
-            const res = await fetch("http://localhost:8000/api/chat/conversations/", {
+            const res = await fetch(`${BASE_URL}/api/chat/conversations/`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${localStorage.getItem("token")}`
+                    Authorization:  `Bearer ${token()}`
                 },
-                body: JSON.stringify({ property_id: propertyId, owner_id: ownerId })
+                body: JSON.stringify({ bien_id: propertyId, proprietaire_id: ownerId })
             })
+            if (!res.ok) throw new Error("Failed to create conversation")
             const newConv = await res.json()
-            setConversations(prev => [newConv, ...prev])
-            setActiveConv(newConv)
+            const withMessages = { ...newConv, messages: [] }
+            setConversations(prev => [withMessages, ...prev])
+            setActiveConv(withMessages)
         } catch (err) {
             console.error("Failed to create conversation:", err)
+            throw err
         }
     }
 
@@ -229,33 +282,3 @@ export const useChat = () => {
     if (!ctx) throw new Error("useChat must be used inside ChatProvider")
     return ctx
 }
-
-// ── DEMO DATA (supprimer quand l'API est branchée) ────────
-const DEMO_CONVERSATIONS: Conversation[] = [
-    {
-        id: 1, property_id: 1, property_name: "Villa Anfa",
-        property_img: "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=200&q=60",
-        client_id: 3, client_name: "Amina Touré",
-        owner_id: 2, owner_name: "Brandon Levin",
-        last_message: "Is the price negotiable?",
-        last_message_at: new Date(Date.now() - 3600000).toISOString(),
-        unread_count: 2,
-        messages: [
-            { id: 1, sender_id: 3, sender_name: "Amina Touré",  text: "Hello, I'm interested in this property.", created_at: new Date(Date.now() - 7200000).toISOString(), read: true },
-            { id: 2, sender_id: 2, sender_name: "Brandon Levin", text: "Hi! Happy to answer any questions.", created_at: new Date(Date.now() - 5400000).toISOString(), read: true },
-            { id: 3, sender_id: 3, sender_name: "Amina Touré",  text: "Is the price negotiable?", created_at: new Date(Date.now() - 3600000).toISOString(), read: false },
-        ]
-    },
-    {
-        id: 2, property_id: 2, property_name: "Appartement Guéliz",
-        property_img: "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=200&q=60",
-        client_id: 4, client_name: "James W.",
-        owner_id: 2, owner_name: "Gustavo Calzoni",
-        last_message: "When can I visit?",
-        last_message_at: new Date(Date.now() - 86400000).toISOString(),
-        unread_count: 0,
-        messages: [
-            { id: 4, sender_id: 4, sender_name: "James W.", text: "When can I visit?", created_at: new Date(Date.now() - 86400000).toISOString(), read: true },
-        ]
-    },
-]

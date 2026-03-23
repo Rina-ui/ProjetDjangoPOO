@@ -21,6 +21,8 @@ class BienViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if user.is_staff or getattr(user, 'role', '') == 'ADMIN':
             return Bien.objects.all()
+        if getattr(user, 'role', '') == 'PROPRIETAIRE':
+            return Bien.objects.filter(proprietaire__utilisateur=user)
         return Bien.objects.filter(en_ligne=True)
 
     def get_serializer_context(self):
