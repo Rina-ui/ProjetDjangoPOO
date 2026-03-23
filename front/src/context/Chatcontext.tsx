@@ -198,7 +198,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
 
         // TODO: POST /api/chat/conversations/
         try {
-            const res = await fetch("/api/chat/conversations/", {
+            const res = await fetch("http://localhost:8000/api/chat/conversations/", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

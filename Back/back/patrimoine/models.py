@@ -76,6 +76,8 @@ class Bien(models.Model):
     adresse = models.TextField()
     description = models.TextField(blank=True)
     photos = models.JSONField(default=list, blank=True)
+    modele_3d   = models.FileField(upload_to='modeles_3d/', null=True, blank=True)
+    photos_upload = models.ManyToManyField('PhotoBien', blank=True, related_name='biens')
     equipements = models.JSONField(default=list, blank=True)
 
     loyer_hc = models.DecimalField(max_digits=12, decimal_places=2)
@@ -142,3 +144,17 @@ class AuditLog(models.Model):
 
     def __str__(self):
         return f"{self.action} - {self.modele} (ID: {self.objet_id})"
+
+class PhotoBien(models.Model):
+    """Photo uploadée pour un bien immobilier."""
+    bien    = models.ForeignKey(Bien, on_delete=models.CASCADE, related_name='photos_bien')
+    image   = models.ImageField(upload_to='photos_biens/')
+    legende = models.CharField(max_length=200, blank=True)
+    ordre   = models.IntegerField(default=0)
+    date_ajout = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['ordre']
+
+    def __str__(self):
+        return f"Photo {self.id} — {self.bien.adresse}"

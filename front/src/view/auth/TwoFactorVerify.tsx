@@ -1,12 +1,12 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { useAuth } from "../../context/AuthContext"
 import "../../style/auth.css"
 import "../../style/twofa.css"
 
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000"
+
 const TwoFactorVerify = () => {
     const navigate = useNavigate()
-    useAuth()
 
     const [code,    setCode]    = useState("")
     const [error,   setError]   = useState("")
@@ -17,9 +17,21 @@ const TwoFactorVerify = () => {
         if (code.length !== 6) { setError("Code must be 6 digits"); return }
         setLoading(true); setError("")
         try {
-            // TODO: replace with real API call
-            await new Promise(r => setTimeout(r, 700))
-            if (code !== "123456") { setError("Invalid code. Check Google Authenticator."); return }
+            const username = sessionStorage.getItem("pending_2fa_user")
+            const res = await fetch(`${BASE_URL}/api/auth/2fa/login/`, {
+                method:  "POST",
+                headers: { "Content-Type": "application/json" },
+                body:    JSON.stringify({ username, code })
+            })
+            if (!res.ok) { setError("Invalid code. Check Google Authenticator."); return }
+
+            const data = await res.json()
+            localStorage.setItem("access_token",  data.access)
+            localStorage.setItem("refresh_token", data.refresh)
+            sessionStorage.removeItem("pending_2fa_user")
+            sessionStorage.removeItem("pending_2fa_access")
+            sessionStorage.removeItem("pending_2fa_refresh")
+
             setDone(true)
             setTimeout(() => navigate("/dashboard"), 900)
         } catch (err: any) {
@@ -32,7 +44,6 @@ const TwoFactorVerify = () => {
     return (
         <div className="auth-page">
             <div className="auth-card">
-
                 <div className="auth-logo">
                     <div className="auth-logo-mark">K</div>
                     <span className="auth-logo-text">ÔRÂ</span>
@@ -51,20 +62,15 @@ const TwoFactorVerify = () => {
                     </p>
 
                     <input
-                        type="text"
-                        inputMode="numeric"
-                        maxLength={6}
-                        placeholder="000000"
-                        className="tfa-code-input"
+                        type="text" inputMode="numeric" maxLength={6}
+                        placeholder="000000" className="tfa-code-input"
                         value={code}
                         onChange={e => { setCode(e.target.value.replace(/\D/g, "")); setError("") }}
                         onKeyDown={e => e.key === "Enter" && handleSubmit()}
-                        autoFocus
-                        disabled={done}
+                        autoFocus disabled={done}
                     />
 
                     <p className="tfa-timer">Code refreshes every 30 seconds</p>
-
                     {error && <div className="tfa-error">{error}</div>}
 
                     <button

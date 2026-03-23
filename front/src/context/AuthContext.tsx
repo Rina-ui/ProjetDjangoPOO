@@ -64,13 +64,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         })
         if (!res.ok) throw new Error("Identifiants incorrects")
         const tokens = await res.json()
-        localStorage.setItem("access_token",  tokens.access)
-        localStorage.setItem("refresh_token", tokens.refresh)
 
         const meRes = await fetch(`${BASE_URL}/api/auth/me/`, {
             headers: { Authorization: `Bearer ${tokens.access}` }
         })
         const me = await meRes.json()
+
+        // 2FA activé → rediriger vers vérification
+        if (me.totp_enabled) {
+            sessionStorage.setItem("pending_2fa_user", username)
+            sessionStorage.setItem("pending_2fa_access", tokens.access)
+            sessionStorage.setItem("pending_2fa_refresh", tokens.refresh)
+            throw { is2FA: true }
+        }
+
+        // Pas de 2FA → connexion directe
+        localStorage.setItem("access_token",  tokens.access)
+        localStorage.setItem("refresh_token", tokens.refresh)
         setUser({
             id:       String(me.id),
             fullName: `${me.first_name} ${me.last_name}`.trim() || me.username,

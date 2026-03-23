@@ -2,18 +2,20 @@ from rest_framework import viewsets, filters, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser, JSONParser
 from django_filters.rest_framework import DjangoFilterBackend
-
-from .models import Bien, Categorie, TypeBien
-from .serializers import BienSerializer, CategorieSerializer, TypeBienSerializer
+from utilisateurs.models import Proprietaire
+from .models import Bien, Categorie, TypeBien, PhotoBien
+from .serializers import BienSerializer, CategorieSerializer, TypeBienSerializer, PhotoBienSerializer
 
 
 class BienViewSet(viewsets.ModelViewSet):
-    queryset = Bien.objects.all()
+    queryset         = Bien.objects.all()
     serializer_class = BienSerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    parser_classes   = [MultiPartParser, JSONParser]
+    filter_backends  = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['statut', 'categorie', 'proprietaire', 'en_ligne']
-    search_fields = ['adresse', 'description']
+    search_fields    = ['adresse', 'description']
 
     def get_queryset(self):
         user = self.request.user
@@ -21,11 +23,22 @@ class BienViewSet(viewsets.ModelViewSet):
             return Bien.objects.all()
         return Bien.objects.filter(proprietaire__utilisateur=user)
 
+    def get_serializer_context(self):
+        return {'request': self.request}
+
     def create(self, request, *args, **kwargs):
+        try:
+            proprietaire = Proprietaire.objects.get(utilisateur=request.user)
+        except Proprietaire.DoesNotExist:
+            return Response({'error': 'Profil propriétaire introuvable'}, status=400)
+
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        bien = serializer.save()
-        return Response({'success': True, 'data': BienSerializer(bien).data}, status=status.HTTP_201_CREATED)
+        bien = serializer.save(proprietaire=proprietaire)
+        return Response(
+            {'success': True, 'data': BienSerializer(bien, context={'request': request}).data},
+            status=status.HTTP_201_CREATED
+        )
 
     @action(detail=True, methods=['post'])
     def changer_statut(self, request, pk=None):
@@ -47,12 +60,39 @@ class BienViewSet(viewsets.ModelViewSet):
         bien = self.get_object()
         return Response({'loyer_total': bien.calculer_loyer_total()})
 
+    @action(detail=True, methods=['post'])
+    def upload_photo(self, request, pk=None):
+        bien  = self.get_object()
+        image = request.FILES.get('image')
+        if not image:
+            return Response({'error': 'No image provided'}, status=400)
+        photo = PhotoBien.objects.create(
+            bien=bien,
+            image=image,
+            legende=request.data.get('legende', ''),
+            ordre=request.data.get('ordre', 0)
+        )
+        return Response(PhotoBienSerializer(photo).data, status=201)
+
+    @action(detail=True, methods=['post'])
+    def upload_3d(self, request, pk=None):
+        bien    = self.get_object()
+        fichier = request.FILES.get('modele_3d')
+        if not fichier:
+            return Response({'error': 'No file provided'}, status=400)
+        bien.modele_3d = fichier
+        bien.save()
+        return Response({
+            'success': True,
+            'url': request.build_absolute_uri(bien.modele_3d.url)
+        })
+
 
 class CategorieViewSet(viewsets.ModelViewSet):
-    queryset = Categorie.objects.all()
+    queryset         = Categorie.objects.all()
     serializer_class = CategorieSerializer
 
 
 class TypeBienViewSet(viewsets.ModelViewSet):
-    queryset = TypeBien.objects.all()
+    queryset         = TypeBien.objects.all()
     serializer_class = TypeBienSerializer

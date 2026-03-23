@@ -13,17 +13,17 @@ const Login = () => {
     const [loading,  setLoading]  = useState(false)
 
     const handleSubmit = async () => {
-        if (!username || !password) {
-            setError("Remplis tous les champs")
-            return
-        }
-        setLoading(true)
-        setError("")
+        if (!username || !password) { setError("Fill all fields"); return }
+        setLoading(true); setError("")
         try {
             await login(username, password)
             navigate("/dashboard")
         } catch (err: any) {
-            setError("Identifiants incorrects")
+            if (err?.is2FA) {
+                navigate("/2fa/verify")
+            } else {
+                setError("Invalid credentials")
+            }
         } finally {
             setLoading(false)
         }
@@ -43,22 +43,16 @@ const Login = () => {
                 </div>
 
                 <div className="input-group">
-                    <input
-                        type="text"
-                        placeholder=" "
-                        value={username}
-                        onChange={e => setUsername(e.target.value)}
-                        onKeyDown={e => e.key === "Enter" && handleSubmit()}
+                    <input type="text" placeholder=" " value={username}
+                           onChange={e => setUsername(e.target.value)}
+                           onKeyDown={e => e.key === "Enter" && handleSubmit()}
                     />
                     <label>Username</label>
                 </div>
                 <div className="input-group">
-                    <input
-                        type="password"
-                        placeholder=" "
-                        value={password}
-                        onChange={e => setPassword(e.target.value)}
-                        onKeyDown={e => e.key === "Enter" && handleSubmit()}
+                    <input type="password" placeholder=" " value={password}
+                           onChange={e => setPassword(e.target.value)}
+                           onKeyDown={e => e.key === "Enter" && handleSubmit()}
                     />
                     <label>Password</label>
                 </div>
@@ -66,11 +60,8 @@ const Login = () => {
                 {error && <div className="auth-error">{error}</div>}
 
                 <div className="auth-forgot"><span>Forgot password?</span></div>
-                <button
-                    className={`btn-auth ${loading ? "loading" : ""}`}
-                    onClick={handleSubmit}
-                    disabled={loading}
-                >
+                <button className={`btn-auth ${loading ? "loading" : ""}`}
+                        onClick={handleSubmit} disabled={loading}>
                     {loading ? <span className="spinner" /> : "Sign In"}
                 </button>
                 <p className="auth-footer">
