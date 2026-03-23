@@ -51,6 +51,8 @@ class Bien(models.Model):
         ('VACANT', 'Vacant'),
         ('EN_TRAVAUX', 'En travaux'),
         ('EN_VENTE', 'En vente'),
+        ('EN_ATTENTE_VALIDATION', 'En attente de validation'),
+        ('REJETE', 'Rejeté')
     ]
 
     proprietaire = models.ForeignKey(
@@ -86,8 +88,9 @@ class Bien(models.Model):
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
 
-    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default='VACANT')
+    statut = models.CharField(max_length=25, choices=STATUT_CHOICES, default='VACANT')
     en_ligne = models.BooleanField(default=False)
+    motif_rejet = models.TextField(blank=True, default='')
 
     date_creation = models.DateTimeField(auto_now_add=True)
     date_modification = models.DateTimeField(auto_now=True)

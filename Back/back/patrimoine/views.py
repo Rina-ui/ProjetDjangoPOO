@@ -21,7 +21,7 @@ class BienViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if user.is_staff or getattr(user, 'role', '') == 'ADMIN':
             return Bien.objects.all()
-        return Bien.objects.filter(proprietaire__utilisateur=user)
+        return Bien.objects.filter(en_ligne=True, statut__in=['VACANT', 'LOUE', 'EN_VENTE'])
 
     def get_serializer_context(self):
         return {'request': self.request}
@@ -86,6 +86,42 @@ class BienViewSet(viewsets.ModelViewSet):
             'success': True,
             'url': request.build_absolute_uri(bien.modele_3d.url)
         })
+
+    @action(detail=True, methods=['post'])
+    def demander_validation(self, request, pk=None):
+        """Propriétaire soumet son bien pour validation."""
+        bien = self.get_object()
+        if bien.statut not in ['VACANT', 'EN_VENTE', 'REJETE']:
+            return Response({'error': 'Ce bien ne peut pas être soumis'}, status=400)
+        bien.statut = 'EN_ATTENTE_VALIDATION'
+        bien.motif_rejet = ''
+        bien.save()
+        return Response({'success': True, 'message': 'Bien soumis pour validation'})
+
+    @action(detail=True, methods=['post'])
+    def valider(self, request, pk=None):
+        """Admin valide un bien → il devient visible en ligne."""
+        bien = self.get_object()
+        if bien.statut != 'EN_ATTENTE_VALIDATION':
+            return Response({'error': 'Ce bien n\'est pas en attente de validation'}, status=400)
+        bien.statut   = 'VACANT'
+        bien.en_ligne = True
+        bien.motif_rejet = ''
+        bien.save()
+        return Response({'success': True, 'message': 'Bien validé et mis en ligne'})
+
+    @action(detail=True, methods=['post'])
+    def rejeter(self, request, pk=None):
+        """Admin rejette un bien avec un motif."""
+        bien = self.get_object()
+        motif = request.data.get('motif', '')
+        if not motif:
+            return Response({'error': 'Motif obligatoire'}, status=400)
+        bien.statut      = 'REJETE'
+        bien.en_ligne    = False
+        bien.motif_rejet = motif
+        bien.save()
+        return Response({'success': True, 'message': 'Bien rejeté'})
 
 
 class CategorieViewSet(viewsets.ModelViewSet):

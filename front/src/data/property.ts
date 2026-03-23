@@ -4,6 +4,7 @@ export interface Property {
     status: "For Sale" | "For Rent"; tag: string | null
     saved: boolean; views: number; rating: number; reviews: number
     img: string; gallery: string[]; desc: string; features: string[]
+    modele_3d?: string | null
 }
 
 export interface Comment {

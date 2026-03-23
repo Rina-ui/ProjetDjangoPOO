@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import DashboardLayout from "../../component/sidebar"
 import Viewer3D from "../../component/viewer3d"
@@ -6,12 +6,14 @@ import {
     IconSearch, IconHeart, IconMapPin, IconBed, IconBath,
     IconSquare, IconArrowLeft, IconStar, IconSend, IconMap, IconEye
 } from "../../component/Icons"
-import { PROPERTIES, COMMENTS } from "../../data/property"
+import { COMMENTS } from "../../data/property"
 import PropertyComparator from "../../component/PropertyComparator"
 import type { Property, Comment } from "../../data/property"
 import { useChat } from "../../context/Chatcontext"
 import "../../style/dashboard.css"
 import "../../style/client3d.css"
+
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000"
 
 const NAV_ITEMS = [
     { label: "Browse",   path: "/dashboard/client" },
@@ -21,22 +23,69 @@ const NAV_ITEMS = [
     { label: "Settings", path: "/dashboard/client/settings" },
 ]
 
+// Mapper bien Django → Property front
+const mapBien = (b: any): Property => ({
+    id:        b.id,
+    owner_id:  b.proprietaire,
+    agent:     b.proprietaire_nom ?? "Owner",
+    price:     b.statut === "EN_VENTE"
+        ? `$${parseFloat(b.loyer_hc).toLocaleString()}`
+        : `$${parseFloat(b.loyer_hc).toLocaleString()} /mo`,
+    address:   b.adresse,
+    beds:      b.equipements?.beds   ?? 3,
+    baths:     b.equipements?.baths  ?? 2,
+    sqft:      b.equipements?.sqft   ?? "1000",
+    status:    b.statut === "EN_VENTE" ? "For Sale" : "For Rent",
+    tag:       b.en_ligne ? null : "Offline",
+    saved:     false,
+    views:     b.views   ?? 0,
+    rating:    4.5,
+    reviews:   0,
+    desc:      b.description ?? "",
+    features:  b.equipements?.features ?? [],
+    img:       b.photos_list?.[0]
+        ? `${BASE_URL}${b.photos_list[0].image}`
+        : "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800&q=80",
+    gallery:   b.photos_list?.slice(1).map((p: any) => `${BASE_URL}${p.image}`) ?? [
+        "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=600&q=80",
+        "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=600&q=80",
+    ],
+    modele_3d: b.modele_3d_url ?? null,
+})
+
 const ClientDashboard = () => {
     const navigate = useNavigate()
     const { openConversation } = useChat()
 
+    const [properties,     setProperties]     = useState<Property[]>([])
+    const [loadingProps,   setLoadingProps]   = useState(true)
     const [activeType,     setActiveType]     = useState<"Buy" | "Rent" | "Sell">("Buy")
     const [activeFilter,   setActiveFilter]   = useState("House")
     const [viewMode,       setViewMode]       = useState<"grid" | "map">("grid")
     const [search,         setSearch]         = useState("")
-    const [savedIds,       setSavedIds]       = useState<number[]>([2, 4])
+    const [savedIds,       setSavedIds]       = useState<number[]>([])
     const [selectedProp,   setSelectedProp]   = useState<Property | null>(null)
     const [comment,        setComment]        = useState("")
     const [allComments,    setAllComments]    = useState(COMMENTS)
     const [show3D,         setShow3D]         = useState(false)
     const [compareIds,     setCompareIds]     = useState<number[]>([])
     const [showComparator, setShowComparator] = useState(false)
-    const [contacting,     setContacting]     = useState(false) // ← AJOUT 5
+    const [contacting,     setContacting]     = useState(false)
+
+    // ── Charger les biens depuis l'API ────────────────────
+    useEffect(() => {
+        const token = localStorage.getItem("access_token")
+        fetch(`${BASE_URL}/api/patrimoine/biens/`, {
+            headers: { Authorization: `Bearer ${token}` }
+        })
+            .then(r => r.json())
+            .then(data => {
+                const list = Array.isArray(data) ? data : data.results ?? []
+                setProperties(list.map(mapBien))
+            })
+            .catch(() => setProperties([]))
+            .finally(() => setLoadingProps(false))
+    }, [])
 
     const toggleSave = (id: number, e: React.MouseEvent) => {
         e.stopPropagation()
@@ -50,15 +99,11 @@ const ClientDashboard = () => {
         setComment("")
     }
 
-    // ── AJOUT 6 : handler Contact Owner ──────────────────
     const handleContactOwner = async () => {
         if (!selectedProp) return
         setContacting(true)
         try {
-            await openConversation(
-                selectedProp.id,
-                selectedProp.owner_id ?? 0
-            )
+            await openConversation(selectedProp.id, selectedProp.owner_id ?? 0)
             navigate("/dashboard/client/messages")
         } catch {
             console.error("Failed to open conversation")
@@ -67,7 +112,7 @@ const ClientDashboard = () => {
         }
     }
 
-    const filtered = PROPERTIES.filter(p => {
+    const filtered = properties.filter(p => {
         if (activeType === "Rent" && p.status !== "For Rent") return false
         if (activeType === "Buy"  && p.status !== "For Sale") return false
         if (search && !p.address.toLowerCase().includes(search.toLowerCase())
@@ -81,14 +126,11 @@ const ClientDashboard = () => {
         return (
             <>
                 {show3D && <Viewer3D prop={selectedProp} onClose={() => setShow3D(false)} />}
-
                 <DashboardLayout navItems={NAV_ITEMS} pageTitle="Property Detail">
                     <button className="detail-back" onClick={() => setSelectedProp(null)}>
                         <IconArrowLeft size={16} /> Back to listings
                     </button>
-
                     <div className="detail-grid">
-                        {/* GAUCHE */}
                         <div>
                             <div className="detail-hero-block">
                                 <div className="detail-main-img">
@@ -110,13 +152,12 @@ const ClientDashboard = () => {
                                     ))}
                                 </div>
                             </div>
-
                             <div className="card" style={{ marginTop: 16 }}>
                                 <div className="card-hd">
                                     <span className="card-title">Reviews & Comments ({propComments.length})</span>
                                 </div>
                                 {propComments.length === 0 && (
-                                    <p style={{ color: "var(--text3)", fontSize: "13px", padding: "12px 0" }}>No comments yet. Be the first to leave a review.</p>
+                                    <p style={{ color: "var(--text3)", fontSize: "13px", padding: "12px 0" }}>No comments yet.</p>
                                 )}
                                 {propComments.map((c, i) => (
                                     <div className="comment-item" key={i}>
@@ -138,7 +179,7 @@ const ClientDashboard = () => {
                                 <div className="comment-form">
                                     <div className="comment-input-wrap">
                                         <div className="comment-av" style={{ width: 28, height: 28, fontSize: 11, flexShrink: 0 }}>Y</div>
-                                        <input className="comment-input" placeholder="Share your thoughts about this property..."
+                                        <input className="comment-input" placeholder="Share your thoughts..."
                                                value={comment} onChange={e => setComment(e.target.value)}
                                                onKeyDown={e => e.key === "Enter" && submitComment()}/>
                                     </div>
@@ -149,7 +190,6 @@ const ClientDashboard = () => {
                             </div>
                         </div>
 
-                        {/* DROITE */}
                         <div className="detail-right-panel">
                             <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
                                 <span className={`badge badge-${selectedProp.status === "For Sale" ? "sale" : "rent"}`}>{selectedProp.status}</span>
@@ -157,14 +197,12 @@ const ClientDashboard = () => {
                                     <IconEye size={13} color="var(--text3)"/> {selectedProp.views.toLocaleString()} views
                                 </span>
                             </div>
-
                             <h1 className="detail-title">{selectedProp.agent}'s Property</h1>
                             <div className="detail-loc"><IconMapPin size={14} color="var(--gold)"/>{selectedProp.address}</div>
                             <div className="detail-price">
                                 {selectedProp.price}
                                 {selectedProp.status === "For Rent" && <span> / month</span>}
                             </div>
-
                             <div className="detail-specs">
                                 {[["Bedrooms", selectedProp.beds], ["Bathrooms", selectedProp.baths], ["Sq. ft", selectedProp.sqft], ["Rating", selectedProp.rating]].map(([l, v]) => (
                                     <div key={String(l)} className="detail-spec">
@@ -173,9 +211,7 @@ const ClientDashboard = () => {
                                     </div>
                                 ))}
                             </div>
-
                             <p className="detail-desc">{selectedProp.desc}</p>
-
                             <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Features & Amenities</div>
                             <div className="detail-features">
                                 {selectedProp.features.map(f => (
@@ -184,7 +220,6 @@ const ClientDashboard = () => {
                                     </span>
                                 ))}
                             </div>
-
                             <div className="detail-actions">
                                 <button className="btn-primary">Book a Visit</button>
                                 <button className="btn-ghost"
@@ -193,7 +228,6 @@ const ClientDashboard = () => {
                                     {savedIds.includes(selectedProp.id) ? "Saved" : "Save"}
                                 </button>
                             </div>
-
                             <div className="detail-map-wrap">
                                 <div className="detail-map-header">
                                     <IconMap size={14} color="var(--gold)"/>
@@ -210,8 +244,6 @@ const ClientDashboard = () => {
                                     </a>
                                 </div>
                             </div>
-
-                            {/* ── AGENT CARD avec bouton Contact Owner ── */}
                             <div className="card" style={{ marginTop: 12 }}>
                                 <div style={{ fontSize: 11, color: "var(--text3)", marginBottom: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".4px" }}>Listed by</div>
                                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -220,13 +252,8 @@ const ClientDashboard = () => {
                                         <div style={{ fontSize: 13, fontWeight: 700 }}>{selectedProp.agent}</div>
                                         <div style={{ fontSize: 11, color: "var(--text3)" }}>Certified Agent · KÔRÂ</div>
                                     </div>
-                                    {/* ══ BOUTON CONTACT OWNER ══ */}
-                                    <button
-                                        className="btn-ghost"
-                                        style={{ padding: "6px 12px", fontSize: 12 }}
-                                        disabled={contacting}
-                                        onClick={handleContactOwner}
-                                    >
+                                    <button className="btn-ghost" style={{ padding: "6px 12px", fontSize: 12 }}
+                                            disabled={contacting} onClick={handleContactOwner}>
                                         {contacting ? "Opening…" : "Contact Owner"}
                                     </button>
                                 </div>
@@ -277,11 +304,19 @@ const ClientDashboard = () => {
             </div>
 
             <div style={{ fontSize: 13, color: "var(--text2)", marginBottom: 14 }}>
-                <strong>{filtered.length}</strong> properties found
+                {loadingProps
+                    ? "Loading properties…"
+                    : <><strong>{filtered.length}</strong> properties found</>
+                }
             </div>
 
             <div className="c-grid">
                 <div className={`c-cards ${viewMode === "map" ? "c-cards--with-map" : ""}`}>
+                    {!loadingProps && filtered.length === 0 && (
+                        <div style={{ padding: 20, color: "var(--text3)", fontSize: 13 }}>
+                            No properties available yet.
+                        </div>
+                    )}
                     {filtered.map(prop => (
                         <div className="p-card" key={prop.id} onClick={() => setSelectedProp(prop)}>
                             <div className="p-card-img">
@@ -342,14 +377,14 @@ const ClientDashboard = () => {
             {compareIds.length > 0 && (
                 <div className="cmp-bar">
                     <span className="cmp-bar-text">
-                        {compareIds.length === 1 ? "Sélectionne une 2ème propriété à comparer" : "2 propriétés sélectionnées"}
+                        {compareIds.length === 1 ? "Select a 2nd property to compare" : "2 properties selected"}
                     </span>
                     <div className="cmp-bar-props">
                         {compareIds.map(id => {
-                            const p = PROPERTIES.find(pr => pr.id === id)!
+                            const p = properties.find(pr => pr.id === id)!
                             return (
                                 <span key={id} className="cmp-bar-chip">
-                                    {p.agent}
+                                    {p?.agent}
                                     <button onClick={() => setCompareIds(prev => prev.filter(i => i !== id))}>✕</button>
                                 </span>
                             )
@@ -357,17 +392,17 @@ const ClientDashboard = () => {
                     </div>
                     {compareIds.length === 2 && (
                         <button className="cmp-bar-btn" onClick={() => setShowComparator(true)}>
-                            Comparer en 3D →
+                            Compare in 3D →
                         </button>
                     )}
-                    <button className="cmp-bar-clear" onClick={() => setCompareIds([])}>Annuler</button>
+                    <button className="cmp-bar-clear" onClick={() => setCompareIds([])}>Cancel</button>
                 </div>
             )}
 
             {showComparator && compareIds.length === 2 && (
                 <PropertyComparator
-                    propA={PROPERTIES.find(p => p.id === compareIds[0])!}
-                    propB={PROPERTIES.find(p => p.id === compareIds[1])!}
+                    propA={properties.find(p => p.id === compareIds[0])!}
+                    propB={properties.find(p => p.id === compareIds[1])!}
                     onClose={() => setShowComparator(false)}
                 />
             )}

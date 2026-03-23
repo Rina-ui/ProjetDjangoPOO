@@ -19,25 +19,44 @@ const NAV_ITEMS = [
 
 // ── MODAL AJOUT PROPRIÉTÉ ─────────────────────────────────
 const AddPropertyModal = ({ onClose, onSuccess }: { onClose: () => void, onSuccess: () => void }) => {
+    const [step,    setStep]    = useState<1|2|3>(1)
     const [loading, setLoading] = useState(false)
     const [error,   setError]   = useState("")
+    const [bienId,  setBienId]  = useState<number|null>(null)
+
+    // Étape 1 — infos de base
     const [form, setForm] = useState({
         adresse: "", description: "", loyer_hc: "",
-        charges: "0", statut: "VACANT", categorie: "1", type_bien: ""
+        charges: "0", statut: "VACANT", categorie: "1"
     })
-    const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
+    // Étape 2 — photos
+    const [photos,   setPhotos]   = useState<File[]>([])
+    const [previews, setPreviews] = useState<string[]>([])
+    // Étape 3 — modèle 3D
+    const [glbFile,  setGlbFile]  = useState<File|null>(null)
 
-    const handleSubmit = async () => {
-        if (!form.adresse || !form.loyer_hc) { setError("Fill required fields"); return }
+    const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
+    const token = localStorage.getItem("access_token")
+
+    const inputStyle = {
+        width: "100%", padding: "10px 12px", borderRadius: 10,
+        border: "1px solid var(--border)", fontSize: 14,
+        background: "var(--bg)", color: "var(--text)",
+        outline: "none", boxSizing: "border-box" as const
+    }
+    const labelStyle = {
+        fontSize: 12, fontWeight: 600 as const,
+        color: "var(--text2)", display: "block" as const, marginBottom: 5
+    }
+
+    // ── Étape 1 : créer le bien ───────────────────────────
+    const handleStep1 = async () => {
+        if (!form.adresse || !form.loyer_hc) { setError("Address and rent are required"); return }
         setLoading(true); setError("")
         try {
-            const token = localStorage.getItem("access_token")
             const res = await fetch(`${BASE_URL}/api/patrimoine/biens/`, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`
-                },
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                 body: JSON.stringify({
                     adresse:     form.adresse,
                     description: form.description,
@@ -49,6 +68,57 @@ const AddPropertyModal = ({ onClose, onSuccess }: { onClose: () => void, onSucce
                 })
             })
             if (!res.ok) throw new Error("Failed to create property")
+            const data = await res.json()
+            setBienId(data.data.id)
+            setStep(2)
+        } catch (e: any) {
+            setError(e.message)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    // ── Étape 2 : upload photos ───────────────────────────
+    const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files ?? [])
+        setPhotos(prev => [...prev, ...files])
+        const urls = files.map(f => URL.createObjectURL(f))
+        setPreviews(prev => [...prev, ...urls])
+    }
+
+    const handleStep2 = async () => {
+        if (photos.length === 0) { setStep(3); return }
+        setLoading(true); setError("")
+        try {
+            for (const photo of photos) {
+                const fd = new FormData()
+                fd.append("image", photo)
+                await fetch(`${BASE_URL}/api/patrimoine/biens/${bienId}/upload_photo/`, {
+                    method: "POST",
+                    headers: { Authorization: `Bearer ${token}` },
+                    body: fd
+                })
+            }
+            setStep(3)
+        } catch (e: any) {
+            setError(e.message)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    // ── Étape 3 : upload GLB ──────────────────────────────
+    const handleStep3 = async () => {
+        if (!glbFile) { onSuccess(); onClose(); return }
+        setLoading(true); setError("")
+        try {
+            const fd = new FormData()
+            fd.append("modele_3d", glbFile)
+            await fetch(`${BASE_URL}/api/patrimoine/biens/${bienId}/upload_3d/`, {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}` },
+                body: fd
+            })
             onSuccess()
             onClose()
         } catch (e: any) {
@@ -58,58 +128,167 @@ const AddPropertyModal = ({ onClose, onSuccess }: { onClose: () => void, onSucce
         }
     }
 
+    const steps = ["Property Info", "Photos", "3D Model"]
+
     return (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-            <div style={{ background: "#fff", borderRadius: 20, padding: 32, width: 460, boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 24 }}>
-                    <div style={{ fontSize: 17, fontWeight: 700 }}>Add Property</div>
+            <div style={{ background: "#fff", borderRadius: 20, padding: 32, width: 500, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+
+                {/* Header */}
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
+                    <div>
+                        <div style={{ fontSize: 17, fontWeight: 700 }}>Add Property</div>
+                        <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}>Step {step} of 3 — {steps[step-1]}</div>
+                    </div>
                     <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "var(--text3)" }}>×</button>
                 </div>
 
-                {[
-                    { label: "Address *",     key: "adresse",     type: "text" },
-                    { label: "Description",   key: "description", type: "text" },
-                    { label: "Rent (HC) *",   key: "loyer_hc",    type: "number" },
-                    { label: "Charges",       key: "charges",     type: "number" },
-                ].map(f => (
-                    <div key={f.key} style={{ marginBottom: 14 }}>
-                        <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text2)", display: "block", marginBottom: 5 }}>{f.label}</label>
-                        <input
-                            type={f.type}
-                            value={form[f.key as keyof typeof form]}
-                            onChange={e => set(f.key, e.target.value)}
-                            style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", fontSize: 14, background: "var(--bg)", color: "var(--text)", outline: "none", boxSizing: "border-box" }}
-                        />
-                    </div>
-                ))}
-
-                <div style={{ marginBottom: 14 }}>
-                    <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text2)", display: "block", marginBottom: 5 }}>Status</label>
-                    <select
-                        value={form.statut}
-                        onChange={e => set("statut", e.target.value)}
-                        style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", fontSize: 14, background: "var(--bg)", color: "var(--text)", outline: "none" }}
-                    >
-                        <option value="VACANT">Vacant</option>
-                        <option value="LOUE">Rented</option>
-                        <option value="EN_VENTE">For Sale</option>
-                        <option value="EN_TRAVAUX">Under Construction</option>
-                    </select>
+                {/* Progress */}
+                <div style={{ display: "flex", gap: 6, marginBottom: 24 }}>
+                    {[1,2,3].map(n => (
+                        <div key={n} style={{ flex: 1, height: 4, borderRadius: 2, background: n <= step ? "#b8922a" : "var(--border)", transition: "background .3s" }}/>
+                    ))}
                 </div>
 
-                {error && <div style={{ fontSize: 12, color: "#c0392b", background: "#fef2f2", borderRadius: 8, padding: "8px 12px", marginBottom: 14 }}>{error}</div>}
+                {/* ── STEP 1 ── */}
+                {step === 1 && (
+                    <div>
+                        {[
+                            { label: "Address *",   key: "adresse",     type: "text" },
+                            { label: "Description", key: "description", type: "text" },
+                            { label: "Rent (HC) *", key: "loyer_hc",    type: "number" },
+                            { label: "Charges",     key: "charges",     type: "number" },
+                        ].map(f => (
+                            <div key={f.key} style={{ marginBottom: 14 }}>
+                                <label style={labelStyle}>{f.label}</label>
+                                <input type={f.type} value={form[f.key as keyof typeof form]}
+                                       onChange={e => set(f.key, e.target.value)} style={inputStyle}/>
+                            </div>
+                        ))}
+                        <div style={{ marginBottom: 14 }}>
+                            <label style={labelStyle}>Status</label>
+                            <select value={form.statut} onChange={e => set("statut", e.target.value)} style={inputStyle}>
+                                <option value="VACANT">Vacant</option>
+                                <option value="LOUE">Rented</option>
+                                <option value="EN_VENTE">For Sale</option>
+                                <option value="EN_TRAVAUX">Under Construction</option>
+                            </select>
+                        </div>
+                    </div>
+                )}
 
-                <div style={{ display: "flex", gap: 10 }}>
-                    <button onClick={onClose} style={{ flex: 1, padding: "12px", borderRadius: 12, border: "1px solid var(--border)", background: "transparent", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
-                    <button onClick={handleSubmit} disabled={loading} style={{ flex: 1, padding: "12px", borderRadius: 12, border: "none", background: "#1a1814", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer", opacity: loading ? 0.6 : 1 }}>
-                        {loading ? "Creating…" : "Add Property"}
+                {/* ── STEP 2 : Photos ── */}
+                {step === 2 && (
+                    <div>
+                        <p style={{ fontSize: 13, color: "var(--text3)", marginBottom: 16 }}>
+                            Add photos of your property. You can skip this step.
+                        </p>
+
+                        {/* Zone d'upload */}
+                        <label style={{
+                            display: "flex", flexDirection: "column", alignItems: "center",
+                            justifyContent: "center", gap: 8, padding: "24px",
+                            border: "2px dashed var(--border)", borderRadius: 12,
+                            cursor: "pointer", marginBottom: 16,
+                            background: "var(--bg)", transition: "border-color .2s"
+                        }}>
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" strokeWidth="1.5">
+                                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                                <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                            </svg>
+                            <span style={{ fontSize: 13, color: "var(--text3)" }}>Click to upload photos</span>
+                            <span style={{ fontSize: 11, color: "var(--text3)" }}>JPG, PNG, WEBP</span>
+                            <input type="file" accept="image/*" multiple onChange={handlePhotoSelect} style={{ display: "none" }}/>
+                        </label>
+
+                        {/* Previews */}
+                        {previews.length > 0 && (
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16 }}>
+                                {previews.map((src, i) => (
+                                    <div key={i} style={{ position: "relative", aspectRatio: "1", borderRadius: 8, overflow: "hidden" }}>
+                                        <img src={src} style={{ width: "100%", height: "100%", objectFit: "cover" }}/>
+                                        <button
+                                            onClick={() => {
+                                                setPhotos(p => p.filter((_, j) => j !== i))
+                                                setPreviews(p => p.filter((_, j) => j !== i))
+                                            }}
+                                            style={{ position: "absolute", top: 4, right: 4, background: "rgba(0,0,0,0.6)", border: "none", borderRadius: "50%", width: 20, height: 20, color: "#fff", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                                        >×</button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        <p style={{ fontSize: 12, color: "var(--text3)" }}>
+                            {photos.length} photo{photos.length !== 1 ? "s" : ""} selected
+                        </p>
+                    </div>
+                )}
+
+                {/* ── STEP 3 : GLB ── */}
+                {step === 3 && (
+                    <div>
+                        <p style={{ fontSize: 13, color: "var(--text3)", marginBottom: 16 }}>
+                            Upload a 3D model (.glb) for immersive viewing. You can skip this step.
+                        </p>
+
+                        <label style={{
+                            display: "flex", flexDirection: "column", alignItems: "center",
+                            justifyContent: "center", gap: 8, padding: "32px",
+                            border: `2px dashed ${glbFile ? "#b8922a" : "var(--border)"}`,
+                            borderRadius: 12, cursor: "pointer", background: glbFile ? "#fdf6e7" : "var(--bg)"
+                        }}>
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={glbFile ? "#b8922a" : "var(--text3)"} strokeWidth="1.5">
+                                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                                <path d="M2 17l10 5 10-5"/>
+                                <path d="M2 12l10 5 10-5"/>
+                            </svg>
+                            {glbFile
+                                ? <span style={{ fontSize: 13, color: "#b8922a", fontWeight: 600 }}>{glbFile.name}</span>
+                                : <span style={{ fontSize: 13, color: "var(--text3)" }}>Click to upload .glb file</span>
+                            }
+                            <input type="file" accept=".glb,.gltf" onChange={e => setGlbFile(e.target.files?.[0] ?? null)} style={{ display: "none" }}/>
+                        </label>
+
+                        {glbFile && (
+                            <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8 }}>
+                                <span style={{ fontSize: 12, color: "var(--text3)" }}>Size: {(glbFile.size / 1024 / 1024).toFixed(1)} MB</span>
+                                <button onClick={() => setGlbFile(null)} style={{ fontSize: 11, color: "#c0392b", background: "none", border: "none", cursor: "pointer" }}>Remove</button>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {error && (
+                    <div style={{ fontSize: 12, color: "#c0392b", background: "#fef2f2", borderRadius: 8, padding: "8px 12px", marginTop: 12, marginBottom: 4 }}>
+                        {error}
+                    </div>
+                )}
+
+                {/* Actions */}
+                <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+                    {step > 1 && step !== 1 && (
+                        <button onClick={() => setStep(s => (s - 1) as 1|2|3)} style={{ flex: 1, padding: "12px", borderRadius: 12, border: "1px solid var(--border)", background: "transparent", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+                            Back
+                        </button>
+                    )}
+                    {step === 1 && (
+                        <button onClick={onClose} style={{ flex: 1, padding: "12px", borderRadius: 12, border: "1px solid var(--border)", background: "transparent", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+                            Cancel
+                        </button>
+                    )}
+                    <button
+                        onClick={step === 1 ? handleStep1 : step === 2 ? handleStep2 : handleStep3}
+                        disabled={loading}
+                        style={{ flex: 1, padding: "12px", borderRadius: 12, border: "none", background: "#1a1814", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer", opacity: loading ? 0.6 : 1 }}
+                    >
+                        {loading ? "Uploading…" : step === 3 ? (glbFile ? "Upload & Finish" : "Skip & Finish") : step === 2 ? (photos.length > 0 ? "Upload Photos →" : "Skip →") : "Next →"}
                     </button>
                 </div>
             </div>
         </div>
     )
 }
-
 // ── COMPOSANT PRINCIPAL ───────────────────────────────────
 const ProprioDashboard = () => {
     const [biens,       setBiens]       = useState<any[]>([])
