@@ -1,0 +1,130 @@
+openapi: 3.0.3
+info:
+  title: LocationApp API
+  version: 1.0.0
+  description: API de gestion immobilière — Location & Vente
+paths:
+  /api/auth/2fa/activer/:
+    post:
+      operationId: auth_2fa_activer_create
+      description: 'Étape 1 : génère le secret et retourne l''URI QR code.'
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/auth/2fa/confirmer/:
+    post:
+      operationId: auth_2fa_confirmer_create
+      description: 'Étape 2 : l''utilisateur confirme avec un code pour valider l''activation.'
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/auth/2fa/desactiver/:
+    post:
+      operationId: auth_2fa_desactiver_create
+      description: Désactive le 2FA après vérification du code actuel.
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/auth/connexion/:
+    post:
+      operationId: auth_connexion_create
+      description: Connexion avec username + password + OTP (si 2FA activé).
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/auth/inscription/:
+    post:
+      operationId: auth_inscription_create
+      description: Inscription d'un nouvel utilisateur.
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/auth/profil/:
+    get:
+      operationId: auth_profil_retrieve
+      description: Consulter ou modifier son profil.
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+    put:
+      operationId: auth_profil_update
+      description: Consulter ou modifier son profil.
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/auth/token/refresh/:
+    post:
+      operationId: auth_token_refresh_create
+      description: |-
+        Takes a refresh type JSON web token and returns an access type JSON web
+        token if the refresh token is valid.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+components:
+  schemas:
+    TokenRefresh:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+          writeOnly: true
+      required:
+      - access
+      - refresh
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
