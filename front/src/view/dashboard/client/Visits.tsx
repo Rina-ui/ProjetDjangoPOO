@@ -107,13 +107,12 @@ const Visits = () => {
             {/* Stats */}
             <div className="stats-row" style={{ gridTemplateColumns: "repeat(3,1fr)", marginBottom: 24 }}>
                 {[
-                    { label: "Upcoming",  value: upcoming,  icon: "📅", color: "var(--blue-bg)",  ic: "var(--blue)"  },
-                    { label: "Pending",   value: pending,   icon: "⏳", color: "var(--gold-bg)",  ic: "var(--gold)"  },
-                    { label: "Completed", value: completed, icon: "✅", color: "var(--green-bg)", ic: "var(--green)" },
+                    { label: "Upcoming",  value: upcoming,  color: "var(--blue-bg)",  ic: "var(--blue)"  },
+                    { label: "Pending",   value: pending,   color: "var(--gold-bg)",  ic: "var(--gold)"  },
+                    { label: "Completed", value: completed, color: "var(--green-bg)", ic: "var(--green)" },
                 ].map(s => (
                     <div key={s.label} className="stat-card">
                         <div className="stat-icon-wrap" style={{ background: s.color }}>
-                            <span style={{ fontSize: 18 }}>{s.icon}</span>
                         </div>
                         <div className="stat-body">
                             <span className="stat-label">{s.label}</span>
@@ -205,7 +204,7 @@ const Visits = () => {
 
                                 {v.note && (
                                     <div style={{ fontSize: 12, color: "var(--text2)", background: "var(--bg)", padding: "6px 10px", borderRadius: 8, marginBottom: 10 }}>
-                                        📝 {v.note}
+                                        {v.note}
                                     </div>
                                 )}
 

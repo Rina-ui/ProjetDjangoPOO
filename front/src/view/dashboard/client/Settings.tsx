@@ -128,9 +128,9 @@ const Settings = () => {
 
                     {/* Nav tabs */}
                     {([
-                        { key: "profile",       label: "Profile",       icon: "👤" },
-                        { key: "security",      label: "Security",      icon: "🔒" },
-                        { key: "notifications", label: "Notifications", icon: "🔔" },
+                        { key: "profile",       label: "Profile",       },
+                        { key: "security",      label: "Security",       },
+                        { key: "notifications", label: "Notifications",  },
                     ] as const).map(t => (
                         <button key={t.key}
                                 onClick={() => setTab(t.key)}
@@ -146,7 +146,6 @@ const Settings = () => {
                                     border: `1px solid ${tab === t.key ? "rgba(184,146,42,0.2)" : "var(--border)"}`,
                                     transition: "all .15s"
                                 }}>
-                            <span>{t.icon}</span>{t.label}
                         </button>
                     ))}
 
