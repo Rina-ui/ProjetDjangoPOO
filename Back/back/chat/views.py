@@ -25,7 +25,7 @@ def push_message_to_channels(conv, msg, sender):
             'read':        False,
         }
 
-        # 1. Pousser dans le groupe de la conversation (les deux participants l'écoutent)
+        # 1. Pousser dans le groupe de la conversation
         async_to_sync(channel_layer.group_send)(
             f"chat_{conv.id}",
             {
@@ -35,7 +35,7 @@ def push_message_to_channels(conv, msg, sender):
             }
         )
 
-        # 2. Pousser une notification au destinataire (celui qui n'a pas envoyé)
+        # 2. Pousser une notification au destinataire
         recipient = conv.proprietaire if sender == conv.client else conv.client
         async_to_sync(channel_layer.group_send)(
             f"notifs_{recipient.id}",
@@ -70,6 +70,22 @@ class ConversationViewSet(viewsets.ModelViewSet):
         bien_id    = request.data.get('bien_id') or request.data.get('property_id')
         proprio_id = request.data.get('proprietaire_id') or request.data.get('owner_id')
 
+        # ── Résoudre le vrai Utilisateur depuis le profil Proprietaire ──
+        # Le front envoie l'id du profil Proprietaire (lié au Bien)
+        # Il faut récupérer l'Utilisateur associé à ce profil
+        try:
+            from utilisateurs.models import Proprietaire
+            profil = Proprietaire.objects.get(id=proprio_id)
+            proprio_user = profil.utilisateur
+        except Exception:
+            # Fallback : si proprio_id est déjà un Utilisateur id
+            from utilisateurs.models import Utilisateur
+            try:
+                proprio_user = Utilisateur.objects.get(id=proprio_id)
+            except Exception:
+                return Response({'error': 'Propriétaire introuvable'}, status=400)
+
+        # Vérifier si une conversation existe déjà
         existing = Conversation.objects.filter(
             bien_id=bien_id, client=request.user
         ).first()
@@ -79,7 +95,7 @@ class ConversationViewSet(viewsets.ModelViewSet):
         conv = Conversation.objects.create(
             bien_id=bien_id,
             client=request.user,
-            proprietaire_id=proprio_id,
+            proprietaire=proprio_user,
         )
         return Response(
             ConversationSerializer(conv, context={'request': request}).data,

@@ -22,6 +22,8 @@ const OwnerMessages = () => {
     const [filter, setFilter] = useState<"all" | "unread">("all")
     const bottomRef = useRef<HTMLDivElement>(null)
 
+    const myId = parseInt(user?.id ?? "0")
+
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" })
     }, [activeConv?.messages.length])
@@ -61,7 +63,6 @@ const OwnerMessages = () => {
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
                             <input placeholder="Search clients, properties…" value={search} onChange={e => setSearch(e.target.value)}/>
                         </div>
-                        {/* Filter tabs */}
                         <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
                             {(["all", "unread"] as const).map(f => (
                                 <button key={f} onClick={() => setFilter(f)} style={{
@@ -131,7 +132,7 @@ const OwnerMessages = () => {
 
                         <div className="msg-messages">
                             {activeConv.messages.map(msg => {
-                                const isMe = msg.sender_name === user?.fullName
+                                const isMe = msg.sender_id === myId
                                 return (
                                     <div key={msg.id} className={`msg-bubble-wrap ${isMe ? "msg-bubble-wrap--me" : ""}`}>
                                         {!isMe && <div className="msg-bubble-avatar">{msg.sender_name.charAt(0)}</div>}

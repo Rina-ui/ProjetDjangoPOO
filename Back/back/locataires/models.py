@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils import timezone
+from django.conf import settings
 
 
 class Locataire(models.Model):
@@ -85,3 +86,46 @@ class Bail(models.Model):
         verbose_name = 'Bail'
         verbose_name_plural = 'Baux'
         ordering = ['-date_entree']
+
+
+class Visitebien(models.Model):
+    """Demande de visite d'un bien par un client."""
+
+    STATUT_CHOICES = [
+        ('EN_ATTENTE', 'En attente'),
+        ('CONFIRMEE',  'Confirmée'),
+        ('ANNULEE',    'Annulée'),
+        ('EFFECTUEE',  'Effectuée'),
+    ]
+
+    bien      = models.ForeignKey('patrimoine.Bien', on_delete=models.CASCADE, related_name='visites')
+    client    = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='visites')
+    date_visite = models.DateTimeField()
+    statut    = models.CharField(max_length=20, choices=STATUT_CHOICES, default='EN_ATTENTE')
+    note      = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Visite'
+        verbose_name_plural = 'Visites'
+        ordering = ['-date_visite']
+
+    def __str__(self):
+        return f"Visite {self.client} — {self.bien} le {self.date_visite}"
+
+
+class BienSauvegarde(models.Model):
+    """Bien mis en favoris par un client."""
+
+    bien   = models.ForeignKey('patrimoine.Bien', on_delete=models.CASCADE, related_name='sauvegardes')
+    client = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='biens_sauvegardes')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Bien sauvegardé'
+        verbose_name_plural = 'Biens sauvegardés'
+        unique_together = ['bien', 'client']
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.client} ♥ {self.bien}"

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Locataire, Bail
+from .models import Locataire, Bail, Visitebien, BienSauvegarde
 
 
 class LocataireSerializer(serializers.ModelSerializer):
@@ -16,3 +16,48 @@ class BailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Bail
         fields = '__all__'
+
+class BienMiniSerializer(serializers.Serializer):
+    """Représentation minimaliste d'un bien pour les listes."""
+    id           = serializers.IntegerField()
+    adresse      = serializers.CharField()
+    loyer_hc     = serializers.DecimalField(max_digits=12, decimal_places=2)
+    statut       = serializers.CharField()
+    description  = serializers.CharField()
+    photo        = serializers.SerializerMethodField()
+    proprietaire_nom = serializers.SerializerMethodField()
+
+    def get_photo(self, obj):
+        request = self.context.get('request')
+        photo = obj.photos_bien.order_by('ordre').first()
+        if photo and request:
+            return request.build_absolute_uri(photo.image.url)
+        return None
+
+    def get_proprietaire_nom(self, obj):
+        u = obj.proprietaire.utilisateur
+        return f"{u.first_name} {u.last_name}".strip() or u.username
+
+
+class VisiteSerializer(serializers.ModelSerializer):
+    bien_detail = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = Visitebien
+        fields = ['id', 'bien', 'bien_detail', 'date_visite', 'statut', 'note', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+    def get_bien_detail(self, obj):
+        return BienMiniSerializer(obj.bien, context=self.context).data
+
+
+class BienSauvegardeSerializer(serializers.ModelSerializer):
+    bien_detail = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = BienSauvegarde
+        fields = ['id', 'bien', 'bien_detail', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+    def get_bien_detail(self, obj):
+        return BienMiniSerializer(obj.bien, context=self.context).data

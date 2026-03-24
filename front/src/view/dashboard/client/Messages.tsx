@@ -24,7 +24,8 @@ const ClientMessages = () => {
     const [search, setSearch] = useState("")
     const bottomRef = useRef<HTMLDivElement>(null)
 
-    // Scroll to bottom on new message
+    const myId = parseInt(user?.id ?? "0")
+
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" })
     }, [activeConv?.messages.length])
@@ -101,7 +102,6 @@ const ClientMessages = () => {
                 {/* ── ZONE DE CHAT ────────────────────────── */}
                 {activeConv ? (
                     <div className="msg-chat">
-                        {/* Header */}
                         <div className="msg-chat-header">
                             <div className="msg-conv-avatar" style={{ width: 38, height: 38 }}>
                                 {activeConv.owner_name.charAt(0)}
@@ -116,7 +116,6 @@ const ClientMessages = () => {
                             </div>
                         </div>
 
-                        {/* Property chip */}
                         <div className="msg-prop-chip">
                             {activeConv.property_img && <img src={activeConv.property_img} alt=""/>}
                             <div>
@@ -125,11 +124,9 @@ const ClientMessages = () => {
                             </div>
                         </div>
 
-                        {/* Messages */}
                         <div className="msg-messages">
                             {activeConv.messages.map((msg) => {
-                                const isMe = msg.sender_id === (user?.id as unknown as number)
-                                    || msg.sender_name === user?.fullName
+                                const isMe = msg.sender_id === myId
                                 return (
                                     <div key={msg.id} className={`msg-bubble-wrap ${isMe ? "msg-bubble-wrap--me" : ""}`}>
                                         {!isMe && (
@@ -145,7 +142,6 @@ const ClientMessages = () => {
                             <div ref={bottomRef}/>
                         </div>
 
-                        {/* Input */}
                         <div className="msg-input-wrap">
                             <textarea
                                 className="msg-input"
