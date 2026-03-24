@@ -1,0 +1,426 @@
+/* src/style/landing.css — Sections landing page KÔRÂ */
+
+/* ── STATS BAR ───────────────────────────────────────────── */
+.stats-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    background: #fff;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 20px 48px;
+}
+
+.stats-bar__item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 0 48px;
+    border-right: 1px solid #e5e7eb;
+}
+
+.stats-bar__item:last-child { border-right: none; }
+
+.stats-bar__val {
+    font-size: 28px;
+    font-weight: 800;
+    color: #1a1a1a;
+    letter-spacing: -1px;
+}
+
+.stats-bar__label {
+    font-size: 12px;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+/* ── DISCOVER SECTION ────────────────────────────────────── */
+.discover-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    background: #fff;
+    padding: 80px 60px;
+    align-items: center;
+}
+
+.discover-map {
+    position: relative;
+    height: 320px;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+    margin-right: 48px;
+}
+
+.discover-map__pin {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #fff;
+    border-radius: 999px;
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    cursor: pointer;
+}
+
+.discover-text h2 {
+    font-size: 32px;
+    font-weight: 800;
+    color: #1a1a1a;
+    line-height: 1.2;
+    margin-bottom: 16px;
+}
+
+.discover-text p {
+    font-size: 14px;
+    color: #6b7280;
+    line-height: 1.7;
+    margin-bottom: 28px;
+    max-width: 380px;
+}
+
+.discover-btn {
+    background: #1a1a1a;
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    padding: 14px 28px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.discover-btn:hover { background: #374151; }
+
+/* ── PROPERTIES SECTION ──────────────────────────────────── */
+.props-section {
+    background: #f5f5f3;
+    padding: 80px 60px;
+}
+
+.props-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 40px;
+}
+
+.props-title {
+    font-size: 36px;
+    font-weight: 800;
+    color: #1a1a1a;
+    margin-bottom: 10px;
+}
+
+.props-sub {
+    font-size: 14px;
+    color: #6b7280;
+    line-height: 1.6;
+}
+
+.props-see-all {
+    background: #1a1a1a;
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    padding: 12px 24px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+
+.props-see-all:hover { background: #374151; }
+
+.props-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+}
+
+.prop-card-home {
+    background: #fff;
+    border-radius: 16px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+}
+
+.prop-card-home:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.12);
+}
+
+.prop-card-home__img {
+    position: relative;
+    height: 200px;
+    overflow: hidden;
+}
+
+.prop-card-home__img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s;
+}
+
+.prop-card-home:hover .prop-card-home__img img {
+    transform: scale(1.05);
+}
+
+.prop-card-home__tag {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    background: #4ade80;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 999px;
+}
+
+.prop-card-home__body {
+    padding: 16px 20px;
+}
+
+.prop-card-home__specs {
+    display: flex;
+    gap: 16px;
+    font-size: 12px;
+    color: #6b7280;
+    margin-bottom: 8px;
+}
+
+.prop-card-home__name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 4px;
+}
+
+.prop-card-home__addr {
+    font-size: 12px;
+    color: #9ca3af;
+    margin-bottom: 10px;
+}
+
+.prop-card-home__price {
+    font-size: 16px;
+    font-weight: 800;
+    color: #1a1a1a;
+}
+
+/* ── FAQ SECTION ─────────────────────────────────────────── */
+.faq-section {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 80px;
+    background: #fff;
+    padding: 80px 60px;
+    align-items: start;
+}
+
+.faq-left h2 {
+    font-size: 36px;
+    font-weight: 800;
+    color: #1a1a1a;
+    margin-bottom: 32px;
+    line-height: 1.2;
+}
+
+.faq-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.faq-item {
+    border-bottom: 1px solid #e5e7eb;
+    padding: 20px 0;
+    cursor: pointer;
+}
+
+.faq-question {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 15px;
+    font-weight: 600;
+    color: #1a1a1a;
+    gap: 16px;
+}
+
+.faq-chevron {
+    font-size: 12px;
+    color: #6b7280;
+    flex-shrink: 0;
+}
+
+.faq-answer {
+    font-size: 14px;
+    color: #6b7280;
+    line-height: 1.7;
+    margin-top: 12px;
+    max-width: 560px;
+}
+
+.faq-right {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding-top: 60px;
+}
+
+.faq-right > p {
+    font-size: 14px;
+    color: #6b7280;
+    line-height: 1.7;
+}
+
+.faq-agent {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.faq-agent img {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.faq-agent__name {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1a1a1a;
+}
+
+.faq-agent__role {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.faq-cta {
+    background: #1a1a1a;
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    padding: 14px 28px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    align-self: flex-start;
+    transition: background 0.2s;
+}
+
+.faq-cta:hover { background: #374151; }
+
+/* ── FOOTER ──────────────────────────────────────────────── */
+.footer {
+    background: #1a1a1a;
+    color: #fff;
+    padding: 60px 60px 32px;
+}
+
+.footer-top {
+    display: grid;
+    grid-template-columns: 1.2fr 2fr;
+    gap: 80px;
+    margin-bottom: 48px;
+    padding-bottom: 48px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.footer-logo {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    margin-bottom: 16px;
+    color: #fff;
+}
+
+.footer-brand p {
+    font-size: 13px;
+    color: rgba(255,255,255,0.5);
+    line-height: 1.7;
+    max-width: 280px;
+}
+
+.footer-links {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 32px;
+}
+
+.footer-col {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.footer-col__title {
+    font-size: 12px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.4);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+}
+
+.footer-col span {
+    font-size: 14px;
+    color: rgba(255,255,255,0.7);
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.footer-col span:hover { color: #fff; }
+
+.footer-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    color: rgba(255,255,255,0.4);
+}
+
+.footer-socials {
+    display: flex;
+    gap: 24px;
+}
+
+.footer-socials span {
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.footer-socials span:hover { color: #fff; }
+
+/* ── RESPONSIVE ──────────────────────────────────────────── */
+@media (max-width: 900px) {
+    .stats-bar { flex-wrap: wrap; padding: 20px 24px; }
+    .stats-bar__item { padding: 12px 24px; border-right: none; border-bottom: 1px solid #e5e7eb; width: 50%; }
+    .discover-section { grid-template-columns: 1fr; padding: 40px 24px; }
+    .discover-map { margin-right: 0; margin-bottom: 32px; }
+    .props-section { padding: 40px 24px; }
+    .props-grid { grid-template-columns: 1fr; }
+    .props-header { flex-direction: column; align-items: flex-start; gap: 16px; }
+    .faq-section { grid-template-columns: 1fr; padding: 40px 24px; gap: 40px; }
+    .footer { padding: 40px 24px 24px; }
+    .footer-top { grid-template-columns: 1fr; gap: 40px; }
+    .footer-links { grid-template-columns: 1fr 1fr; }
+}

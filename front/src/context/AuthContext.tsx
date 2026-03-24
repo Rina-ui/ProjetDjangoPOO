@@ -70,7 +70,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         })
         const me = await meRes.json()
 
-        // 2FA activé → rediriger vers vérification
+        // 2FA activé
         if (me.totp_enabled) {
             sessionStorage.setItem("pending_2fa_user", username)
             sessionStorage.setItem("pending_2fa_access", tokens.access)

@@ -58,13 +58,33 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
 
     const totalUnread = conversations.reduce((sum, c) => sum + c.unread_count, 0)
 
-    // ── Charger conversations + connecter WS global ───────
+    // ── Reset complet quand l'user change (login/logout) ──
     useEffect(() => {
-        if (!user) { setLoading(false); return }
+        // Fermer les WS existants
+        wsRef.current?.close()
+        convWsRef.current?.close()
+        wsRef.current     = null
+        convWsRef.current = null
+
+        // Reset le state
+        setConversations([])
+        setActiveConv(null)
+        setConnected(false)
+
+        if (!user) {
+            setLoading(false)
+            return
+        }
+
+        // Charger les données du nouvel user
         fetchConversations()
         connectGlobalWS()
-        return () => { wsRef.current?.close() }
-    }, [user])
+
+        return () => {
+            wsRef.current?.close()
+            convWsRef.current?.close()
+        }
+    }, [user?.id])
 
     // ── WS de conversation quand activeConv change ────────
     useEffect(() => {
@@ -108,10 +128,12 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     const connectGlobalWS = () => {
         try {
             const t = token()
+            if (!t) return
             const ws = new WebSocket(`${WS_URL}/ws/notifications/?token=${t}`)
             ws.onopen  = () => setConnected(true)
             ws.onclose = () => {
                 setConnected(false)
+                // Reconnecter seulement si le même user est encore connecté
                 if (localStorage.getItem("access_token")) {
                     setTimeout(connectGlobalWS, 5000)
                 }
@@ -121,9 +143,6 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
                 try {
                     const data = JSON.parse(e.data)
                     if (data.type === "new_message") {
-                        // Ce canal reçoit uniquement les messages des AUTRES
-                        // (le backend pousse dans notifs_{recipient_id})
-                        // Donc on ajoute directement sans vérifier l'expéditeur
                         handleIncomingMessage(data.conversation_id, data.message)
                     }
                 } catch {}
@@ -138,6 +157,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     const connectConvWS = (convId: number) => {
         try {
             const t = token()
+            if (!t) return
             const ws = new WebSocket(`${WS_URL}/ws/chat/${convId}/?token=${t}`)
             ws.onmessage = (e) => {
                 try {
@@ -145,11 +165,8 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
                     if (data.type === "new_message") {
                         const msg: Message = data.message
                         const myId = user ? parseInt((user as any).id) : -1
-
-                        // Ignorer si c'est notre propre message
-                        // (déjà ajouté en optimistic dans sendMessage)
+                        // Ignorer nos propres messages (déjà en optimistic)
                         if (msg.sender_id === myId) return
-
                         handleIncomingMessage(convId, msg)
                     }
                 } catch {}
@@ -162,7 +179,6 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     const handleIncomingMessage = (convId: number, msg: Message) => {
         setConversations(prev => prev.map(c => {
             if (c.id !== convId) return c
-            // Éviter les doublons par id
             const alreadyExists = c.messages.some(m => m.id === msg.id)
             if (alreadyExists) return c
             return {
@@ -189,7 +205,6 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     const sendMessage = (convId: number, text: string) => {
         if (!text.trim()) return
 
-        // Optimistic update immédiat avec un id temporaire négatif
         const tempId = -Date.now()
         const optimistic: Message = {
             id:          tempId,
@@ -200,7 +215,6 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
             read:        true,
         }
 
-        // Ajouter le message optimiste localement
         setConversations(prev => prev.map(c => {
             if (c.id !== convId) return c
             return {
@@ -215,11 +229,9 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
             return { ...prev, messages: [...(prev.messages ?? []), optimistic] }
         })
 
-        // Envoyer via WS si connecté
         if (convWsRef.current?.readyState === WebSocket.OPEN) {
             convWsRef.current.send(JSON.stringify({ type: "message", text }))
         } else {
-            // Fallback REST
             fetch(`${BASE_URL}/api/chat/conversations/${convId}/messages/`, {
                 method: "POST",
                 headers: {
