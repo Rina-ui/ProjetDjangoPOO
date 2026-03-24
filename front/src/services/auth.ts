@@ -15,15 +15,33 @@ type RegisterPayload = {
     role: "LOCATAIRE" | "PROPRIETAIRE" | "ADMIN";
 };
 
+const API_ROOT_URL = import.meta.env.VITE_API_ROOT_URL || "http://127.0.0.1:8000";
+
+const extractLoginUser = (data: any): AuthUser | null => {
+    if (data && typeof data === "object" && typeof data.id === "number") {
+        return data as AuthUser;
+    }
+
+    if (data?.utilisateur && typeof data.utilisateur === "object" && typeof data.utilisateur.id === "number") {
+        return data.utilisateur as AuthUser;
+    }
+
+    if (Array.isArray(data) && data[0] && typeof data[0].id === "number") {
+        return data[0] as AuthUser;
+    }
+
+    return null;
+};
+
 export const login = async (username: string, password: string): Promise<AuthUser> => {
-    const response = await api.get<AuthUser[]>("utilisateurs/", {
-        auth: {
-            username,
-            password,
-        },
+    const response = await api.post(`${API_ROOT_URL}/login/`, {
+        username,
+        password,
     });
 
-    const user = response.data?.[0];
+    console.log("[POST /login/] response:", response.data);
+
+    const user = extractLoginUser(response.data);
 
     if (!user) {
         throw new Error("Utilisateur introuvable");

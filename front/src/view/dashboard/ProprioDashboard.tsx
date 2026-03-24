@@ -1,6 +1,8 @@
 import { useState } from "react"
 import DashboardLayout from "../../component/sidebar"
 import { IconMapPin, IconEye, IconMessage, IconHeart, IconBuilding, IconEdit, IconTrash, IconTrendUp, IconPlus } from "../../component/Icons"
+import AddBienForm from "../../component/AddBienForm"
+import { useAuth } from "../../context/AuthContext"
 import "../../style/dashboard.css"
 
 const NAV_ITEMS = [
@@ -25,13 +27,17 @@ const INQUIRIES = [
     { name:"Laura Petit",     property:"Villa Anfa",         date:"4 days ago",  type:"Price Inquiry" },
 ]
 
-const PageAction = () => (
+type PageActionProps = {
+    onAddProperty: () => void
+}
+
+const PageAction = ({ onAddProperty }: PageActionProps) => (
     <>
         <button className="dl-export-btn">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Export
         </button>
-        <button className="dl-add-btn">
+        <button className="dl-add-btn" onClick={onAddProperty}>
             <IconPlus size={15} color="white" />
             Add Property
         </button>
@@ -39,7 +45,9 @@ const PageAction = () => (
 )
 
 const OwnerDashboard = () => {
+    const { user } = useAuth()
     const [activeTab, setActiveTab] = useState<"all"|"sale"|"rent">("all")
+    const [showAddForm, setShowAddForm] = useState(false)
 
     const filtered = PROPERTIES.filter(p => {
         if (activeTab === "sale") return p.status === "for_sale"
@@ -50,9 +58,18 @@ const OwnerDashboard = () => {
     const totalViews = PROPERTIES.reduce((a,p) => a+p.views, 0)
     const totalInq   = PROPERTIES.reduce((a,p) => a+p.inquiries, 0)
     const totalSaved = PROPERTIES.reduce((a,p) => a+p.saved, 0)
+    const proprietaireId = user?.id || 0
 
     return (
-        <DashboardLayout navItems={NAV_ITEMS} pageTitle="My Properties" pageAction={<PageAction />}>
+        <DashboardLayout navItems={NAV_ITEMS} pageTitle="My Properties" pageAction={<PageAction onAddProperty={() => setShowAddForm(true)} />}>
+            {showAddForm && proprietaireId > 0 && (
+                <AddBienForm
+                    proprietaireId={proprietaireId}
+                    onClose={() => setShowAddForm(false)}
+                    onSuccess={() => setShowAddForm(false)}
+                />
+            )}
+
             {/* Stats */}
             <div className="stats-row">
                 {[
