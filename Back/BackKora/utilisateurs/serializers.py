@@ -43,3 +43,23 @@ class AuditLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = AuditLog
         fields = '__all__'
+
+class RegisterSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True)
+
+    class Meta:
+        model = Utilisateur
+        fields = ['id', 'username', 'password', 'role']
+
+    def validate_username(self, value):
+        if Utilisateur.objects.filter(username=value).exists():
+            raise serializers.ValidationError("Ce username existe déjà.")
+        return value
+
+    def create(self, validated_data):
+        user = Utilisateur.objects.create_user(
+            username=validated_data['username'],
+            password=validated_data['password'],
+            role=validated_data.get('role', 'LOCATAIRE')
+        )
+        return user

@@ -34,6 +34,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'corsheaders',  # ajouter
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -44,15 +45,16 @@ INSTALLED_APPS = [
     'utilisateurs',
     'patrimoine',
     'locataires',
-    # 'comptabilite',
     'notifications',
     'comptabilite.apps.ComptabiliteConfig',
     'chat',
 ]
 
+
 AUTH_USER_MODEL = 'utilisateurs.Utilisateur'
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',  # ajouter en haut (avant CommonMiddleware)
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -61,6 +63,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
 
 ROOT_URLCONF = 'LocationApp.urls'
 
@@ -152,3 +155,14 @@ REST_FRAMEWORK = {
     ],
 }
 
+# CORS/CSRF pour ton front Vite
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+CORS_ALLOW_CREDENTIALS = True
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
