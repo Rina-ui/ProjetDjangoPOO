@@ -9,3 +9,13 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
 }
+
+.light {
+  background: white;
+  color: black;
+}
+
+.dark {
+  background: #121212;
+  color: white;
+}

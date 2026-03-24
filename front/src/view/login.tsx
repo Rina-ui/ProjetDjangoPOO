@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { useAuth, type Role } from "../context/AuthContext"
+import { useAuth } from "../context/AuthContext"
 import "../style/auth.css"
 
 const Login = () => {
@@ -8,22 +8,28 @@ const Login = () => {
     const { login } = useAuth()
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
-    const [mockRole, setMockRole] = useState<Role>("client")
     const [error, setError] = useState(false)
     const [loading, setLoading] = useState(false)
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!email || !password) {
             setError(true)
             setTimeout(() => setError(false), 500)
             return
         }
+
         setLoading(true)
-        setTimeout(() => {
-            login(mockRole)
-            setLoading(false)
+
+        try {
+            await login(email, password) // 🔥 appel backend réel
+
             navigate("/dashboard")
-        }, 1200)
+        } catch (err) {
+            console.error(err)
+            setError(true)
+        } finally {
+            setLoading(false)
+        }
     }
 
     return (
@@ -37,22 +43,6 @@ const Login = () => {
                 <div className="auth-header">
                     <h2>Welcome Back</h2>
                     <p>Sign in to your account</p>
-                </div>
-
-                {/* Dev role selector */}
-                <div className="mock-selector">
-                    <span className="mock-selector-lbl">Dev mode — Select role to preview</span>
-                    <div className="mock-btns">
-                        {(["client", "owner", "admin"] as Role[]).map(r => (
-                            <button
-                                key={r}
-                                className={`mock-btn ${mockRole === r ? "mock-btn--active" : ""}`}
-                                onClick={() => setMockRole(r)}
-                            >
-                                {r === "client" ? "Client" : r === "owner" ? "Owner" : "Admin"}
-                            </button>
-                        ))}
-                    </div>
                 </div>
 
                 <div className={`input-group ${error ? "input-error" : ""}`}>

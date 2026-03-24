@@ -1,63 +1,89 @@
-import { createContext, useContext, useState, type ReactNode } from "react"
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { login as loginRequest, logout as logoutRequest, type AuthUser } from "../services/auth";
 
-export type Role = "admin" | "owner" | "client"
 
-export interface MockUser {
-    id: string
-    fullName: string
-    email: string
-    role: Role
-    avatar?: string
+const mapRole = (role: string) => {
+    if (role === "ADMIN") return "admin"
+    if (role === "PROPRIETAIRE") return "owner"
+    if (role === "LOCATAIRE") return "client"
+    return "client"
 }
 
-const MOCK_USERS: Record<Role, MockUser> = {
-    admin: {
-        id: "1",
-        fullName: "Sarah Lemoine",
-        email: "admin@kora.com",
-        role: "admin",
-    },
-    owner: {
-        id: "2",
-        fullName: "Karim Benali",
-        email: "owner@kora.com",
-        role: "owner",
-    },
-    client: {
-        id: "3",
-        fullName: "Ryan Vaccaro",
-        email: "client@kora.com",
-        role: "client",
-    },
-}
+export type Role = "client" | "owner" | "admin";
 
-interface AuthContextType {
-    user: MockUser | null
-    login: (role: Role) => void
-    logout: () => void
-    isAuthenticated: boolean
-}
+type User = AuthUser & { role: Role; fullName: string };
 
-const AuthContext = createContext<AuthContextType | null>(null)
+type AuthContextType = {
+    user: User | null;
+    isAuthenticated: boolean;
+    login: (email: string, password: string) => Promise<User>;
+    logout: () => Promise<void>;
+};
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-    const [user, setUser] = useState<MockUser | null>(null)
+const AuthContext = createContext<AuthContextType | null>(null);
 
-    const login = (role: Role) => {
-        setUser(MOCK_USERS[role])
-    }
+export const AuthProvider = ({ children }: any) => {
+    const [user, setUser] = useState<User | null>(() => {
+        const saved = localStorage.getItem("auth_user");
+        if (!saved) return null;
 
-    const logout = () => setUser(null)
+        const parsed = JSON.parse(saved) as Partial<User>;
+        return {
+            ...(parsed as User),
+            fullName: parsed.fullName || parsed.full_name || parsed.email || parsed.username || "Utilisateur",
+            role: mapRole(parsed.role || "")
+        };
+    });
+
+    useEffect(() => {
+        if (user) {
+            localStorage.setItem("auth_user", JSON.stringify(user));
+            return;
+        }
+        localStorage.removeItem("auth_user");
+    }, [user]);
+
+    const login = async (email: string, password: string) => {
+        try {
+            const userData = await loginRequest(email, password);
+
+            const normalizedUser: User = {
+                ...userData,
+                fullName: userData.fullName || userData.full_name || userData.email || userData.username || "Utilisateur",
+                role: mapRole(userData.role)
+            };
+
+            setUser(normalizedUser);
+
+            return normalizedUser;
+        } catch (error) {
+            throw error;
+        }
+    };
+
+    const logout = async () => {
+        await logoutRequest();
+        setUser(null);
+    };
+
+    const value = useMemo(
+        () => ({ user, isAuthenticated: Boolean(user), login, logout }),
+        [user]
+    );
 
     return (
-        <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user }}>
+        <AuthContext.Provider value={value}>
             {children}
         </AuthContext.Provider>
-    )
-}
+    );
+};
 
 export const useAuth = () => {
-    const ctx = useContext(AuthContext)
-    if (!ctx) throw new Error("useAuth must be used within AuthProvider")
-    return ctx
-}
+    const context = useContext(AuthContext);
+
+    if (!context) {
+        throw new Error("useAuth doit etre utilise dans AuthProvider");
+    }
+
+    return context;
+};

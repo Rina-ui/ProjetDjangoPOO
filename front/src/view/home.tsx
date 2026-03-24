@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom"
 import "../style/home.css";
 import AboutSection from "../component/aboutSection.tsx";
+import ThemeToggle from "../component/ThemeToggle";
 
 const Home = () => {
     const [activeFilter, setActiveFilter] = useState<string>("City");
@@ -25,6 +26,7 @@ const Home = () => {
                     <span>🌐</span>
                 <span>Eng</span>
                 </div>
+                    <ThemeToggle />
                     <button className="btn-signup" onClick={() => navigate("/register")}>
                         Sign Up
                     </button>

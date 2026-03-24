@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
-import { AuthProvider, useAuth } from "./context/AuthContext"
+import { useAuth } from "./context/AuthContext"
 import Home from "./view/home"
 import Login from "./view/login"
 import Register from "./view/register"
@@ -20,9 +20,8 @@ const DashboardRedirect = () => {
 
 const App = () => {
     return (
-        <AuthProvider>
-            <BrowserRouter>
-                <Routes>
+        <BrowserRouter>
+            <Routes>
                     {/* Public */}
                     <Route path="/" element={<Home />} />
                     <Route path="/login" element={<Login />} />
@@ -64,9 +63,8 @@ const App = () => {
 
                     {/* Fallback */}
                     <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-            </BrowserRouter>
-        </AuthProvider>
+            </Routes>
+        </BrowserRouter>
     )
 }
 

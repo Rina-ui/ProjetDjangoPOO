@@ -29,9 +29,11 @@ interface DashboardLayoutProps {
     children: ReactNode
     navItems: { label: string; path: string }[]
     topbarLeft?: ReactNode
+    pageTitle?: string
+    pageAction?: ReactNode
 }
 
-const DashboardLayout = ({ children, navItems, topbarLeft }: DashboardLayoutProps) => {
+const DashboardLayout = ({ children, navItems, topbarLeft, pageTitle, pageAction }: DashboardLayoutProps) => {
     const { user, logout } = useAuth()
     const navigate = useNavigate()
     const location = useLocation()
@@ -50,6 +52,15 @@ const DashboardLayout = ({ children, navItems, topbarLeft }: DashboardLayoutProp
         client: "#1d4ed8",
     }
 
+    const safeRole = user?.role || "client"
+    const safeName = user?.fullName || "Utilisateur"
+    const topbarContent = topbarLeft ?? (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", gap: 12 }}>
+            <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>{pageTitle || "Dashboard"}</h1>
+            {pageAction && <div style={{ display: "flex", gap: 8 }}>{pageAction}</div>}
+        </div>
+    )
+
     return (
         <div className="dl-wrapper">
             <aside
@@ -63,14 +74,14 @@ const DashboardLayout = ({ children, navItems, topbarLeft }: DashboardLayoutProp
                 </div>
 
                 <div className="dl-user">
-                    <div className="dl-avatar" style={{ borderColor: roleColor[user!.role] }}>
-                        {user?.fullName.charAt(0)}
+                    <div className="dl-avatar" style={{ borderColor: roleColor[safeRole] }}>
+                        {safeName.charAt(0)}
                     </div>
                     {expanded && (
                         <div className="dl-user-info">
-                            <span className="dl-user-name">{user?.fullName}</span>
-                            <span className="dl-user-role" style={{ color: roleColor[user!.role] }}>
-                                {roleLabel[user!.role]}
+                            <span className="dl-user-name">{safeName}</span>
+                            <span className="dl-user-role" style={{ color: roleColor[safeRole] }}>
+                                {roleLabel[safeRole]}
                             </span>
                         </div>
                     )}
@@ -107,20 +118,20 @@ const DashboardLayout = ({ children, navItems, topbarLeft }: DashboardLayoutProp
 
             <div className="dl-main-wrap">
                 <header className="dl-topbar">
-                    <div className="dl-topbar-left">{topbarLeft}</div>
+                    <div className="dl-topbar-left">{topbarContent}</div>
                     <div className="dl-topbar-right">
                         <button className="dl-topbar-btn" title="Notifications">
                             <IconBell size={18} color="#374151" />
                             <span className="dl-notif-dot" />
                         </button>
                         <div className="dl-topbar-user">
-                            <div className="dl-topbar-avatar" style={{ borderColor: roleColor[user!.role] }}>
-                                {user?.fullName.charAt(0)}
+                            <div className="dl-topbar-avatar" style={{ borderColor: roleColor[safeRole] }}>
+                                {safeName.charAt(0)}
                             </div>
                             <div>
-                                <div className="dl-topbar-name">{user?.fullName}</div>
-                                <div className="dl-topbar-role" style={{ color: roleColor[user!.role] }}>
-                                    {roleLabel[user!.role]}
+                                <div className="dl-topbar-name">{safeName}</div>
+                                <div className="dl-topbar-role" style={{ color: roleColor[safeRole] }}>
+                                    {roleLabel[safeRole]}
                                 </div>
                             </div>
                         </div>
