@@ -4,18 +4,31 @@
   padding: 0;
 }
 
+:root {
+  --app-bg: #f7f6f4;
+  --app-text: #1a1814;
+}
+
+:root[data-theme="dark"] {
+  --app-bg: #0f1217;
+  --app-text: #eceff4;
+}
+
 body {
   width: 100%;
   min-height: 100vh;
   overflow-x: hidden;
+  background: var(--app-bg);
+  color: var(--app-text);
+  transition: background-color .2s ease, color .2s ease;
 }
 
 .light {
-  background: white;
-  color: black;
+  background: var(--app-bg);
+  color: var(--app-text);
 }
 
 .dark {
-  background: #121212;
-  color: white;
+  background: var(--app-bg);
+  color: var(--app-text);
 }

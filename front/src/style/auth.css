@@ -287,3 +287,53 @@
         padding: 32px 24px 28px;
     }
 }
+
+/* Theme sombre */
+:root[data-theme="dark"] .auth-overlay {
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0.65) 100%);
+}
+
+:root[data-theme="dark"] .auth-card {
+    background: rgba(23, 28, 36, 0.96);
+    border: 1px solid #354154;
+}
+
+:root[data-theme="dark"] .auth-switcher {
+    background: #252c36;
+}
+
+:root[data-theme="dark"] .auth-switcher button {
+    color: #c8d0dc;
+}
+
+:root[data-theme="dark"] .auth-switcher button.active {
+    background: #111722;
+    color: #eef2f7;
+}
+
+:root[data-theme="dark"] .auth-header h2,
+:root[data-theme="dark"] .auth-footer,
+:root[data-theme="dark"] .auth-forgot span {
+    color: #eef2f7;
+}
+
+:root[data-theme="dark"] .auth-header p,
+:root[data-theme="dark"] .auth-footer {
+    color: #c2cbd8;
+}
+
+:root[data-theme="dark"] .input-group input {
+    border-color: #3a4558;
+    background: #10151d;
+    color: #eef2f7;
+}
+
+:root[data-theme="dark"] .input-group label {
+    color: #b2bccb;
+}
+
+:root[data-theme="dark"] .error-msg {
+    background: #3a1e22;
+    border-color: #7f2f37;
+    color: #ffd7dc;
+}

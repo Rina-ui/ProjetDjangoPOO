@@ -1,13 +1,52 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { createBien, fetchCategories, fetchTypesBien, type Categorie, type TypeBien } from "../services/biens";
+import { createBien, extractCreatedBienId, fetchCategories, fetchTypesBien, type Bien, type Categorie, type CreateBienPayload, type TypeBien, uploadBienPhotos } from "../services/biens";
+
+const MAX_PHOTO_COUNT = 10;
+const MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024;
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+const formatApiError = (data: unknown): string => {
+    if (!data) {
+        return "Echec de creation du bien.";
+    }
+
+    if (typeof data === "string") {
+        return data;
+    }
+
+    if (Array.isArray(data)) {
+        return data.map((item) => String(item)).join(" | ");
+    }
+
+    if (typeof data === "object") {
+        const entries = Object.entries(data as Record<string, unknown>);
+        if (entries.length === 0) {
+            return "Echec de creation du bien.";
+        }
+
+        return entries
+            .map(([key, value]) => {
+                if (Array.isArray(value)) {
+                    return `${key}: ${value.map((item) => String(item)).join(", ")}`;
+                }
+                return `${key}: ${String(value)}`;
+            })
+            .join(" | ");
+    }
+
+    return "Echec de creation du bien.";
+};
 
 type AddBienFormProps = {
     proprietaireId: number;
+    mode?: "create" | "edit";
+    initialBien?: Bien | null;
+    onSubmitPayload?: (payload: CreateBienPayload, sourceBien: Bien | null) => Promise<void> | void;
     onClose: () => void;
     onSuccess?: () => void;
 };
 
-const AddBienForm = ({ proprietaireId, onClose, onSuccess }: AddBienFormProps) => {
+const AddBienForm = ({ proprietaireId, mode = "create", initialBien = null, onSubmitPayload, onClose, onSuccess }: AddBienFormProps) => {
     const [categories, setCategories] = useState<Categorie[]>([]);
     const [typesBien, setTypesBien] = useState<TypeBien[]>([]);
     const [loadingLists, setLoadingLists] = useState(true);
@@ -24,6 +63,48 @@ const AddBienForm = ({ proprietaireId, onClose, onSuccess }: AddBienFormProps) =
     const [loyerHc, setLoyerHc] = useState("");
     const [charges, setCharges] = useState("");
     const [statut, setStatut] = useState<"VACANT" | "LOUE" | "EN_TRAVAUX">("VACANT");
+
+    const isEditMode = mode === "edit";
+
+    const handlePhotosChange = (filesList: FileList | null) => {
+        if (!filesList) {
+            return;
+        }
+
+        const incomingFiles = Array.from(filesList);
+        const currentCount = photosFiles.length;
+        const remainingSlots = MAX_PHOTO_COUNT - currentCount;
+
+        if (remainingSlots <= 0) {
+            setErrorMsg(`Maximum ${MAX_PHOTO_COUNT} photos.`);
+            return;
+        }
+
+        const validatedFiles: File[] = [];
+
+        for (const file of incomingFiles.slice(0, remainingSlots)) {
+            if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+                setErrorMsg("Formats autorises: JPG, PNG, WEBP.");
+                continue;
+            }
+
+            if (file.size > MAX_PHOTO_SIZE_BYTES) {
+                setErrorMsg("Une photo depasse 5 Mo.");
+                continue;
+            }
+
+            validatedFiles.push(file);
+        }
+
+        if (validatedFiles.length > 0) {
+            setErrorMsg("");
+            setPhotosFiles((prev) => [...prev, ...validatedFiles]);
+        }
+    };
+
+    const removePhoto = (targetName: string) => {
+        setPhotosFiles((prev) => prev.filter((file) => file.name !== targetName));
+    };
 
     useEffect(() => {
         const loadData = async () => {
@@ -61,6 +142,23 @@ const AddBienForm = ({ proprietaireId, onClose, onSuccess }: AddBienFormProps) =
         }
     }, [filteredTypes, typeBien]);
 
+    useEffect(() => {
+        if (!initialBien) {
+            return;
+        }
+
+        setCategorie(initialBien.categorie || 0);
+        setTypeBien(initialBien.type_bien || 0);
+        setAdresse(initialBien.adresse || "");
+        setDescription(initialBien.description || "");
+        setEquipementsInput((initialBien.equipements || []).join(", "));
+        setLoyerHc(String(initialBien.loyer_hc ?? ""));
+        setCharges(String(initialBien.charges ?? ""));
+        if (initialBien.statut === "VACANT" || initialBien.statut === "LOUE" || initialBien.statut === "EN_TRAVAUX") {
+            setStatut(initialBien.statut);
+        }
+    }, [initialBien]);
+
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
         setErrorMsg("");
@@ -79,7 +177,7 @@ const AddBienForm = ({ proprietaireId, onClose, onSuccess }: AddBienFormProps) =
                 .map((item) => item.trim())
                 .filter(Boolean);
 
-            const payload = {
+            const payload: CreateBienPayload = {
                 proprietaire: proprietaireId,
                 categorie,
                 type_bien: typeBien,
@@ -93,19 +191,38 @@ const AddBienForm = ({ proprietaireId, onClose, onSuccess }: AddBienFormProps) =
             };
 
             console.log("[POST /api/biens/] payload:", payload);
-            await createBien(payload);
-            setSuccessMsg("Bien ajoute avec succes.");
+            if (onSubmitPayload) {
+                await onSubmitPayload(payload, initialBien);
+            } else {
+                const createResponse = await createBien({ ...payload, photos: [] });
+                const createdBienId = extractCreatedBienId(createResponse?.data);
+
+                console.log("[POST /api/biens/] response:", createResponse?.data);
+                console.log("[POST /api/biens/] created id:", createdBienId);
+
+                if (!createdBienId) {
+                    throw new Error("Creation reussie mais id du bien introuvable dans la reponse.");
+                }
+
+                if (photosFiles.length > 0) {
+                    try {
+                        console.log("[POST /api/biens/{id}/upload-photos/] files:", photosFiles.map((f) => f.name));
+                        await uploadBienPhotos(createdBienId, photosFiles);
+                    } catch (uploadError: any) {
+                        console.error("[POST /api/biens/{id}/upload-photos/] status:", uploadError?.response?.status);
+                        console.error("[POST /api/biens/{id}/upload-photos/] response:", uploadError?.response?.data);
+                        setErrorMsg(`Bien cree, mais l'upload des photos a echoue: ${formatApiError(uploadError?.response?.data)}`);
+                        return;
+                    }
+                }
+            }
+            setSuccessMsg(isEditMode ? "Bien modifie avec succes." : "Bien ajoute avec succes.");
             onSuccess?.();
         } catch (error: any) {
             const data = error?.response?.data;
-            const backendMsg =
-                data?.detail ||
-                data?.adresse?.[0] ||
-                data?.description?.[0] ||
-                data?.type_bien?.[0] ||
-                data?.categorie?.[0] ||
-                "Echec de creation du bien.";
-            setErrorMsg(String(backendMsg));
+            console.error(isEditMode ? "[EDIT bien] status:" : "[POST /api/biens/] status:", error?.response?.status);
+            console.error(isEditMode ? "[EDIT bien] response:" : "[POST /api/biens/] response:", data);
+            setErrorMsg(formatApiError(data));
         } finally {
             setSubmitting(false);
         }
@@ -114,7 +231,7 @@ const AddBienForm = ({ proprietaireId, onClose, onSuccess }: AddBienFormProps) =
     return (
         <div className="card add-bien-card">
             <div className="card-hd add-bien-header">
-                <span className="card-title">Ajouter un bien</span>
+                <span className="card-title">{isEditMode ? "Modifier le bien" : "Ajouter un bien"}</span>
                 <button className="btn-ghost" onClick={onClose} type="button">Fermer</button>
             </div>
 
@@ -123,10 +240,6 @@ const AddBienForm = ({ proprietaireId, onClose, onSuccess }: AddBienFormProps) =
             {successMsg && <p className="add-bien-success">{successMsg}</p>}
 
             <form className="add-bien-form" onSubmit={handleSubmit}>
-                <div className="input-group">
-                    <input type="number" value={proprietaireId} readOnly placeholder=" " />
-                    <label>Proprietaire</label>
-                </div>
 
                 <div className="input-group">
                     <select
@@ -194,18 +307,30 @@ const AddBienForm = ({ proprietaireId, onClose, onSuccess }: AddBienFormProps) =
                         className="add-bien-file-input"
                         type="file"
                         multiple
-                        accept="image/*"
+                        accept="image/jpeg,image/png,image/webp"
                         onChange={(event) => {
-                            const files = Array.from(event.target.files || []);
-                            setPhotosFiles(files);
+                            handlePhotosChange(event.target.files);
+                            // Reset input value so selecting same file again still triggers onChange.
+                            event.currentTarget.value = "";
                         }}
                     />
-                    <label>Photos depuis votre PC (optionnel)</label>
+                    <label>Photos depuis votre PC (optionnel, max 10)</label>
                 </div>
 
                 {photosFiles.length > 0 && (
                     <div className="add-bien-file-list">
-                        {photosFiles.map((file) => file.name).join(", ")}
+                        {photosFiles.map((file) => (
+                            <div key={file.name} className="add-bien-file-chip">
+                                <span>{file.name}</span>
+                                <button
+                                    type="button"
+                                    className="add-bien-file-remove"
+                                    onClick={() => removePhoto(file.name)}
+                                >
+                                    x
+                                </button>
+                            </div>
+                        ))}
                     </div>
                 )}
 
@@ -222,7 +347,7 @@ const AddBienForm = ({ proprietaireId, onClose, onSuccess }: AddBienFormProps) =
                 <div className="add-bien-actions">
                     <button className="btn-ghost" type="button" onClick={onClose}>Annuler</button>
                     <button className="dl-add-btn" type="submit" disabled={submitting || loadingLists}>
-                        {submitting ? "Envoi..." : "Enregistrer le bien"}
+                        {submitting ? "Envoi..." : isEditMode ? "Enregistrer les modifications" : "Enregistrer le bien"}
                     </button>
                 </div>
             </form>

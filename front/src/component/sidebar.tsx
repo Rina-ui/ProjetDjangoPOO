@@ -7,6 +7,7 @@ import {
     IconCalendar, IconMessage, IconUsers,
     IconBarChart, IconCreditCard, IconBuilding
 } from "./Icons"
+import ThemeToggle from "./ThemeToggle"
 import "../style/dashboard.css"
 
 const ICON_MAP: Record<string, ReactNode> = {
@@ -54,6 +55,8 @@ const DashboardLayout = ({ children, navItems, topbarLeft, pageTitle, pageAction
 
     const safeRole = user?.role || "client"
     const safeName = user?.fullName || "Utilisateur"
+    const clientEmail = user?.email || user?.username || ""
+    const roleDisplay = safeRole === "client" ? (clientEmail || "Client") : roleLabel[safeRole]
     const topbarContent = topbarLeft ?? (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", gap: 12 }}>
             <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>{pageTitle || "Dashboard"}</h1>
@@ -81,7 +84,7 @@ const DashboardLayout = ({ children, navItems, topbarLeft, pageTitle, pageAction
                         <div className="dl-user-info">
                             <span className="dl-user-name">{safeName}</span>
                             <span className="dl-user-role" style={{ color: roleColor[safeRole] }}>
-                                {roleLabel[safeRole]}
+                                {roleDisplay}
                             </span>
                         </div>
                     )}
@@ -120,8 +123,9 @@ const DashboardLayout = ({ children, navItems, topbarLeft, pageTitle, pageAction
                 <header className="dl-topbar">
                     <div className="dl-topbar-left">{topbarContent}</div>
                     <div className="dl-topbar-right">
+                        <ThemeToggle className="dl-theme-toggle" />
                         <button className="dl-topbar-btn" title="Notifications">
-                            <IconBell size={18} color="#374151" />
+                            <IconBell size={18} color="var(--text2)" />
                             <span className="dl-notif-dot" />
                         </button>
                         <div className="dl-topbar-user">
@@ -131,7 +135,7 @@ const DashboardLayout = ({ children, navItems, topbarLeft, pageTitle, pageAction
                             <div>
                                 <div className="dl-topbar-name">{safeName}</div>
                                 <div className="dl-topbar-role" style={{ color: roleColor[safeRole] }}>
-                                    {roleLabel[safeRole]}
+                                    {roleDisplay}
                                 </div>
                             </div>
                         </div>

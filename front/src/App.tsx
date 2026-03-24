@@ -61,6 +61,15 @@ const App = () => {
                         }
                     />
 
+                    <Route
+                        path="/dashboard/client/saved"
+                        element={
+                            <ProtectedRoute allowedRoles={["client"]}>
+                                <ClientDashboard />
+                            </ProtectedRoute>
+                        }
+                    />
+
                     {/* Fallback */}
                     <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

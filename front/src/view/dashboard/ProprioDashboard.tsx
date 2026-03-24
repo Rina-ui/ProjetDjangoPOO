@@ -1,8 +1,9 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import DashboardLayout from "../../component/sidebar"
 import { IconMapPin, IconEye, IconMessage, IconHeart, IconBuilding, IconEdit, IconTrash, IconTrendUp, IconPlus } from "../../component/Icons"
 import AddBienForm from "../../component/AddBienForm"
 import { useAuth } from "../../context/AuthContext"
+import { fetchBiensByOwner, type Bien, type CreateBienPayload } from "../../services/biens"
 import "../../style/dashboard.css"
 
 const NAV_ITEMS = [
@@ -11,13 +12,6 @@ const NAV_ITEMS = [
     { label: "Analytics",     path: "/dashboard/owner/analytics" },
     { label: "Messages",      path: "/dashboard/owner/messages" },
     { label: "Settings",      path: "/dashboard/owner/settings" },
-]
-
-const PROPERTIES = [
-    { id:1, name:"Villa Anfa",          loc:"Casablanca, Anfa",  type:"Villa",     price:"$850,000",   status:"for_sale", statusLabel:"For Sale", views:1240, inquiries:18, saved:43, trend:"+22%", up:true  },
-    { id:2, name:"Appartement Guéliz",  loc:"Marrakech, Guéliz", type:"Apartment", price:"$1,200 /mo", status:"for_rent", statusLabel:"For Rent", views:876,  inquiries:9,  saved:31, trend:"+8%",  up:true  },
-    { id:3, name:"Riad Medina",         loc:"Fès, Médina",       type:"House",     price:"$320,000",   status:"for_sale", statusLabel:"For Sale", views:412,  inquiries:4,  saved:17, trend:"-3%",  up:false },
-    { id:4, name:"Studio Agdal",        loc:"Rabat, Agdal",      type:"Apartment", price:"$650 /mo",   status:"rented",   statusLabel:"Rented",   views:230,  inquiries:0,  saved:12, trend:"—",    up:true  },
 ]
 
 const INQUIRIES = [
@@ -46,37 +40,168 @@ const PageAction = ({ onAddProperty }: PageActionProps) => (
 
 const OwnerDashboard = () => {
     const { user } = useAuth()
-    const [activeTab, setActiveTab] = useState<"all"|"sale"|"rent">("all")
+    const [activeTab, setActiveTab] = useState<"all"|"vacant"|"loue">("all")
     const [showAddForm, setShowAddForm] = useState(false)
+    const [biens, setBiens] = useState<Bien[]>([])
+    const [loadingBiens, setLoadingBiens] = useState(false)
+    const [biensError, setBiensError] = useState("")
+    const [refreshKey, setRefreshKey] = useState(0)
+    const [editingBien, setEditingBien] = useState<Bien | null>(null)
+    const API_ROOT_URL = import.meta.env.VITE_API_ROOT_URL || "http://127.0.0.1:8000"
 
-    const filtered = PROPERTIES.filter(p => {
-        if (activeTab === "sale") return p.status === "for_sale"
-        if (activeTab === "rent") return p.status === "for_rent" || p.status === "rented"
+    const toMoney = (value: number | string) => {
+        const parsed = Number(value)
+        if (Number.isNaN(parsed)) return "0 FCFA"
+        return `${parsed.toLocaleString("fr-FR")} FCFA`
+    }
+
+    const formatEquipements = (equipements: string[] | undefined) => {
+        if (!equipements || equipements.length === 0) {
+            return "Aucun"
+        }
+        return equipements.join(", ")
+    }
+
+    const toAbsoluteImageUrl = (value?: string) => {
+        if (!value) {
+            return ""
+        }
+        if (value.startsWith("http://") || value.startsWith("https://")) {
+            return value
+        }
+        if (value.startsWith("/")) {
+            return `${API_ROOT_URL}${value}`
+        }
+        return `${API_ROOT_URL}/${value}`
+    }
+
+    const getBienImageUrl = (bien: Bien) => {
+        const firstPhoto = bien.photos_files?.[0]
+        const raw = firstPhoto?.image_url || firstPhoto?.image
+        return toAbsoluteImageUrl(raw)
+    }
+
+    const statusToBadge = (status: Bien["statut"]) => {
+        if (status === "VACANT") return { className: "available", label: "Vacant" }
+        if (status === "LOUE") return { className: "rented", label: "Loue" }
+        if (status === "EN_VENTE") return { className: "sale", label: "En vente" }
+        return { className: "sold", label: "En travaux" }
+    }
+
+    useEffect(() => {
+        const ownerId = user?.id
+        if (!ownerId) {
+            setBiens([])
+            return
+        }
+
+        const loadBiens = async () => {
+            setLoadingBiens(true)
+            setBiensError("")
+            try {
+                const list = await fetchBiensByOwner(ownerId)
+                setBiens(list)
+            } catch (error) {
+                console.error("[GET /api/biens/] erreur:", error)
+                setBiensError("Impossible de charger vos biens.")
+                setBiens([])
+            } finally {
+                setLoadingBiens(false)
+            }
+        }
+
+        void loadBiens()
+    }, [user?.id, refreshKey])
+
+    const filtered = biens.filter((p) => {
+        if (activeTab === "vacant") return p.statut === "VACANT"
+        if (activeTab === "loue") return p.statut === "LOUE"
         return true
     })
 
-    const totalViews = PROPERTIES.reduce((a,p) => a+p.views, 0)
-    const totalInq   = PROPERTIES.reduce((a,p) => a+p.inquiries, 0)
-    const totalSaved = PROPERTIES.reduce((a,p) => a+p.saved, 0)
+    const totalBiens = biens.length
+    const totalVacants = biens.filter((p) => p.statut === "VACANT").length
+    const totalLoues = biens.filter((p) => p.statut === "LOUE").length
+    const totalEnTravaux = biens.filter((p) => p.statut === "EN_TRAVAUX").length
     const proprietaireId = user?.id || 0
 
+    const handleOpenCreate = () => {
+        setEditingBien(null)
+        setShowAddForm(true)
+    }
+
+    const handleEditBien = (bien: Bien) => {
+        setEditingBien(bien)
+        setShowAddForm(true)
+    }
+
+    const handleDeleteBien = (id: number, label: string) => {
+        const confirmed = window.confirm(`Confirmer la suppression de \"${label}\" ?`)
+        if (!confirmed) {
+            return
+        }
+
+        setBiens((prev) => prev.filter((bien) => bien.id !== id))
+    }
+
+    const handleLocalEditSubmit = async (payload: CreateBienPayload, sourceBien: Bien | null) => {
+        if (!sourceBien) {
+            return
+        }
+
+        setBiens((prev) => prev.map((bien) => {
+            if (bien.id !== sourceBien.id) {
+                return bien
+            }
+
+            return {
+                ...bien,
+                proprietaire: payload.proprietaire,
+                categorie: payload.categorie,
+                type_bien: payload.type_bien,
+                adresse: payload.adresse,
+                description: payload.description,
+                equipements: payload.equipements,
+                photos: payload.photos?.map((file) => file.name) || bien.photos,
+                loyer_hc: payload.loyer_hc,
+                charges: payload.charges,
+                statut: payload.statut,
+            }
+        }))
+    }
+
     return (
-        <DashboardLayout navItems={NAV_ITEMS} pageTitle="My Properties" pageAction={<PageAction onAddProperty={() => setShowAddForm(true)} />}>
+        <DashboardLayout navItems={NAV_ITEMS} pageTitle="My Properties" pageAction={<PageAction onAddProperty={handleOpenCreate} />}>
             {showAddForm && proprietaireId > 0 && (
                 <AddBienForm
                     proprietaireId={proprietaireId}
-                    onClose={() => setShowAddForm(false)}
-                    onSuccess={() => setShowAddForm(false)}
+                    mode={editingBien ? "edit" : "create"}
+                    initialBien={editingBien}
+                    onSubmitPayload={editingBien ? handleLocalEditSubmit : undefined}
+                    onClose={() => {
+                        setShowAddForm(false)
+                        setEditingBien(null)
+                    }}
+                    onSuccess={() => {
+                        setShowAddForm(false)
+                        if (editingBien) {
+                            setEditingBien(null)
+                            return
+                        }
+                        setRefreshKey((prev) => prev + 1)
+                    }}
                 />
             )}
+
+            {biensError && <p className="error-msg">{biensError}</p>}
 
             {/* Stats */}
             <div className="stats-row">
                 {[
-                    { label:"Total Views",    value:totalViews.toLocaleString(), icon:<IconEye size={18} color="#1d4ed8"/>,     bg:"var(--blue-bg)",  change:"+18%", up:true  },
-                    { label:"Inquiries",      value:totalInq,                    icon:<IconMessage size={18} color="#b8922a"/>, bg:"var(--gold-bg)",  change:"+9%",  up:true  },
-                    { label:"Saved by Users", value:totalSaved,                  icon:<IconHeart size={18} color="#c0392b"/>,   bg:"var(--red-bg)",   change:"+14%", up:true  },
-                    { label:"Active Listings",value:PROPERTIES.filter(p=>p.status!=="rented").length, icon:<IconBuilding size={18} color="#15803d"/>, bg:"var(--green-bg)", change:"", up:true },
+                    { label:"Total Biens",    value:totalBiens.toLocaleString(), icon:<IconEye size={18} color="#1d4ed8"/>,     bg:"var(--blue-bg)",  change:"", up:true  },
+                    { label:"Vacants",        value:totalVacants,                icon:<IconMessage size={18} color="#b8922a"/>, bg:"var(--gold-bg)",  change:"", up:true  },
+                    { label:"Loues",          value:totalLoues,                  icon:<IconHeart size={18} color="#c0392b"/>,   bg:"var(--red-bg)",   change:"", up:true  },
+                    { label:"En travaux",     value:totalEnTravaux,              icon:<IconBuilding size={18} color="#15803d"/>, bg:"var(--green-bg)", change:"", up:true },
                 ].map(s => (
                     <div className="stat-card" key={s.label}>
                         <div className="stat-icon-wrap" style={{ background:s.bg }}>{s.icon}</div>
@@ -91,41 +216,67 @@ const OwnerDashboard = () => {
 
             <div className="owner-grid">
                 {/* Listings */}
-                <div className="card">
+                <div className="card owner-list-card">
                     <div className="card-hd">
                         <span className="card-title">Listings</span>
                         <div className="tab-pills">
-                            {(["all","sale","rent"] as const).map(t => (
+                            {(["all","vacant","loue"] as const).map(t => (
                                 <button key={t} className={`tab-pill ${activeTab===t?"tab-pill--active":""}`} onClick={() => setActiveTab(t)}>
-                                    {t==="all"?"All":t==="sale"?"For Sale":"For Rent"}
+                                    {t==="all"?"Tous":t==="vacant"?"Vacants":"Loues"}
                                 </button>
                             ))}
                         </div>
                     </div>
-                    {filtered.map(p => (
+                    {loadingBiens && <p className="add-bien-loading">Chargement des biens...</p>}
+                    {!loadingBiens && filtered.length === 0 && (
+                        <p className="add-bien-loading owner-list-empty">Aucun bien trouve pour votre compte.</p>
+                    )}
+                    {!loadingBiens && filtered.map((p) => {
+                        const status = statusToBadge(p.statut)
+                        const loyer = toMoney(p.loyer_hc)
+                        const imageUrl = getBienImageUrl(p)
+                        const photoCount = p.photos_files?.length ?? p.photos?.length ?? 0
+                        return (
                         <div className="prop-row" key={p.id}>
-                            <div className="prop-thumb-lg"/>
+                            <div className="prop-thumb-lg">
+                                {imageUrl ? (
+                                    <img
+                                        className="prop-thumb-lg-img"
+                                        src={imageUrl}
+                                        alt={`Photo bien ${p.id}`}
+                                        loading="lazy"
+                                    />
+                                ) : (
+                                    <span className="prop-thumb-fallback">Photo</span>
+                                )}
+                            </div>
                             <div className="prop-main">
-                                <div className="prop-name">{p.name}</div>
-                                <div className="prop-loc"><IconMapPin size={11} color="var(--text3)"/>{p.loc}</div>
+                                <div className="prop-name">{p.description || `Bien #${p.id}`}</div>
+                                <div className="prop-loc"><IconMapPin size={11} color="var(--text3)"/>{p.adresse}</div>
                                 <div className="prop-tags">
-                                    <span className="tag-type">{p.type}</span>
-                                    <span className={`badge badge-${p.status}`}>{p.statusLabel}</span>
+                                    <span className="tag-type">Type #{p.type_bien ?? "N/A"}</span>
+                                    <span className={`badge badge-${status.className}`}>{status.label}</span>
                                 </div>
                             </div>
-                            <div className="prop-price">{p.price}</div>
+                            <div className="prop-price">{loyer}</div>
                             <div className="prop-metrics">
-                                <div className="metric"><span className="metric-val">{p.views}</span><span className="metric-lbl">Views</span></div>
-                                <div className="metric"><span className="metric-val">{p.inquiries}</span><span className="metric-lbl">Inquiries</span></div>
-                                <div className="metric"><span className="metric-val">{p.saved}</span><span className="metric-lbl">Saved</span></div>
+                                <div className="metric"><span className="metric-val">{toMoney(p.charges)}</span><span className="metric-lbl">Charges</span></div>
+                                <div className="metric"><span className="metric-val metric-val--list">{formatEquipements(p.equipements)}</span><span className="metric-lbl">Equipements</span></div>
+                                <div className="metric"><span className="metric-val">{photoCount}</span><span className="metric-lbl">Photos</span></div>
                             </div>
-                            <div className={`prop-trend ${p.up?"trend-up":"trend-down"}`}>{p.trend}</div>
+                            <div className={`prop-trend ${p.statut === "VACANT" ? "trend-up" : "trend-down"}`}>{status.label}</div>
                             <div className="prop-actions">
-                                <button className="btn-icon"><IconEdit size={14}/></button>
-                                <button className="btn-icon"><IconTrash size={14}/></button>
+                                <button type="button" className="prop-action-btn" onClick={() => handleEditBien(p)}>
+                                    <IconEdit size={14}/>
+                                    <span>Modifier</span>
+                                </button>
+                                <button type="button" className="prop-action-btn prop-action-btn--danger" onClick={() => handleDeleteBien(p.id, p.description || `Bien #${p.id}`)}>
+                                    <IconTrash size={14}/>
+                                    <span>Supprimer</span>
+                                </button>
                             </div>
                         </div>
-                    ))}
+                    )})}
                 </div>
 
                 {/* Right col */}

@@ -342,3 +342,51 @@ body {
         align-items: flex-start;
     }
 }
+
+/* Theme sombre */
+:root[data-theme="dark"] .hero-overlay {
+    background: linear-gradient(
+            to bottom,
+            rgba(0, 0, 0, 0.45) 0%,
+            rgba(0, 0, 0, 0.65) 60%,
+            rgba(0, 0, 0, 0.8) 100%
+    );
+}
+
+:root[data-theme="dark"] .search-box {
+    background: rgba(20, 25, 33, 0.94);
+    border: 1px solid #3a4558;
+}
+
+:root[data-theme="dark"] .search-title,
+:root[data-theme="dark"] .filter-label,
+:root[data-theme="dark"] .field label {
+    color: #eaf0f8;
+}
+
+:root[data-theme="dark"] .field input,
+:root[data-theme="dark"] .field select {
+    background: #10151d;
+    border-color: #3a4558;
+    color: #eaf0f8;
+}
+
+:root[data-theme="dark"] .filter-btn {
+    border-color: #3a4558;
+    color: #d0d8e4;
+}
+
+:root[data-theme="dark"] .filter-btn.active {
+    background: #1f2631;
+    border-color: #4b586e;
+    color: #f3f6fb;
+}
+
+:root[data-theme="dark"] .btn-search {
+    background: #eaf0f8;
+    color: #0f141c;
+}
+
+:root[data-theme="dark"] .btn-search:hover {
+    background: #cdd8e6;
+}

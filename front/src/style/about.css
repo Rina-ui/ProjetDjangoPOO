@@ -169,3 +169,43 @@
     color: white;
     border-color: #1a1a1a;
 }
+
+/* Theme sombre */
+:root[data-theme="dark"] .about-section {
+    background: #121720;
+}
+
+:root[data-theme="dark"] .about-header h2,
+:root[data-theme="dark"] .about-center h3,
+:root[data-theme="dark"] .property-card p {
+    color: #eef2f7;
+}
+
+:root[data-theme="dark"] .about-center p,
+:root[data-theme="dark"] .video-card p {
+    color: #c7cfda;
+}
+
+:root[data-theme="dark"] .video-card {
+    background: #1a202a;
+    border: 1px solid #394455;
+}
+
+:root[data-theme="dark"] .btn-details,
+:root[data-theme="dark"] .nav-arrows button {
+    border-color: #435066;
+    color: #d8e0eb;
+    background: #171d27;
+}
+
+:root[data-theme="dark"] .btn-details:hover,
+:root[data-theme="dark"] .nav-arrows button:hover,
+:root[data-theme="dark"] .btn-explore {
+    background: #eaf0f8;
+    color: #0f141c;
+    border-color: #eaf0f8;
+}
+
+:root[data-theme="dark"] .btn-explore:hover {
+    background: #cdd8e6;
+}
