@@ -133,7 +133,21 @@ class ReservationAPITestCase(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_liste_retourne_reservations_du_locataire_connecte(self):
+    def test_creation_reservation_anonyme_avec_locataire_explicite(self):
+        payload = {
+            'bien': self.bien.id,
+            'locataire': self.locataire.id,
+            'date_debut': '2026-05-01',
+            'date_fin': '2026-05-10',
+            'message': 'Reservation publique avec locataire explicite',
+        }
+        response = self.client.post(self.list_url, payload, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        reservation = Reservation.objects.get(id=response.data['id'])
+        self.assertEqual(reservation.locataire_id, self.locataire.id)
+
+    def test_liste_retourne_toutes_les_reservations(self):
         Reservation.objects.create(
             bien=self.bien,
             locataire=self.locataire,
@@ -155,5 +169,7 @@ class ReservationAPITestCase(APITestCase):
         response = self.client.get(self.list_url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]['locataire'], self.locataire.id)
+        self.assertEqual(len(response.data), 2)
+        locataires_ids = {item['locataire'] for item in response.data}
+        self.assertEqual(locataires_ids, {self.locataire.id, self.autre_locataire.id})
+

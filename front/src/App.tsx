@@ -51,6 +51,42 @@ const App = () => {
                         }
                     />
 
+                    <Route
+                        path="/dashboard/owner/properties"
+                        element={
+                            <ProtectedRoute allowedRoles={["owner"]}>
+                                <OwnerDashboard />
+                            </ProtectedRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/dashboard/owner/analytics"
+                        element={
+                            <ProtectedRoute allowedRoles={["owner"]}>
+                                <OwnerDashboard />
+                            </ProtectedRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/dashboard/owner/messages"
+                        element={
+                            <ProtectedRoute allowedRoles={["owner"]}>
+                                <OwnerDashboard />
+                            </ProtectedRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/dashboard/owner/settings"
+                        element={
+                            <ProtectedRoute allowedRoles={["owner"]}>
+                                <OwnerDashboard />
+                            </ProtectedRoute>
+                        }
+                    />
+
                     {/* Client only */}
                     <Route
                         path="/dashboard/client"
@@ -63,6 +99,24 @@ const App = () => {
 
                     <Route
                         path="/dashboard/client/saved"
+                        element={
+                            <ProtectedRoute allowedRoles={["client"]}>
+                                <ClientDashboard />
+                            </ProtectedRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/dashboard/client/reservations"
+                        element={
+                            <ProtectedRoute allowedRoles={["client"]}>
+                                <ClientDashboard />
+                            </ProtectedRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/dashboard/client/visits"
                         element={
                             <ProtectedRoute allowedRoles={["client"]}>
                                 <ClientDashboard />

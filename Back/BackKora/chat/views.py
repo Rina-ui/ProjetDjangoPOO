@@ -23,29 +23,57 @@ class ConversationViewSet(viewsets.ModelViewSet):
         )
 
     def create(self, request, *args, **kwargs):
+        from rest_framework import status
+
         user = request.user
         proprietaire_id = request.data.get('owner_id') or request.data.get('proprietaire_id')
         locataire_id = request.data.get('locataire_id')
         bien_id = request.data.get('property_id') or request.data.get('bien_id')
 
-        # Si connecté, on complète automatiquement l'ID manquant depuis son profil.
+        # Si connecté propriétaire, on complète automatiquement propriétaire_id depuis son profil.
+        if user.is_authenticated and hasattr(user, 'profil_proprietaire'):
+            proprietaire_id = user.profil_proprietaire.id
+
+        # Si connecté locataire, on complète automatiquement locataire_id depuis son profil.
         if user.is_authenticated and hasattr(user, 'profil_locataire'):
-            locataire = user.profil_locataire
-            locataire_id = locataire.id
+            locataire_id = user.profil_locataire.id
 
-        elif user.is_authenticated and hasattr(user, 'profil_proprietaire'):
-            proprietaire = user.profil_proprietaire
-            proprietaire_id = proprietaire.id
-
-        if not (proprietaire_id and locataire_id and bien_id):
+        # Valider les champs requis
+        if not proprietaire_id:
             return Response(
-                {
-                    'error': (
-                        'Champs requis: locataire_id, owner_id/proprietaire_id '
-                        'et property_id/bien_id.'
-                    )
-                },
-                status=400,
+                {'error': 'owner_id (proprietaire_id) requis'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not locataire_id:
+            return Response(
+                {'error': 'locataire_id requis'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not bien_id:
+            return Response(
+                {'error': 'property_id (bien_id) requis'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Vérifier que les IDs existent
+        from locataires.models import Locataire
+        from utilisateurs.models import Proprietaire
+        from patrimoine.models import Bien
+
+        if not Locataire.objects.filter(id=locataire_id).exists():
+            return Response(
+                {'error': 'locataire_id inexistant'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not Proprietaire.objects.filter(id=proprietaire_id).exists():
+            return Response(
+                {'error': 'owner_id (proprietaire_id) inexistant'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not Bien.objects.filter(id=bien_id).exists():
+            return Response(
+                {'error': 'property_id (bien_id) inexistant'},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         conversation = Conversation.objects.create(
@@ -54,11 +82,20 @@ class ConversationViewSet(viewsets.ModelViewSet):
             bien_id=bien_id,
         )
 
-        return Response(ConversationSerializer(conversation).data)
+        return Response(ConversationSerializer(conversation).data, status=status.HTTP_201_CREATED)
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['get', 'post'])
     def messages(self, request, pk=None):
-        conversation = self.get_object()
+        conversation_id = request.data.get('conversation_id') or pk
+        conversation = Conversation.objects.filter(id=conversation_id).first()
+
+        if not conversation:
+            return Response({'detail': 'Conversation introuvable.'}, status=404)
+
+        if request.method.lower() == 'get':
+            messages = conversation.messages.all().order_by('date_envoi')
+            return Response(MessageSerializer(messages, many=True).data)
+
         texte = request.data.get('text')
         expediteur_id = request.user.id if request.user.is_authenticated else request.data.get('expediteur_id')
 

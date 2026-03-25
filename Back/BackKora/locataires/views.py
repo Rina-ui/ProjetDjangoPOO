@@ -30,6 +30,10 @@ class ReservationViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
 
+        # Pour GET (liste/detail), exposer toutes les reservations.
+        if self.action in ['list', 'retrieve']:
+            return self.queryset
+
         if user.is_superuser or user.is_staff or getattr(user, 'role', None) == 'ADMIN':
             return self.queryset
 
@@ -46,6 +50,13 @@ class ReservationViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         locataire = getattr(self.request.user, 'profil_locataire', None)
+
+        # Autorise aussi un locataire explicite quand la requete est anonyme/public.
+        if not locataire:
+            locataire_id = self.request.data.get('locataire')
+            if locataire_id:
+                locataire = Locataire.objects.filter(pk=locataire_id).first()
+
         if not locataire:
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied('Seul un locataire peut creer une reservation.')

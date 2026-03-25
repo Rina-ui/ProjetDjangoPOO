@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import DashboardLayout from "../../component/sidebar"
 import { IconMapPin, IconEye, IconMessage, IconHeart, IconBuilding, IconEdit, IconTrash, IconTrendUp, IconPlus } from "../../component/Icons"
 import AddBienForm from "../../component/AddBienForm"
 import { useAuth } from "../../context/AuthContext"
 import { fetchBiensByOwner, fetchOwnerProfileIdByUser, type Bien } from "../../services/biens"
+import { useLocation } from "react-router-dom"
 import "../../style/dashboard.css"
 
 const NAV_ITEMS = [
@@ -40,6 +41,7 @@ const PageAction = ({ onAddProperty }: PageActionProps) => (
 
 const OwnerDashboard = () => {
     const { user } = useAuth()
+    const location = useLocation()
     const [activeTab, setActiveTab] = useState<"all"|"vacant"|"loue">("all")
     const [showAddForm, setShowAddForm] = useState(false)
     const [biens, setBiens] = useState<Bien[]>([])
@@ -49,6 +51,7 @@ const OwnerDashboard = () => {
     const [editingBien, setEditingBien] = useState<Bien | null>(null)
     const [ownerProfileId, setOwnerProfileId] = useState<number | null>(null)
     const API_ROOT_URL = import.meta.env.VITE_API_ROOT_URL || "http://127.0.0.1:8000"
+    const isAnalyticsMode = location.pathname.startsWith("/dashboard/owner/analytics")
 
     const toMoney = (value: number | string) => {
         const parsed = Number(value)
@@ -142,6 +145,45 @@ const OwnerDashboard = () => {
     const totalEnTravaux = biens.filter((p) => p.statut === "EN_TRAVAUX").length
     const proprietaireId = ownerProfileId || 0
 
+    const analytics = useMemo(() => {
+        const loues = biens.filter((item) => item.statut === "LOUE")
+        const monthlyRevenue = loues.reduce((sum, item) => sum + Number(item.loyer_hc || 0) + Number(item.charges || 0), 0)
+        const annualProjection = monthlyRevenue * 12
+        const occupancyRate = totalBiens > 0 ? Math.round((loues.length / totalBiens) * 100) : 0
+
+        const months: { key: string; label: string; value: number }[] = []
+        const now = new Date()
+
+        for (let i = 5; i >= 0; i -= 1) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+            const label = d.toLocaleDateString("fr-FR", { month: "short" })
+            months.push({ key, label, value: 0 })
+        }
+
+        const monthIndex = new Map(months.map((m, idx) => [m.key, idx]))
+
+        loues.forEach((item) => {
+            const createdAt = item.date_creation ? new Date(item.date_creation) : now
+            const safeDate = Number.isNaN(createdAt.getTime()) ? now : createdAt
+            const key = `${safeDate.getFullYear()}-${String(safeDate.getMonth() + 1).padStart(2, "0")}`
+            const idx = monthIndex.get(key)
+            if (typeof idx === "number") {
+                months[idx].value += Number(item.loyer_hc || 0) + Number(item.charges || 0)
+            }
+        })
+
+        const maxMonthValue = Math.max(1, ...months.map((m) => m.value))
+
+        return {
+            monthlyRevenue,
+            annualProjection,
+            occupancyRate,
+            months,
+            maxMonthValue,
+        }
+    }, [biens, totalBiens])
+
     const handleOpenCreate = () => {
         setEditingBien(null)
         setShowAddForm(true)
@@ -159,6 +201,77 @@ const OwnerDashboard = () => {
         }
 
         setBiens((prev) => prev.filter((bien) => bien.id !== id))
+    }
+
+    if (isAnalyticsMode) {
+        return (
+            <DashboardLayout navItems={NAV_ITEMS} pageTitle="Analytics" pageAction={<PageAction onAddProperty={handleOpenCreate} />}>
+                {biensError && <p className="error-msg">{biensError}</p>}
+
+                <div className="owner-analytics-kpis">
+                    <div className="owner-analytics-kpi-card">
+                        <span className="owner-analytics-kpi-label">Revenu mensuel (biens loues)</span>
+                        <span className="owner-analytics-kpi-value">{toMoney(analytics.monthlyRevenue)}</span>
+                    </div>
+                    <div className="owner-analytics-kpi-card">
+                        <span className="owner-analytics-kpi-label">Projection annuelle</span>
+                        <span className="owner-analytics-kpi-value">{toMoney(analytics.annualProjection)}</span>
+                    </div>
+                    <div className="owner-analytics-kpi-card">
+                        <span className="owner-analytics-kpi-label">Taux d'occupation</span>
+                        <span className="owner-analytics-kpi-value">{analytics.occupancyRate}%</span>
+                    </div>
+                </div>
+
+                <div className="owner-analytics-grid">
+                    <div className="card owner-analytics-chart-card">
+                        <div className="card-hd">
+                            <span className="card-title">Evolution des revenus (6 derniers mois)</span>
+                        </div>
+
+                        <div className="owner-analytics-chart">
+                            {analytics.months.map((point) => {
+                                const heightRatio = point.value / analytics.maxMonthValue
+                                const height = Math.max(6, Math.round(heightRatio * 150))
+                                return (
+                                    <div className="owner-analytics-bar-col" key={point.key}>
+                                        <span className="owner-analytics-bar-value">{toMoney(point.value)}</span>
+                                        <div className="owner-analytics-bar-wrap">
+                                            <div className="owner-analytics-bar" style={{ height }} />
+                                        </div>
+                                        <span className="owner-analytics-bar-label">{point.label}</span>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </div>
+
+                    <div className="card">
+                        <div className="card-hd">
+                            <span className="card-title">Resume portefeuille</span>
+                        </div>
+                        <div className="owner-analytics-breakdown">
+                            <div className="owner-analytics-breakdown-row">
+                                <span>Total biens</span>
+                                <strong>{totalBiens}</strong>
+                            </div>
+                            <div className="owner-analytics-breakdown-row">
+                                <span>Biens vacants</span>
+                                <strong>{totalVacants}</strong>
+                            </div>
+                            <div className="owner-analytics-breakdown-row">
+                                <span>Biens loues</span>
+                                <strong>{totalLoues}</strong>
+                            </div>
+                            <div className="owner-analytics-breakdown-row">
+                                <span>Biens en travaux</span>
+                                <strong>{totalEnTravaux}</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </DashboardLayout>
+        )
     }
 
     return (

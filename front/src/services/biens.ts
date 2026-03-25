@@ -266,6 +266,41 @@ export const updateBien = async (bienId: number, payload: CreateBienPayload) => 
     }
 };
 
+export const changeBienStatut = async (
+    bienId: number,
+    statut: Bien["statut"]
+) => {
+    try {
+        return await api.post(`biens/${bienId}/changer_statut/`, { statut }, {
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
+    } catch (error: any) {
+        if (error?.response?.status !== 404 && error?.response?.status !== 405) {
+            throw error;
+        }
+
+        try {
+            return await api.patch(`biens/${bienId}/`, { statut }, {
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+        } catch (patchError: any) {
+            if (patchError?.response?.status !== 405) {
+                throw patchError;
+            }
+
+            return api.put(`biens/${bienId}/`, { statut }, {
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+        }
+    }
+};
+
 export const extractCreatedBienId = (data: unknown): number | null => {
     if (!data || typeof data !== "object") {
         return null;

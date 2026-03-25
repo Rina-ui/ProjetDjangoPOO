@@ -2,40 +2,27 @@ import { useEffect, useMemo, useState, type MouseEvent } from "react"
 import DashboardLayout from "../../component/sidebar"
 import {
     IconSearch, IconHeart, IconMapPin,
-    IconArrowLeft, IconStar, IconSend, IconMap,
+    IconArrowLeft, IconSend, IconMap,
     IconEye
 } from "../../component/Icons"
 import { useLocation } from "react-router-dom"
 import { useAuth } from "../../context/AuthContext"
-import { fetchBiens, fetchCategories, fetchTypesBien, type Bien, type Categorie, type TypeBien } from "../../services/biens"
-import { createReservation } from "../../services/reservations"
+import { changeBienStatut, fetchBiens, fetchCategories, fetchTypesBien, type Bien, type Categorie, type TypeBien } from "../../services/biens"
+import { ensureConversationForProperty, fetchConversationMessages, listConversations, sendConversationMessage, type ConversationMessage } from "../../services/conversations"
+import { cancelReservation, createReservationForUser, fetchReservationsForUser, updateReservationStatus, type Reservation } from "../../services/reservations"
 import "../../style/dashboard.css"
 
 const NAV_ITEMS = [
     { label: "Browse",   path: "/dashboard/client" },
     { label: "Saved",    path: "/dashboard/client/saved" },
-    { label: "Visits",   path: "/dashboard/client/visits" },
+    { label: "Reservations", path: "/dashboard/client/reservations" },
     { label: "Messages", path: "/dashboard/client/messages" },
     { label: "Settings", path: "/dashboard/client/settings" },
 ]
 
-const COMMENTS: Record<number, { name: string; date: string; rating: number; text: string }[]> = {
-    1: [
-        { name: "Amina Touré", date: "2 days ago", rating: 5, text: "Visited this property last weekend — absolutely stunning. The garden is even more beautiful in person and the open-plan living area is very well designed." },
-        { name: "James W.", date: "1 week ago", rating: 4, text: "Great location and the house is immaculate. The only downside is parking can be a bit tricky on weekends due to the nearby market." },
-    ],
-    2: [{ name: "Sofia Chen", date: "3 days ago", rating: 5, text: "Great value for money! The renovation quality is excellent and the neighborhood is peaceful. Highly recommend visiting." }],
-    3: [{ name: "Rania M.", date: "5 days ago", rating: 5, text: "The rooftop terrace has an incredible view. Building management is responsive and the gym is well-equipped." }],
-    4: [
-        { name: "Lucas Bernard", date: "1 day ago", rating: 5, text: "Dream property. The pool and chef kitchen are worth every cent. Viewing was impressive, the agent was very professional." },
-        { name: "Nadia P.", date: "4 days ago", rating: 5, text: "By far the most impressive listing I've visited. The spa ensuite is a showstopper." },
-    ],
-    5: [{ name: "Marco F.", date: "1 week ago", rating: 4, text: "Perfect location for anyone who enjoys the LA lifestyle. The rooftop garden is a real bonus." }],
-    6: [{ name: "Ella D.", date: "3 days ago", rating: 4, text: "Great starter home in a convenient location. The finished basement is a big plus — used it as a home office." }],
-}
-
 type BrowseProperty = {
     id: number
+    ownerId: number | null
     address: string
     description: string
     statut: Bien["statut"]
@@ -62,6 +49,109 @@ const toNumber = (value: number | string | undefined) => {
 
 const toDateInput = (value: Date) => value.toISOString().slice(0, 10)
 
+const extractPropertyIdFromConversation = (conversation: { property_id?: number; bien?: number | { id?: number } }): number | null => {
+    if (typeof conversation.property_id === "number") {
+        return conversation.property_id
+    }
+
+    if (typeof conversation.bien === "number") {
+        return conversation.bien
+    }
+
+    if (conversation.bien && typeof conversation.bien === "object" && typeof conversation.bien.id === "number") {
+        return conversation.bien.id
+    }
+
+    return null
+}
+
+const extractOwnerIdForConversation = (proprietaire: Bien["proprietaire"]): number | null => {
+    if (typeof proprietaire === "number") {
+        return proprietaire
+    }
+
+    if (proprietaire && typeof proprietaire === "object") {
+        const utilisateur = proprietaire.utilisateur
+        if (typeof utilisateur === "number") {
+            return utilisateur
+        }
+
+        if (utilisateur && typeof utilisateur === "object" && typeof utilisateur.id === "number") {
+            return utilisateur.id
+        }
+
+        if (typeof proprietaire.id === "number") {
+            return proprietaire.id
+        }
+    }
+
+    return null
+}
+
+const toDisplayDate = (value?: string) => {
+    if (!value) return "Maintenant"
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return value
+    return date.toLocaleString("fr-FR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    })
+}
+
+const toMessageAuthor = (message: ConversationMessage, currentUserId?: number) => {
+    if (typeof message.sender_name === "string" && message.sender_name.trim().length > 0) {
+        return message.sender_name
+    }
+
+    const senderId =
+        typeof message.sender === "number"
+            ? message.sender
+            : typeof message.expediteur === "number"
+                ? message.expediteur
+                : undefined
+
+    if (typeof senderId === "number") {
+        if (typeof currentUserId === "number" && senderId === currentUserId) {
+            return "Vous"
+        }
+        return `Utilisateur #${senderId}`
+    }
+
+    const sender = message.sender
+    if (sender && typeof sender === "object") {
+        if (typeof sender.id === "number" && typeof currentUserId === "number" && sender.id === currentUserId) {
+            return "Vous"
+        }
+        const fullName = `${sender.first_name || ""} ${sender.last_name || ""}`.trim()
+        if (fullName) {
+            return fullName
+        }
+        if (sender.username) {
+            return sender.username
+        }
+        if (sender.email) {
+            return sender.email
+        }
+    }
+
+    return "Utilisateur"
+}
+
+const getReservationBienId = (reservation: Reservation): number | null => {
+    if (typeof reservation.bien === "number") {
+        return reservation.bien
+    }
+
+    if (reservation.bien && typeof reservation.bien === "object" && typeof reservation.bien.id === "number") {
+        return reservation.bien.id
+    }
+
+    return null
+}
+
 const ClientDashboard = () => {
     const { user } = useAuth()
     const location = useLocation()
@@ -76,18 +166,28 @@ const ClientDashboard = () => {
     const [biens, setBiens] = useState<Bien[]>([])
     const [categories, setCategories] = useState<Categorie[]>([])
     const [typesBien, setTypesBien] = useState<TypeBien[]>([])
+    const [conversationCountByProperty, setConversationCountByProperty] = useState<Record<number, number>>({})
     const [loading, setLoading] = useState(false)
     const [loadError, setLoadError] = useState("")
     const [selectedProp, setSelectedProp] = useState<BrowseProperty | null>(null)
     const [comment, setComment] = useState("")
-    const [allComments, setAllComments] = useState(COMMENTS)
+    const [conversationByProperty, setConversationByProperty] = useState<Record<number, number>>({})
+    const [messagesByProperty, setMessagesByProperty] = useState<Record<number, ConversationMessage[]>>({})
+    const [commentsLoading, setCommentsLoading] = useState(false)
+    const [commentsError, setCommentsError] = useState("")
+    const [sendingComment, setSendingComment] = useState(false)
     const [bookingStart, setBookingStart] = useState("")
     const [bookingEnd, setBookingEnd] = useState("")
     const [bookingMessage, setBookingMessage] = useState("")
     const [bookingLoading, setBookingLoading] = useState(false)
     const [bookingError, setBookingError] = useState("")
     const [bookingSuccess, setBookingSuccess] = useState("")
+    const [reservations, setReservations] = useState<Reservation[]>([])
+    const [reservationsLoading, setReservationsLoading] = useState(false)
+    const [reservationsError, setReservationsError] = useState("")
+    const [reservationActionLoadingId, setReservationActionLoadingId] = useState<number | null>(null)
     const isSavedMode = location.pathname.startsWith("/dashboard/client/saved")
+    const isReservationsMode = location.pathname.startsWith("/dashboard/client/reservations") || location.pathname.startsWith("/dashboard/client/visits")
 
     useEffect(() => {
         const now = new Date()
@@ -120,6 +220,7 @@ const ClientDashboard = () => {
     const browseData = useMemo<BrowseProperty[]>(() => {
         return biens.map((bien) => ({
             id: bien.id,
+            ownerId: extractOwnerIdForConversation(bien.proprietaire),
             address: bien.adresse,
             description: bien.description || `Bien #${bien.id}`,
             statut: bien.statut,
@@ -177,23 +278,162 @@ const ClientDashboard = () => {
         void load()
     }, [])
 
+    useEffect(() => {
+        const loadConversations = async () => {
+            try {
+                const all = await listConversations()
+                const counts: Record<number, number> = {}
+
+                all.forEach((item) => {
+                    const propertyId = extractPropertyIdFromConversation(item)
+                    if (!propertyId) return
+                    counts[propertyId] = (counts[propertyId] || 0) + 1
+                })
+
+                setConversationCountByProperty(counts)
+            } catch (error) {
+                console.error("[GET /api/conversations] erreur:", error)
+                setConversationCountByProperty({})
+            }
+        }
+
+        void loadConversations()
+    }, [biens.length])
+
+    useEffect(() => {
+        if (!isReservationsMode || !user?.id) {
+            return
+        }
+
+        const loadReservations = async () => {
+            setReservationsLoading(true)
+            setReservationsError("")
+
+            try {
+                const data = await fetchReservationsForUser(user.id)
+                setReservations(data)
+            } catch (error) {
+                console.error("[GET /api/reservations/] erreur:", error)
+                setReservationsError("Impossible de charger les reservations.")
+            } finally {
+                setReservationsLoading(false)
+            }
+        }
+
+        void loadReservations()
+    }, [isReservationsMode, user?.id])
+
+    useEffect(() => {
+        if (!selectedProp || !selectedProp.ownerId || !user?.id) {
+            setCommentsError("")
+            setCommentsLoading(false)
+            return
+        }
+
+        const loadComments = async () => {
+            setCommentsLoading(true)
+            setCommentsError("")
+
+            try {
+                const conversation = await ensureConversationForProperty({
+                    propertyId: selectedProp.id,
+                    ownerId: selectedProp.ownerId as number,
+                    userId: user.id,
+                })
+                setConversationByProperty((prev) => ({
+                    ...prev,
+                    [selectedProp.id]: conversation.id,
+                }))
+
+                const messages = await fetchConversationMessages(conversation.id)
+                setMessagesByProperty((prev) => ({
+                    ...prev,
+                    [selectedProp.id]: messages,
+                }))
+            } catch (error: any) {
+                const data = error?.response?.data
+                if (typeof data === "string") {
+                    setCommentsError(data)
+                } else {
+                    setCommentsError("Impossible de charger les commentaires de ce bien.")
+                }
+            } finally {
+                setCommentsLoading(false)
+            }
+        }
+
+        void loadComments()
+    }, [selectedProp?.id, selectedProp?.ownerId, user?.id])
+
     const toggleLike = (id: number, e?: MouseEvent) => {
         e?.stopPropagation()
         setLikedIds((prev) => prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id])
     }
 
-    const submitComment = () => {
-        if (!comment.trim() || !selectedProp) return
-        const newComment = { name: "You", date: "Just now", rating: 5, text: comment }
-        setAllComments(prev => ({
-            ...prev,
-            [selectedProp.id]: [newComment, ...(prev[selectedProp.id] || [])]
-        }))
-        setComment("")
+    const submitComment = async () => {
+        if (!selectedProp) return
+        if (!comment.trim()) return
+        if (!user?.id) {
+            setCommentsError("Utilisateur non connecte. Veuillez vous reconnecter.")
+            return
+        }
+
+        if (!selectedProp.ownerId) {
+            setCommentsError("Proprietaire introuvable pour ce bien.")
+            return
+        }
+
+        setSendingComment(true)
+        setCommentsError("")
+
+        try {
+            let conversationId = conversationByProperty[selectedProp.id]
+
+            if (!conversationId) {
+                const conversation = await ensureConversationForProperty({
+                    propertyId: selectedProp.id,
+                    ownerId: selectedProp.ownerId,
+                    userId: user.id,
+                })
+                conversationId = conversation.id
+                setConversationByProperty((prev) => ({
+                    ...prev,
+                    [selectedProp.id]: conversationId,
+                }))
+            }
+
+            await sendConversationMessage(conversationId, comment.trim(), user.id)
+            const updatedMessages = await fetchConversationMessages(conversationId)
+
+            setMessagesByProperty((prev) => ({
+                ...prev,
+                [selectedProp.id]: updatedMessages,
+            }))
+            setComment("")
+        } catch (error: any) {
+            const data = error?.response?.data
+            if (typeof data === "string") {
+                setCommentsError(data)
+            } else if (data && typeof data === "object") {
+                const messages = Object.entries(data as Record<string, unknown>)
+                    .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(", ") : String(value)}`)
+                    .join(" | ")
+                setCommentsError(messages || "Echec de l'envoi du commentaire.")
+            } else {
+                setCommentsError("Echec de l'envoi du commentaire.")
+            }
+        } finally {
+            setSendingComment(false)
+        }
     }
 
     const submitBooking = async () => {
         if (!selectedProp) {
+            return
+        }
+
+        if (!user?.id) {
+            setBookingError("Utilisateur non connecte. Veuillez vous reconnecter.")
             return
         }
 
@@ -212,7 +452,7 @@ const ClientDashboard = () => {
         setBookingSuccess("")
 
         try {
-            const response = await createReservation({
+            const response = await createReservationForUser(user.id, {
                 bien: selectedProp.id,
                 date_debut: bookingStart,
                 date_fin: bookingEnd,
@@ -224,10 +464,13 @@ const ClientDashboard = () => {
             setBookingMessage("")
         } catch (error: any) {
             const data = error?.response?.data
+            const hasHttpResponse = Boolean((error as { response?: unknown })?.response)
             console.error("[POST /api/reservations/] status:", error?.response?.status)
             console.error("[POST /api/reservations/] response:", data)
 
-            if (typeof data === "string") {
+            if (error instanceof Error && !hasHttpResponse) {
+                setBookingError(error.message)
+            } else if (typeof data === "string") {
                 setBookingError(data)
             } else if (data && typeof data === "object") {
                 const messages = Object.entries(data as Record<string, unknown>)
@@ -263,9 +506,174 @@ const ClientDashboard = () => {
         return true
     })
 
+    const payReservation = async (reservation: Reservation) => {
+        const bienId = getReservationBienId(reservation)
+        if (!bienId) {
+            setReservationsError("Bien introuvable pour cette reservation.")
+            return
+        }
+
+        setReservationActionLoadingId(reservation.id)
+        setReservationsError("")
+
+        try {
+            await updateReservationStatus(reservation.id, "CONFIRMEE")
+            await changeBienStatut(bienId, "LOUE")
+
+            setReservations((prev) => prev.map((item) =>
+                item.id === reservation.id
+                    ? { ...item, statut: "CONFIRMEE" }
+                    : item
+            ))
+
+            setBiens((prev) => prev.map((item) =>
+                item.id === bienId
+                    ? { ...item, statut: "LOUE" }
+                    : item
+            ))
+        } catch (error: any) {
+            const data = error?.response?.data
+            if (typeof data === "string") {
+                setReservationsError(data)
+            } else if (data && typeof data === "object") {
+                const messages = Object.entries(data as Record<string, unknown>)
+                    .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(", ") : String(value)}`)
+                    .join(" | ")
+                setReservationsError(messages || "Echec du paiement de la reservation.")
+            } else {
+                setReservationsError("Echec du paiement de la reservation.")
+            }
+        } finally {
+            setReservationActionLoadingId(null)
+        }
+    }
+
+    const handleCancelReservation = async (reservation: Reservation) => {
+        setReservationActionLoadingId(reservation.id)
+        setReservationsError("")
+
+        try {
+            await cancelReservation(reservation.id)
+            setReservations((prev) => prev.map((item) =>
+                item.id === reservation.id
+                    ? { ...item, statut: "ANNULEE" }
+                    : item
+            ))
+        } catch (error: any) {
+            const data = error?.response?.data
+            if (typeof data === "string") {
+                setReservationsError(data)
+            } else if (data && typeof data === "object") {
+                const messages = Object.entries(data as Record<string, unknown>)
+                    .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(", ") : String(value)}`)
+                    .join(" | ")
+                setReservationsError(messages || "Echec de l'annulation de la reservation.")
+            } else {
+                setReservationsError("Echec de l'annulation de la reservation.")
+            }
+        } finally {
+            setReservationActionLoadingId(null)
+        }
+    }
+
+    if (isReservationsMode) {
+        return (
+            <DashboardLayout navItems={NAV_ITEMS} pageTitle="Mes reservations">
+                {reservationsError && <p className="c-browse-msg c-browse-msg--error">{reservationsError}</p>}
+                {reservationsLoading && <p className="c-browse-msg">Chargement des reservations...</p>}
+
+                {!reservationsLoading && reservations.length === 0 && (
+                    <p className="c-browse-msg">Aucune reservation pour le moment.</p>
+                )}
+
+                {!reservationsLoading && reservations.length > 0 && (
+                    <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+                        <div
+                            style={{
+                                display: "grid",
+                                gridTemplateColumns: "120px 1.4fr 130px 130px 120px 220px",
+                                gap: 10,
+                                padding: "12px 14px",
+                                borderBottom: "1px solid var(--border)",
+                                fontSize: 12,
+                                color: "var(--text3)",
+                                fontWeight: 700,
+                                textTransform: "uppercase",
+                                letterSpacing: ".3px"
+                            }}
+                        >
+                            <span>Reservation</span>
+                            <span>Bien</span>
+                            <span>Debut</span>
+                            <span>Fin</span>
+                            <span>Statut</span>
+                            <span>Actions</span>
+                        </div>
+
+                        {reservations.map((reservation, index) => {
+                            const bienId = getReservationBienId(reservation)
+                            const bien = biens.find((item) => item.id === bienId)
+                            const isLoading = reservationActionLoadingId === reservation.id
+                            const isPending = reservation.statut === "EN_ATTENTE"
+
+                            return (
+                                <div
+                                    key={reservation.id}
+                                    style={{
+                                        display: "grid",
+                                        gridTemplateColumns: "120px 1.4fr 130px 130px 120px 220px",
+                                        gap: 10,
+                                        padding: "14px",
+                                        borderBottom: "1px solid var(--border)",
+                                        alignItems: "center"
+                                    }}
+                                >
+                                    <span style={{ fontWeight: 700, color: "var(--text)" }}>Reservation {index + 1}</span>
+
+                                    <div>
+                                        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
+                                            {bien?.adresse || `Bien #${bienId ?? "?"}`}
+                                        </div>
+                                        {reservation.message && (
+                                            <div style={{ fontSize: 12, color: "var(--text2)", marginTop: 2 }}>
+                                                {reservation.message}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <span style={{ color: "var(--text2)", fontSize: 13 }}>{reservation.date_debut}</span>
+                                    <span style={{ color: "var(--text2)", fontSize: 13 }}>{reservation.date_fin}</span>
+
+                                    <span style={{ fontWeight: 600, color: "var(--gold)" }}>{reservation.statut}</span>
+
+                                    <div style={{ display: "flex", gap: 8 }}>
+                                        <button
+                                            className="btn-primary"
+                                            disabled={!isPending || isLoading}
+                                            onClick={() => payReservation(reservation)}
+                                        >
+                                            {isLoading ? "Traitement..." : "Payer"}
+                                        </button>
+                                        <button
+                                            className="btn-ghost"
+                                            disabled={!isPending || isLoading}
+                                            onClick={() => handleCancelReservation(reservation)}
+                                        >
+                                            Annuler
+                                        </button>
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+                )}
+            </DashboardLayout>
+        )
+    }
+
     // DETAIL VIEW
     if (selectedProp) {
-        const propComments = allComments[selectedProp.id] || []
+        const propComments = messagesByProperty[selectedProp.id] || []
         return (
             <DashboardLayout navItems={NAV_ITEMS} pageTitle="Property Detail">
                 <button className="detail-back" onClick={() => setSelectedProp(null)}>
@@ -290,43 +698,50 @@ const ClientDashboard = () => {
                         {/* Comments */}
                         <div className="card">
                             <div className="card-hd">
-                                <span className="card-title">Reviews & Comments ({propComments.length})</span>
+                                <span className="card-title">Comments ({propComments.length})</span>
                             </div>
                             <div>
-                                {propComments.length === 0 && (
-                                    <p style={{ color: "var(--text3)", fontSize: "13px", padding: "12px 0" }}>No comments yet. Be the first to leave a review.</p>
+                                {commentsLoading && (
+                                    <p style={{ color: "var(--text3)", fontSize: "13px", padding: "12px 0" }}>Chargement des commentaires...</p>
                                 )}
-                                {propComments.map((c, i) => (
-                                    <div className="comment-item" key={i}>
-                                        <div className="comment-av">{c.name.charAt(0)}</div>
+                                {commentsError && (
+                                    <p style={{ color: "var(--red)", fontSize: "13px", padding: "8px 0" }}>{commentsError}</p>
+                                )}
+                                {propComments.length === 0 && (
+                                    <p style={{ color: "var(--text3)", fontSize: "13px", padding: "12px 0" }}>Aucun commentaire pour ce bien.</p>
+                                )}
+                                {propComments.map((message) => {
+                                    const author = toMessageAuthor(message, user?.id)
+                                    return (
+                                    <div className="comment-item" key={message.id}>
+                                        <div className="comment-av">{author.charAt(0).toUpperCase()}</div>
                                         <div className="comment-body">
                                             <div className="comment-header">
-                                                <span className="comment-name">{c.name}</span>
-                                                <span className="comment-date">{c.date}</span>
+                                                <span className="comment-name">{author}</span>
+                                                <span className="comment-date">{toDisplayDate(message.created_at)}</span>
                                             </div>
-                                            <div className="comment-stars">
-                                                {[1,2,3,4,5].map(s => (
-                                                    <IconStar key={s} size={12} color={s <= c.rating ? "#b8922a" : "#d4cfc7"} filled={s <= c.rating} />
-                                                ))}
-                                            </div>
-                                            <p className="comment-text">{c.text}</p>
+                                            <p className="comment-text">{message.text}</p>
                                         </div>
                                     </div>
-                                ))}
+                                )})}
                             </div>
                             <div className="comment-form">
                                 <div className="comment-input-wrap">
                                     <div className="comment-av" style={{ width: 28, height: 28, fontSize: 11, flexShrink: 0 }}>Y</div>
                                     <input
                                         className="comment-input"
-                                        placeholder="Share your thoughts about this property..."
+                                        placeholder="Ecrivez votre commentaire..."
                                         value={comment}
                                         onChange={e => setComment(e.target.value)}
-                                        onKeyDown={e => e.key === "Enter" && submitComment()}
+                                        onKeyDown={e => {
+                                            if (e.key === "Enter") {
+                                                void submitComment()
+                                            }
+                                        }}
                                     />
                                 </div>
-                                <button className="comment-send" onClick={submitComment}>
-                                    <IconSend size={14} color="white" />
+                                <button className="comment-send" onClick={() => void submitComment()} disabled={sendingComment}>
+                                    {sendingComment ? "..." : <IconSend size={14} color="white" />}
                                 </button>
                             </div>
                         </div>
@@ -525,6 +940,7 @@ const ClientDashboard = () => {
                             <div className="p-spec">Charges: {prop.charges.toLocaleString("fr-FR")}</div>
                             <div className="p-spec">Eqp: {prop.equipements.length}</div>
                             <div className="p-spec">Photos: {prop.photos.length}</div>
+                            <div className="p-spec">Conv: {conversationCountByProperty[prop.id] || 0}</div>
                         </div>
                         <div className="p-addr"><IconMapPin size={10} color="var(--text3)" style={{ display: "inline", marginRight: 3 }} />{prop.address}</div>
                     </div>

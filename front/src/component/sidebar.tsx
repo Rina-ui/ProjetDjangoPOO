@@ -16,6 +16,7 @@ const ICON_MAP: Record<string, ReactNode> = {
     "Browse":         <IconSearch size={18} />,
     "My Properties":  <IconHome size={18} />,
     "Saved":          <IconHeart size={18} />,
+    "Reservations":   <IconCalendar size={18} />,
     "Visits":         <IconCalendar size={18} />,
     "Messages":       <IconMessage size={18} />,
     "Settings":       <IconSettings size={18} />,
