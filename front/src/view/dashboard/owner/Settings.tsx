@@ -174,7 +174,7 @@ const SettingsPage = () => {
                                 ) : (
                                     <>
                                         <div className="st-avatar-row">
-                                            <AvatarUpload name={fullName} onUpload={(f) => {}}/>
+                                            <AvatarUpload name={fullName} onUpload={() => {}}/>
                                             <div>
                                                 <p className="st-avatar-name">{fullName || "Your Name"}</p>
                                                 <p className="st-avatar-role">Property Owner</p>
