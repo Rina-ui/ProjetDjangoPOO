@@ -103,3 +103,10 @@ class Bien(models.Model):
     class Meta:
         verbose_name = 'Bien'
         verbose_name_plural = 'Biens'
+
+
+# patrimoine/models.py
+class PhotoBien(models.Model):
+    bien = models.ForeignKey("patrimoine.Bien", on_delete=models.CASCADE, related_name="photos_files")
+    image = models.ImageField(upload_to="biens/")
+    date_creation = models.DateTimeField(auto_now_add=True)

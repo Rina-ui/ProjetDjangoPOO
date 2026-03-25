@@ -93,27 +93,123 @@ const extractOwnerId = (proprietaire: Bien["proprietaire"]): number | null => {
     return null;
 };
 
+type ProprietaireApi = { id?: number; utilisateur?: number | { id?: number } };
+
+const extractUserIdFromProprietaire = (item: ProprietaireApi): number | null => {
+    if (typeof item.utilisateur === "number") {
+        return item.utilisateur;
+    }
+
+    if (item.utilisateur && typeof item.utilisateur === "object" && typeof item.utilisateur.id === "number") {
+        return item.utilisateur.id;
+    }
+
+    return null;
+};
+
+const normalizeProprietaires = (data: ProprietaireApi[] | PaginatedResponse<ProprietaireApi>): ProprietaireApi[] => {
+    if (Array.isArray(data)) {
+        return data;
+    }
+
+    if (data && Array.isArray(data.results)) {
+        return data.results;
+    }
+
+    return [];
+};
+
+const fetchOwnerProfileIdsByUser = async (ownerUserId: number): Promise<Set<number>> => {
+    const allowed = new Set<number>();
+
+    try {
+        const filtered = await api.get<ProprietaireApi[] | PaginatedResponse<ProprietaireApi>>("proprietaires/", {
+            params: { utilisateur: ownerUserId },
+        });
+
+        normalizeProprietaires(filtered.data).forEach((item) => {
+            if (extractUserIdFromProprietaire(item) === ownerUserId && typeof item.id === "number") {
+                allowed.add(item.id);
+            }
+        });
+
+        if (allowed.size > 0) {
+            return allowed;
+        }
+    } catch {
+        // Fallback global ci-dessous.
+    }
+
+    try {
+        const response = await api.get<ProprietaireApi[] | PaginatedResponse<ProprietaireApi>>("proprietaires/");
+        normalizeProprietaires(response.data).forEach((item) => {
+            if (extractUserIdFromProprietaire(item) === ownerUserId && typeof item.id === "number") {
+                allowed.add(item.id);
+            }
+        });
+    } catch {
+        // Si l'endpoint n'est pas accessible, on laisse vide pour eviter les fuites inter-proprietaires.
+    }
+
+    return allowed;
+};
+
+export const fetchOwnerProfileIdByUser = async (ownerUserId: number): Promise<number | null> => {
+    const ids = await fetchOwnerProfileIdsByUser(ownerUserId);
+    const firstId = Array.from(ids)[0];
+    return typeof firstId === "number" ? firstId : null;
+};
+
+const doesBienBelongToUser = (bien: Bien, ownerUserId: number, ownerProfileIds: Set<number>): boolean => {
+    if (typeof bien.proprietaire === "number") {
+        return ownerProfileIds.has(bien.proprietaire);
+    }
+
+    if (bien.proprietaire && typeof bien.proprietaire === "object") {
+        const utilisateur = bien.proprietaire.utilisateur;
+        if (typeof utilisateur === "number") {
+            return utilisateur === ownerUserId;
+        }
+
+        if (utilisateur && typeof utilisateur === "object" && typeof utilisateur.id === "number") {
+            return utilisateur.id === ownerUserId;
+        }
+
+        if (typeof bien.proprietaire.id === "number") {
+            return ownerProfileIds.has(bien.proprietaire.id);
+        }
+    }
+
+    const ownerId = extractOwnerId(bien.proprietaire);
+    return ownerId !== null && ownerProfileIds.has(ownerId);
+};
+
 export const fetchBiens = async (): Promise<Bien[]> => {
     const response = await api.get<Bien[] | PaginatedResponse<Bien>>("biens/");
     return normalizeList(response.data);
 };
 
 export const fetchBiensByOwner = async (ownerId: number): Promise<Bien[]> => {
+    const allowedOwnerIds = await fetchOwnerProfileIdsByUser(ownerId);
+
     try {
+        const firstAllowedId = Array.from(allowedOwnerIds)[0];
         const filteredResponse = await api.get<Bien[] | PaginatedResponse<Bien>>("biens/", {
-            params: { proprietaire: ownerId },
+            params: firstAllowedId ? { proprietaire: firstAllowedId } : { proprietaire_utilisateur: ownerId },
         });
 
         const filteredList = normalizeList(filteredResponse.data);
-        if (filteredList.length > 0) {
-            return filteredList;
+        const safeFilteredList = filteredList.filter((bien) => doesBienBelongToUser(bien, ownerId, allowedOwnerIds));
+
+        if (safeFilteredList.length > 0) {
+            return safeFilteredList;
         }
     } catch {
         // Fallback ci-dessous si le filtrage serveur n'est pas active.
     }
 
     const all = await fetchBiens();
-    return all.filter((bien) => extractOwnerId(bien.proprietaire) === ownerId);
+    return all.filter((bien) => doesBienBelongToUser(bien, ownerId, allowedOwnerIds));
 };
 
 export const createBien = async (payload: CreateBienPayload) => {
@@ -136,6 +232,37 @@ export const createBien = async (payload: CreateBienPayload) => {
             "Content-Type": "application/json",
         },
     });
+};
+
+export const updateBien = async (bienId: number, payload: CreateBienPayload) => {
+    const body = {
+        categorie: payload.categorie,
+        type_bien: payload.type_bien,
+        adresse: payload.adresse,
+        description: payload.description,
+        equipements: payload.equipements,
+        loyer_hc: payload.loyer_hc,
+        charges: payload.charges,
+        statut: payload.statut,
+    };
+
+    try {
+        return await api.patch(`biens/${bienId}/`, body, {
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
+    } catch (error: any) {
+        if (error?.response?.status !== 405) {
+            throw error;
+        }
+
+        return api.put(`biens/${bienId}/`, body, {
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
+    }
 };
 
 export const extractCreatedBienId = (data: unknown): number | null => {

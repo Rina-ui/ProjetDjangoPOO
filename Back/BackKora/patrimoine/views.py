@@ -1,14 +1,14 @@
-from django.shortcuts import render
-
-from rest_framework import viewsets
+from rest_framework import viewsets, status
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
-from .models import Categorie, TypeBien, Bien
+from .models import Categorie, TypeBien, Bien, PhotoBien
 from .serializers import (
     CategorieSerializer,
     TypeBienSerializer,
-    BienSerializer
+    BienSerializer, PhotoBienSerializer
 )
 
 class CategorieViewSet(viewsets.ModelViewSet):
@@ -55,6 +55,31 @@ class BienViewSet(viewsets.ModelViewSet):
         total = bien.calculer_loyer_total()
         return Response({'loyer_total': total})
 
+    @action(
+        detail=True,
+        methods=["post"],
+        parser_classes=[MultiPartParser, FormParser],
+        permission_classes=[IsAuthenticated],
+        url_path="upload-photos",
+    )
+    def upload_photos(self, request, pk=None):
+        bien = self.get_object()
+        files = request.FILES.getlist("photos")
 
+        if bien.proprietaire.utilisateur_id != request.user.id:
+            return Response(
+                {"detail": "Vous n'etes pas autorise a modifier ce bien."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if not files:
+            return Response(
+                {"detail": "Aucune photo recue. Utilisez la cle multipart 'photos'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        created = [PhotoBien.objects.create(bien=bien, image=f) for f in files]
+        data = PhotoBienSerializer(created, many=True, context={"request": request}).data
+        return Response(data, status=status.HTTP_201_CREATED)
 
 

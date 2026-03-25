@@ -6,4 +6,13 @@ const api = axios.create({
     timeout: 15000,
 });
 
+api.interceptors.request.use((config) => {
+    const token = localStorage.getItem("auth_token");
+    if (token) {
+        config.headers = config.headers || {};
+        (config.headers as Record<string, string>).Authorization = `Bearer ${token}`;
+    }
+    return config;
+});
+
 export default api;

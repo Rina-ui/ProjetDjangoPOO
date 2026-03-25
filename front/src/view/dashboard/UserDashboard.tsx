@@ -8,6 +8,7 @@ import {
 import { useLocation } from "react-router-dom"
 import { useAuth } from "../../context/AuthContext"
 import { fetchBiens, fetchCategories, fetchTypesBien, type Bien, type Categorie, type TypeBien } from "../../services/biens"
+import { createReservation } from "../../services/reservations"
 import "../../style/dashboard.css"
 
 const NAV_ITEMS = [
@@ -59,6 +60,8 @@ const toNumber = (value: number | string | undefined) => {
     return Number.isNaN(parsed) ? 0 : parsed
 }
 
+const toDateInput = (value: Date) => value.toISOString().slice(0, 10)
+
 const ClientDashboard = () => {
     const { user } = useAuth()
     const location = useLocation()
@@ -78,7 +81,25 @@ const ClientDashboard = () => {
     const [selectedProp, setSelectedProp] = useState<BrowseProperty | null>(null)
     const [comment, setComment] = useState("")
     const [allComments, setAllComments] = useState(COMMENTS)
+    const [bookingStart, setBookingStart] = useState("")
+    const [bookingEnd, setBookingEnd] = useState("")
+    const [bookingMessage, setBookingMessage] = useState("")
+    const [bookingLoading, setBookingLoading] = useState(false)
+    const [bookingError, setBookingError] = useState("")
+    const [bookingSuccess, setBookingSuccess] = useState("")
     const isSavedMode = location.pathname.startsWith("/dashboard/client/saved")
+
+    useEffect(() => {
+        const now = new Date()
+        const end = new Date(now)
+        end.setDate(now.getDate() + 1)
+
+        setBookingStart(toDateInput(now))
+        setBookingEnd(toDateInput(end))
+        setBookingMessage("")
+        setBookingError("")
+        setBookingSuccess("")
+    }, [selectedProp?.id])
 
     const toAbsoluteImageUrl = (value?: string) => {
         if (!value) return ""
@@ -169,6 +190,56 @@ const ClientDashboard = () => {
             [selectedProp.id]: [newComment, ...(prev[selectedProp.id] || [])]
         }))
         setComment("")
+    }
+
+    const submitBooking = async () => {
+        if (!selectedProp) {
+            return
+        }
+
+        if (!bookingStart || !bookingEnd) {
+            setBookingError("Veuillez renseigner les dates de debut et de fin.")
+            return
+        }
+
+        if (bookingEnd < bookingStart) {
+            setBookingError("La date de fin doit etre superieure ou egale a la date de debut.")
+            return
+        }
+
+        setBookingLoading(true)
+        setBookingError("")
+        setBookingSuccess("")
+
+        try {
+            const response = await createReservation({
+                bien: selectedProp.id,
+                date_debut: bookingStart,
+                date_fin: bookingEnd,
+                message: bookingMessage.trim() || undefined,
+            })
+
+            console.log("[POST /api/reservations/] response:", response.data)
+            setBookingSuccess("Reservation enregistree avec succes.")
+            setBookingMessage("")
+        } catch (error: any) {
+            const data = error?.response?.data
+            console.error("[POST /api/reservations/] status:", error?.response?.status)
+            console.error("[POST /api/reservations/] response:", data)
+
+            if (typeof data === "string") {
+                setBookingError(data)
+            } else if (data && typeof data === "object") {
+                const messages = Object.entries(data as Record<string, unknown>)
+                    .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(", ") : String(value)}`)
+                    .join(" | ")
+                setBookingError(messages || "Echec de la reservation.")
+            } else {
+                setBookingError("Echec de la reservation.")
+            }
+        } finally {
+            setBookingLoading(false)
+        }
     }
 
     const sourceData = isSavedMode ? browseData.filter((item) => likedIds.includes(item.id)) : browseData
@@ -315,7 +386,9 @@ const ClientDashboard = () => {
                         </div>
 
                         <div className="detail-actions">
-                            <button className="btn-primary">Book a Visit</button>
+                            <button className="btn-primary" onClick={submitBooking} disabled={bookingLoading}>
+                                {bookingLoading ? "Envoi..." : "Book a Visit"}
+                            </button>
                             <button
                                 className="btn-ghost"
                                 onClick={() => toggleLike(selectedProp.id)}
@@ -323,6 +396,31 @@ const ClientDashboard = () => {
                             >
                                 {likedIds.includes(selectedProp.id) ? "Liked" : "Like"}
                             </button>
+                        </div>
+
+                        <div className="booking-box">
+                            <div className="booking-grid">
+                                <div className="booking-field">
+                                    <label>Date debut</label>
+                                    <input type="date" value={bookingStart} onChange={(e) => setBookingStart(e.target.value)} />
+                                </div>
+                                <div className="booking-field">
+                                    <label>Date fin</label>
+                                    <input type="date" value={bookingEnd} onChange={(e) => setBookingEnd(e.target.value)} />
+                                </div>
+                            </div>
+                            <div className="booking-field">
+                                <label>Message (optionnel)</label>
+                                <input
+                                    type="text"
+                                    placeholder="Precisez votre demande..."
+                                    value={bookingMessage}
+                                    onChange={(e) => setBookingMessage(e.target.value)}
+                                />
+                            </div>
+
+                            {bookingError && <p className="booking-msg booking-msg--error">{bookingError}</p>}
+                            {bookingSuccess && <p className="booking-msg booking-msg--success">{bookingSuccess}</p>}
                         </div>
 
                         {/* Map placeholder */}

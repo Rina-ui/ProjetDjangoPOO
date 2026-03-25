@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 
@@ -85,3 +86,70 @@ class Bail(models.Model):
         verbose_name = 'Bail'
         verbose_name_plural = 'Baux'
         ordering = ['-date_entree']
+
+
+class Reservation(models.Model):
+    STATUT_EN_ATTENTE = 'EN_ATTENTE'
+    STATUT_CONFIRMEE = 'CONFIRMEE'
+    STATUT_ANNULEE = 'ANNULEE'
+    STATUT_TERMINEE = 'TERMINEE'
+
+    STATUT_CHOICES = [
+        (STATUT_EN_ATTENTE, 'En attente'),
+        (STATUT_CONFIRMEE, 'Confirmee'),
+        (STATUT_ANNULEE, 'Annulee'),
+        (STATUT_TERMINEE, 'Terminee'),
+    ]
+
+    bien = models.ForeignKey(
+        'patrimoine.Bien',
+        on_delete=models.CASCADE,
+        related_name='reservations',
+    )
+    locataire = models.ForeignKey(
+        Locataire,
+        on_delete=models.CASCADE,
+        related_name='reservations',
+    )
+    date_debut = models.DateField()
+    date_fin = models.DateField()
+    message = models.TextField(blank=True)
+    statut = models.CharField(
+        max_length=20,
+        choices=STATUT_CHOICES,
+        default=STATUT_EN_ATTENTE,
+    )
+    date_creation = models.DateTimeField(auto_now_add=True)
+    date_modification = models.DateTimeField(auto_now=True)
+
+    def clean(self):
+        if self.date_fin < self.date_debut:
+            raise ValidationError({'date_fin': 'La date de fin doit etre superieure ou egale a la date de debut.'})
+
+        if self.bien and self.bien.statut == 'LOUE':
+            raise ValidationError({'bien': 'Ce bien est deja loue et ne peut pas etre reserve.'})
+
+        conflits = Reservation.objects.filter(
+            bien=self.bien,
+            statut__in=[self.STATUT_EN_ATTENTE, self.STATUT_CONFIRMEE],
+            date_debut__lte=self.date_fin,
+            date_fin__gte=self.date_debut,
+        )
+        if self.pk:
+            conflits = conflits.exclude(pk=self.pk)
+
+        if conflits.exists():
+            raise ValidationError({'non_field_errors': 'Une reservation existe deja sur cette periode pour ce bien.'})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Reservation #{self.pk} - {self.bien} - {self.locataire}"
+
+    class Meta:
+        verbose_name = 'Reservation'
+        verbose_name_plural = 'Reservations'
+        ordering = ['-date_creation']
+

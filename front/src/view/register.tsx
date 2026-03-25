@@ -9,6 +9,10 @@ const Register = () => {
     const [password, setPassword] = useState("")
     const [confirm, setConfirm] = useState("")
     const [role, setRole] = useState<"LOCATAIRE" | "PROPRIETAIRE" | "ADMIN">("PROPRIETAIRE")
+    const [nom, setNom] = useState("")
+    const [telephone, setTelephone] = useState("")
+    const [profession, setProfession] = useState("")
+    const [adresse, setAdresse] = useState("")
     const [error, setError] = useState(false)
     const [errorMsg, setErrorMsg] = useState("")
     const [loading, setLoading] = useState(false)
@@ -34,6 +38,27 @@ const Register = () => {
             return
         }
 
+        if ((role === "PROPRIETAIRE" || role === "LOCATAIRE") && (!nom || !telephone)) {
+            setErrorMsg("Renseigne nom et telephone")
+            setError(true)
+            setTimeout(() => setError(false), 500)
+            return
+        }
+
+        if (role === "PROPRIETAIRE" && !adresse) {
+            setErrorMsg("Renseigne l'adresse du proprietaire")
+            setError(true)
+            setTimeout(() => setError(false), 500)
+            return
+        }
+
+        if (role === "LOCATAIRE" && !profession) {
+            setErrorMsg("Renseigne la profession du locataire")
+            setError(true)
+            setTimeout(() => setError(false), 500)
+            return
+        }
+
         setErrorMsg("")
         setLoading(true)
         try {
@@ -41,6 +66,15 @@ const Register = () => {
                 username: email,
                 password,
                 role,
+                profil: role === "PROPRIETAIRE" || role === "LOCATAIRE" ? {
+                    nom,
+                    prenom: "User",
+                    email,
+                    telephone,
+                    profession: role === "LOCATAIRE" ? profession : undefined,
+                    adresse: role === "PROPRIETAIRE" ? adresse : undefined,
+                    actif: true,
+                } : undefined,
             })
 
             setLoading(false)
@@ -60,6 +94,10 @@ const Register = () => {
                 data?.username?.[0] ||
                 data?.password?.[0] ||
                 data?.role?.[0] ||
+                data?.utilisateur?.[0] ||
+                data?.telephone?.[0] ||
+                data?.profession?.[0] ||
+                data?.adresse?.[0] ||
                 "Registration failed"
 
             setErrorMsg(String(backendMsg))
@@ -122,6 +160,54 @@ const Register = () => {
                     />
                     <label>Password</label>
                 </div>
+
+                {(role === "PROPRIETAIRE" || role === "LOCATAIRE") && (
+                    <>
+                        <div className={`input-group ${error ? "input-error" : ""}`}>
+                            <input
+                                type="text"
+                                placeholder=" "
+                                value={nom}
+                                onChange={(e) => setNom(e.target.value)}
+                            />
+                            <label>Nom</label>
+                        </div>
+
+                        <div className={`input-group ${error ? "input-error" : ""}`}>
+                            <input
+                                type="text"
+                                placeholder=" "
+                                value={telephone}
+                                onChange={(e) => setTelephone(e.target.value)}
+                            />
+                            <label>Telephone</label>
+                        </div>
+
+                        {role === "PROPRIETAIRE" && (
+                            <div className={`input-group ${error ? "input-error" : ""}`}>
+                                <input
+                                    type="text"
+                                    placeholder=" "
+                                    value={adresse}
+                                    onChange={(e) => setAdresse(e.target.value)}
+                                />
+                                <label>Adresse</label>
+                            </div>
+                        )}
+
+                        {role === "LOCATAIRE" && (
+                            <div className={`input-group ${error ? "input-error" : ""}`}>
+                                <input
+                                    type="text"
+                                    placeholder=" "
+                                    value={profession}
+                                    onChange={(e) => setProfession(e.target.value)}
+                                />
+                                <label>Profession</label>
+                            </div>
+                        )}
+                    </>
+                )}
 
                 {/* Confirm Password */}
                 <div className={`input-group ${error ? "input-error" : ""}`}>

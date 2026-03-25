@@ -11,7 +11,6 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
-import os
 
 
 
@@ -146,7 +145,7 @@ EMAIL_HOST_USER = 'leo389176@gmail.com'
 EMAIL_HOST_PASSWORD = 'nxdjmsyetwdiybmg'
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_ROOT = BASE_DIR / 'media'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [

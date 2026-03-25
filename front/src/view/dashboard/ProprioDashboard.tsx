@@ -3,7 +3,7 @@ import DashboardLayout from "../../component/sidebar"
 import { IconMapPin, IconEye, IconMessage, IconHeart, IconBuilding, IconEdit, IconTrash, IconTrendUp, IconPlus } from "../../component/Icons"
 import AddBienForm from "../../component/AddBienForm"
 import { useAuth } from "../../context/AuthContext"
-import { fetchBiensByOwner, type Bien, type CreateBienPayload } from "../../services/biens"
+import { fetchBiensByOwner, fetchOwnerProfileIdByUser, type Bien } from "../../services/biens"
 import "../../style/dashboard.css"
 
 const NAV_ITEMS = [
@@ -47,6 +47,7 @@ const OwnerDashboard = () => {
     const [biensError, setBiensError] = useState("")
     const [refreshKey, setRefreshKey] = useState(0)
     const [editingBien, setEditingBien] = useState<Bien | null>(null)
+    const [ownerProfileId, setOwnerProfileId] = useState<number | null>(null)
     const API_ROOT_URL = import.meta.env.VITE_API_ROOT_URL || "http://127.0.0.1:8000"
 
     const toMoney = (value: number | string) => {
@@ -92,6 +93,7 @@ const OwnerDashboard = () => {
         const ownerId = user?.id
         if (!ownerId) {
             setBiens([])
+            setOwnerProfileId(null)
             return
         }
 
@@ -113,6 +115,21 @@ const OwnerDashboard = () => {
         void loadBiens()
     }, [user?.id, refreshKey])
 
+    useEffect(() => {
+        const ownerUserId = user?.id
+        if (!ownerUserId) {
+            setOwnerProfileId(null)
+            return
+        }
+
+        const loadOwnerProfileId = async () => {
+            const profileId = await fetchOwnerProfileIdByUser(ownerUserId)
+            setOwnerProfileId(profileId)
+        }
+
+        void loadOwnerProfileId()
+    }, [user?.id])
+
     const filtered = biens.filter((p) => {
         if (activeTab === "vacant") return p.statut === "VACANT"
         if (activeTab === "loue") return p.statut === "LOUE"
@@ -123,7 +140,7 @@ const OwnerDashboard = () => {
     const totalVacants = biens.filter((p) => p.statut === "VACANT").length
     const totalLoues = biens.filter((p) => p.statut === "LOUE").length
     const totalEnTravaux = biens.filter((p) => p.statut === "EN_TRAVAUX").length
-    const proprietaireId = user?.id || 0
+    const proprietaireId = ownerProfileId || 0
 
     const handleOpenCreate = () => {
         setEditingBien(null)
@@ -144,32 +161,6 @@ const OwnerDashboard = () => {
         setBiens((prev) => prev.filter((bien) => bien.id !== id))
     }
 
-    const handleLocalEditSubmit = async (payload: CreateBienPayload, sourceBien: Bien | null) => {
-        if (!sourceBien) {
-            return
-        }
-
-        setBiens((prev) => prev.map((bien) => {
-            if (bien.id !== sourceBien.id) {
-                return bien
-            }
-
-            return {
-                ...bien,
-                proprietaire: payload.proprietaire,
-                categorie: payload.categorie,
-                type_bien: payload.type_bien,
-                adresse: payload.adresse,
-                description: payload.description,
-                equipements: payload.equipements,
-                photos: payload.photos?.map((file) => file.name) || bien.photos,
-                loyer_hc: payload.loyer_hc,
-                charges: payload.charges,
-                statut: payload.statut,
-            }
-        }))
-    }
-
     return (
         <DashboardLayout navItems={NAV_ITEMS} pageTitle="My Properties" pageAction={<PageAction onAddProperty={handleOpenCreate} />}>
             {showAddForm && proprietaireId > 0 && (
@@ -177,20 +168,20 @@ const OwnerDashboard = () => {
                     proprietaireId={proprietaireId}
                     mode={editingBien ? "edit" : "create"}
                     initialBien={editingBien}
-                    onSubmitPayload={editingBien ? handleLocalEditSubmit : undefined}
                     onClose={() => {
                         setShowAddForm(false)
                         setEditingBien(null)
                     }}
                     onSuccess={() => {
                         setShowAddForm(false)
-                        if (editingBien) {
-                            setEditingBien(null)
-                            return
-                        }
+                        setEditingBien(null)
                         setRefreshKey((prev) => prev + 1)
                     }}
                 />
+            )}
+
+            {showAddForm && proprietaireId <= 0 && !editingBien && (
+                <p className="error-msg">Profil proprietaire introuvable pour ce compte. Impossible de creer un bien.</p>
             )}
 
             {biensError && <p className="error-msg">{biensError}</p>}

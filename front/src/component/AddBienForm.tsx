@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { createBien, extractCreatedBienId, fetchCategories, fetchTypesBien, type Bien, type Categorie, type CreateBienPayload, type TypeBien, uploadBienPhotos } from "../services/biens";
+import { createBien, extractCreatedBienId, fetchCategories, fetchTypesBien, type Bien, type Categorie, type CreateBienPayload, type TypeBien, updateBien, uploadBienPhotos } from "../services/biens";
 
 const MAX_PHOTO_COUNT = 10;
 const MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024;
@@ -35,6 +35,22 @@ const formatApiError = (data: unknown): string => {
     }
 
     return "Echec de creation du bien.";
+};
+
+const extractOwnerIdForWrite = (bien: Bien | null, fallback: number): number => {
+    if (!bien) {
+        return fallback;
+    }
+
+    if (typeof bien.proprietaire === "number") {
+        return bien.proprietaire;
+    }
+
+    if (bien.proprietaire && typeof bien.proprietaire === "object" && typeof bien.proprietaire.id === "number") {
+        return bien.proprietaire.id;
+    }
+
+    return fallback;
 };
 
 type AddBienFormProps = {
@@ -177,8 +193,12 @@ const AddBienForm = ({ proprietaireId, mode = "create", initialBien = null, onSu
                 .map((item) => item.trim())
                 .filter(Boolean);
 
+            const ownerIdForPayload = isEditMode
+                ? extractOwnerIdForWrite(initialBien, proprietaireId)
+                : proprietaireId;
+
             const payload: CreateBienPayload = {
-                proprietaire: proprietaireId,
+                proprietaire: ownerIdForPayload,
                 categorie,
                 type_bien: typeBien,
                 adresse,
@@ -194,25 +214,41 @@ const AddBienForm = ({ proprietaireId, mode = "create", initialBien = null, onSu
             if (onSubmitPayload) {
                 await onSubmitPayload(payload, initialBien);
             } else {
-                const createResponse = await createBien({ ...payload, photos: [] });
-                const createdBienId = extractCreatedBienId(createResponse?.data);
+                if (isEditMode && initialBien?.id) {
+                    await updateBien(initialBien.id, { ...payload, photos: [] });
 
-                console.log("[POST /api/biens/] response:", createResponse?.data);
-                console.log("[POST /api/biens/] created id:", createdBienId);
+                    if (photosFiles.length > 0) {
+                        try {
+                            console.log("[POST /api/biens/{id}/upload-photos/] files:", photosFiles.map((f) => f.name));
+                            await uploadBienPhotos(initialBien.id, photosFiles);
+                        } catch (uploadError: any) {
+                            console.error("[POST /api/biens/{id}/upload-photos/] status:", uploadError?.response?.status);
+                            console.error("[POST /api/biens/{id}/upload-photos/] response:", uploadError?.response?.data);
+                            setErrorMsg(`Bien modifie, mais l'upload des photos a echoue: ${formatApiError(uploadError?.response?.data)}`);
+                            return;
+                        }
+                    }
+                } else {
+                    const createResponse = await createBien({ ...payload, photos: [] });
+                    const createdBienId = extractCreatedBienId(createResponse?.data);
 
-                if (!createdBienId) {
-                    throw new Error("Creation reussie mais id du bien introuvable dans la reponse.");
-                }
+                    console.log("[POST /api/biens/] response:", createResponse?.data);
+                    console.log("[POST /api/biens/] created id:", createdBienId);
 
-                if (photosFiles.length > 0) {
-                    try {
-                        console.log("[POST /api/biens/{id}/upload-photos/] files:", photosFiles.map((f) => f.name));
-                        await uploadBienPhotos(createdBienId, photosFiles);
-                    } catch (uploadError: any) {
-                        console.error("[POST /api/biens/{id}/upload-photos/] status:", uploadError?.response?.status);
-                        console.error("[POST /api/biens/{id}/upload-photos/] response:", uploadError?.response?.data);
-                        setErrorMsg(`Bien cree, mais l'upload des photos a echoue: ${formatApiError(uploadError?.response?.data)}`);
-                        return;
+                    if (!createdBienId) {
+                        throw new Error("Creation reussie mais id du bien introuvable dans la reponse.");
+                    }
+
+                    if (photosFiles.length > 0) {
+                        try {
+                            console.log("[POST /api/biens/{id}/upload-photos/] files:", photosFiles.map((f) => f.name));
+                            await uploadBienPhotos(createdBienId, photosFiles);
+                        } catch (uploadError: any) {
+                            console.error("[POST /api/biens/{id}/upload-photos/] status:", uploadError?.response?.status);
+                            console.error("[POST /api/biens/{id}/upload-photos/] response:", uploadError?.response?.data);
+                            setErrorMsg(`Bien cree, mais l'upload des photos a echoue: ${formatApiError(uploadError?.response?.data)}`);
+                            return;
+                        }
                     }
                 }
             }

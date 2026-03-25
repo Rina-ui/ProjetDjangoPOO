@@ -365,6 +365,15 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 .detail-actions { display: flex; gap: 8px; margin-bottom: 20px; }
 .detail-actions .btn-primary { flex: 1; justify-content: center; }
 .detail-actions .btn-ghost { flex: 1; justify-content: center; }
+.booking-box { border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--white); padding: 12px; margin-bottom: 16px; }
+.booking-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+.booking-field { display: flex; flex-direction: column; gap: 6px; }
+.booking-field label { font-size: 12px; font-weight: 600; color: var(--text2); }
+.booking-field input { border: 1px solid var(--border2); border-radius: 8px; background: var(--bg); color: var(--text); padding: 9px 10px; font-size: 13px; outline: none; }
+.booking-field input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(184,146,42,0.12); background: var(--white); }
+.booking-msg { margin-top: 8px; font-size: 12px; font-weight: 600; }
+.booking-msg--error { color: var(--red); }
+.booking-msg--success { color: var(--green); }
 .detail-map { border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border); height: 160px; background: linear-gradient(135deg,#f0ece6,#e5dfd5); display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text3); font-size: 12px; gap: 6px; }
 
 /* COMMENTS */
@@ -870,6 +879,33 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 :root[data-theme="dark"] .owner-list-empty,
 :root[data-theme="dark"] .c-browse-msg {
     color: #c5ceda;
+}
+
+:root[data-theme="dark"] .booking-box {
+    background: #171c24;
+    border-color: #354154;
+}
+
+:root[data-theme="dark"] .booking-field label {
+    color: #d2d9e4;
+}
+
+:root[data-theme="dark"] .booking-field input {
+    background: #10151d;
+    border-color: #3a4558;
+    color: #eef2f7;
+}
+
+:root[data-theme="dark"] .booking-field input::placeholder {
+    color: #aeb7c5;
+}
+
+:root[data-theme="dark"] .booking-msg--error {
+    color: #ffd7dc;
+}
+
+:root[data-theme="dark"] .booking-msg--success {
+    color: #77e7a0;
 }
 
 :root[data-theme="dark"] .c-search-input,
