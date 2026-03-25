@@ -1,0 +1,253 @@
+/* ══════════════════════════════════════════════
+   analytics.css  —  clean, editorial
+   ══════════════════════════════════════════════ */
+
+/* ── Period switcher ─────────────────────────── */
+.an2-period {
+    display: flex;
+    gap: 2px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 3px;
+}
+.an2-period-btn {
+    padding: 6px 14px;
+    border-radius: 7px;
+    border: none;
+    background: transparent;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text3);
+    cursor: pointer;
+    transition: background .15s, color .15s;
+    white-space: nowrap;
+}
+.an2-period-btn.active {
+    background: var(--white);
+    color: var(--dark);
+    box-shadow: 0 1px 3px rgba(0,0,0,.08);
+}
+
+/* ── Number tiles ────────────────────────────── */
+.an2-tiles {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+@keyframes an2-up {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0);    }
+}
+.an2-tile {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 18px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    transition: box-shadow .2s, transform .2s;
+    animation: an2-up .35s ease both;
+}
+.an2-tile:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,.07);
+    transform: translateY(-2px);
+}
+.an2-tile-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--text3);
+}
+.an2-tile-val {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -.03em;
+    color: var(--dark);
+    line-height: 1.1;
+    margin: 2px 0;
+}
+.an2-tile-sub {
+    font-size: 12px;
+    color: var(--text3);
+}
+.an2-tile-spark {
+    margin-top: auto;
+    padding-top: 10px;
+}
+
+/* ── Shared card ─────────────────────────────── */
+.an2-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 20px;
+}
+.an2-card-hd {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text2);
+}
+.an2-card-sub {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text3);
+}
+
+/* ── Mid row ─────────────────────────────────── */
+.an2-mid {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 12px;
+}
+.an2-card--wide { }
+
+/* Bars */
+@keyframes an2-bar {
+    from { height: 0 !important; }
+}
+.an2-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    height: 110px;
+}
+.an2-bar-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    height: 100%;
+}
+.an2-bar-val {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text3);
+    line-height: 1;
+}
+.an2-bar-track {
+    flex: 1;
+    width: 100%;
+    display: flex;
+    align-items: flex-end;
+}
+.an2-bar-fill {
+    width: 100%;
+    background: #b8922a;
+    border-radius: 4px 4px 2px 2px;
+    min-height: 3px;
+    animation: an2-bar .5s ease both;
+    opacity: .8;
+    transition: opacity .15s;
+}
+.an2-bar-col:hover .an2-bar-fill { opacity: 1; }
+.an2-bar-day {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text3);
+    letter-spacing: .03em;
+}
+
+/* ── Table ───────────────────────────────────── */
+.an2-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    table-layout: fixed;
+}
+.an2-table th {
+    text-align: left;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--text3);
+    padding: 0 0 10px;
+    white-space: nowrap;
+}
+.an2-table th:not(:first-child) { padding-left: 14px; }
+.an2-tr td {
+    padding: 11px 0;
+    border-top: 1px solid var(--border);
+    vertical-align: middle;
+    color: var(--text2);
+}
+.an2-tr td:not(:first-child) { padding-left: 14px; }
+.an2-tr:hover td { background: var(--bg); }
+.an2-td-addr  { font-weight: 600; color: var(--dark); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.an2-td-num   { font-weight: 700; color: var(--dark); white-space: nowrap; }
+.an2-td-muted { color: var(--text3); }
+
+.an2-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 20px;
+    white-space: nowrap;
+}
+.an2-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+}
+
+/* ── Bottom row ──────────────────────────────── */
+.an2-bot {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+/* Inquiries */
+.an2-inq-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+}
+.an2-inq-row:last-child { border-bottom: none; }
+.an2-inq-av {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; color: var(--text2);
+    flex-shrink: 0;
+}
+.an2-inq-name { font-size: 13px; font-weight: 600; color: var(--dark); }
+.an2-inq-prop { font-size: 12px; color: var(--text3); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.an2-inq-date { font-size: 11.5px; color: var(--text3); white-space: nowrap; flex-shrink: 0; }
+
+/* Revenue */
+.an2-rev-total {
+    display: flex;
+    justify-content: space-between;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--text3);
+    margin-top: 4px;
+}
+.an2-rev-total strong { color: var(--dark); font-size: 14px; }
+
+/* ── Responsive ──────────────────────────────── */
+@media (max-width: 1100px) {
+    .an2-tiles { grid-template-columns: repeat(2, 1fr); }
+    .an2-mid   { grid-template-columns: 1fr; }
+    .an2-bot   { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+    .an2-tiles { grid-template-columns: 1fr 1fr; }
+}

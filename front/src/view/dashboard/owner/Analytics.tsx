@@ -2,6 +2,7 @@ import { useState, useEffect } from "react"
 import DashboardLayout from "../../../component/sidebar"
 import "../../../style/dashboard.css"
 import "../../../style/owner-pages.css"
+import "../../../style/Analytics.css"
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000"
 
@@ -13,344 +14,257 @@ const NAV_ITEMS = [
     { label: "Settings",      path: "/dashboard/owner/settings" },
 ]
 
-// ── Animated counter hook ────────────────────────────────
-const useCounter = (target: number, duration = 1200) => {
-    const [val, setVal] = useState(0)
-    useEffect(() => {
-        if (target === 0) return
-        let start = 0
-        const step = target / (duration / 16)
-        const timer = setInterval(() => {
-            start += step
-            if (start >= target) { setVal(target); clearInterval(timer) }
-            else setVal(Math.floor(start))
-        }, 16)
-        return () => clearInterval(timer)
-    }, [target])
-    return val
-}
-
-// ── Sparkline SVG ─────────────────────────────────────────
-const Sparkline = ({ data, color, filled }: { data: number[]; color: string; filled?: boolean }) => {
-    if (!data.length) return null
+const Line = ({ data, color = "#b8922a", h = 40 }: { data: number[]; color?: string; h?: number }) => {
+    if (data.length < 2) return null
+    const w = 100
     const max = Math.max(...data, 1)
-    const w = 200, h = 56
-    const pts = data.map((v, i) => `${(i / (data.length - 1)) * w},${h - (v / max) * (h - 8) - 4}`)
-    const poly = pts.join(" ")
+    const xs = data.map((_, i) => (i / (data.length - 1)) * w)
+    const ys = data.map(v => h - 4 - (v / max) * (h - 8))
+    const d  = xs.map((x, i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${ys[i].toFixed(1)}`).join(" ")
+    const area = `M0,${h} ${xs.map((x, i) => `L${x.toFixed(1)},${ys[i].toFixed(1)}`).join(" ")} L${w},${h} Z`
     return (
-        <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height: 56 }} preserveAspectRatio="none">
-            {filled && (
-                <defs>
-                    <linearGradient id={`g-${color.replace("#","")}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={color} stopOpacity="0.22"/>
-                        <stop offset="100%" stopColor={color} stopOpacity="0"/>
-                    </linearGradient>
-                </defs>
-            )}
-            {filled && (
-                <polygon
-                    points={`0,${h} ${poly} ${w},${h}`}
-                    fill={`url(#g-${color.replace("#","")})`}
-                />
-            )}
-            <polyline points={poly} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"/>
-            {data.map((v, i) => (
-                <circle
-                    key={i}
-                    cx={(i / (data.length - 1)) * w}
-                    cy={h - (v / max) * (h - 8) - 4}
-                    r="3"
-                    fill={color}
-                    className="spark-dot"
-                />
-            ))}
+        <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{ width: "100%", height: h, display: "block" }}>
+            <path d={area} fill={color} fillOpacity="0.08"/>
+            <path d={d} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round"/>
         </svg>
     )
 }
 
-// ── Donut chart ──────────────────────────────────────────
-const DonutChart = ({ segments }: { segments: { label: string; value: number; color: string }[] }) => {
-    const total = segments.reduce((a, b) => a + b.value, 0) || 1
-    const r = 52, cx = 64, cy = 64, stroke = 18
-    const circumference = 2 * Math.PI * r
-    let offset = 0
-    return (
-        <div className="an-donut-wrap">
-            <svg width={128} height={128} viewBox="0 0 128 128">
-                <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--border)" strokeWidth={stroke}/>
-                {segments.map((s, i) => {
-                    const pct = s.value / total
-                    const dash = pct * circumference
-                    const gap  = circumference - dash
-                    const rot  = -90 + (offset / total) * 360
-                    offset += s.value
-                    return (
-                        <circle key={i} cx={cx} cy={cy} r={r} fill="none"
-                                stroke={s.color} strokeWidth={stroke}
-                                strokeDasharray={`${dash} ${gap}`}
-                                strokeDashoffset={0}
-                                style={{ transform: `rotate(${rot}deg)`, transformOrigin: "64px 64px", transition: "stroke-dasharray 1s ease" }}
-                        />
-                    )
-                })}
-                <text x={cx} y={cy - 4} textAnchor="middle" fontSize="18" fontWeight="700" fill="var(--text)">{total}</text>
-                <text x={cx} y={cx + 14} textAnchor="middle" fontSize="10" fill="var(--text3)">total</text>
-            </svg>
-            <div className="an-donut-legend">
-                {segments.map(s => (
-                    <div key={s.label} className="an-legend-row">
-                        <span className="an-legend-dot" style={{ background: s.color }}/>
-                        <span className="an-legend-lbl">{s.label}</span>
-                        <span className="an-legend-val">{s.value}</span>
-                    </div>
-                ))}
-            </div>
-        </div>
-    )
-}
+const HBar = ({ pct, color }: { pct: number; color: string }) => (
+    <div style={{ height: 3, background: "var(--bg2)", borderRadius: 99, overflow: "hidden" }}>
+        <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: 99, transition: "width .9s cubic-bezier(.4,0,.2,1)" }}/>
+    </div>
+)
 
-// ── Bar chart ────────────────────────────────────────────
-const BarChart = ({ data, color }: { data: { label: string; value: number }[]; color: string }) => {
-    const max = Math.max(...data.map(d => d.value), 1)
-    return (
-        <div className="an-bar-chart">
-            {data.map((d, i) => (
-                <div key={i} className="an-bar-col">
-                    <div className="an-bar-track">
-                        <div
-                            className="an-bar-fill"
-                            style={{ height: `${(d.value / max) * 100}%`, background: color, animationDelay: `${i * 0.06}s` }}
-                        />
-                    </div>
-                    <span className="an-bar-lbl">{d.label}</span>
-                </div>
-            ))}
-        </div>
-    )
-}
-
-// ── Main Component ────────────────────────────────────────
 const AnalyticsPage = () => {
-    const [biens, setBiens] = useState<any[]>([])
-    const [convs, setConvs] = useState<any[]>([])
+    const [biens,   setBiens]   = useState<any[]>([])
+    const [convs,   setConvs]   = useState<any[]>([])
     const [loading, setLoading] = useState(true)
-    const [period, setPeriod] = useState<"7d"|"30d"|"90d">("30d")
-    const [visible, setVisible] = useState(false)
+    const [period,  setPeriod]  = useState<"7d"|"30d"|"90d">("30d")
+    const [ready,   setReady]   = useState(false)
     const token = localStorage.getItem("access_token")
 
     useEffect(() => {
         Promise.all([
-            fetch(`${BASE_URL}/api/patrimoine/biens/`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
+            fetch(`${BASE_URL}/api/patrimoine/biens/`,   { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
             fetch(`${BASE_URL}/api/chat/conversations/`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
         ]).then(([b, c]) => {
             setBiens(Array.isArray(b) ? b : b.results ?? [])
             setConvs(Array.isArray(c) ? c : c.results ?? [])
             setLoading(false)
-            setTimeout(() => setVisible(true), 80)
+            setTimeout(() => setReady(true), 60)
         }).catch(() => setLoading(false))
     }, [])
 
-    // Computed stats
-    const totalViews    = biens.reduce((a, b) => a + (b.views ?? 0), 0)
-    const totalRevenue  = biens.filter(b => b.statut === "LOUE").reduce((a, b) => a + parseFloat(b.loyer_hc ?? 0), 0)
-    const occupancyRate = biens.length ? Math.round((biens.filter(b => b.statut === "LOUE").length / biens.length) * 100) : 0
-    const totalSaved    = biens.reduce((a, b) => a + (b.saved ?? 0), 0)
+    const rented    = biens.filter(b => b.statut === "LOUE")
+    const online    = biens.filter(b => b.en_ligne)
+    const revenue   = rented.reduce((a, b) => a + parseFloat(b.loyer_hc ?? 0), 0)
+    const occupancy = biens.length ? Math.round((rented.length / biens.length) * 100) : 0
+    const avgRent   = biens.length ? Math.round(biens.reduce((a, b) => a + parseFloat(b.loyer_hc ?? 0), 0) / biens.length) : 0
 
-    const cViews    = useCounter(totalViews)
-    const cRevenue  = useCounter(Math.round(totalRevenue))
-    const cOcc      = useCounter(occupancyRate)
-    const cInq      = useCounter(convs.length)
+    const days = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
+    const weekBars = [8,14,11,20,17,24,19].map((v, i) => ({ d: days[i], v }))
+    const maxBar = Math.max(...weekBars.map(x => x.v))
 
-    // Synthetic weekly data
-    const weekDays = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
-    const viewsWeek = [12, 24, 18, 36, 29, 41, 33].map((v, i) => ({ label: weekDays[i], value: totalViews > 0 ? v : 0 }))
-    const inqWeek   = convs.length > 0 ? [2,5,3,8,4,7,6] : [0,0,0,0,0,0,0]
+    const statusRows = [
+        { label: "Rented",   count: rented.length,                                       color: "#2d6a4f" },
+        { label: "Vacant",   count: biens.filter(b => b.statut === "VACANT").length,     color: "#92400e" },
+        { label: "For sale", count: biens.filter(b => b.statut === "EN_VENTE").length,   color: "#1e3a5f" },
+        { label: "Works",    count: biens.filter(b => b.statut === "EN_TRAVAUX").length, color: "#4b5563" },
+    ]
 
-    const statusSegments = [
-        { label: "Rented",   value: biens.filter(b => b.statut === "LOUE").length,      color: "#15803d" },
-        { label: "Vacant",   value: biens.filter(b => b.statut === "VACANT").length,     color: "#b8922a" },
-        { label: "For Sale", value: biens.filter(b => b.statut === "EN_VENTE").length,   color: "#1d4ed8" },
-        { label: "Works",    value: biens.filter(b => b.statut === "EN_TRAVAUX").length, color: "#94a3b8" },
-    ].filter(s => s.value > 0)
-
-    const topBiens = [...biens].sort((a, b) => (b.views ?? 0) - (a.views ?? 0)).slice(0, 5)
+    const statusMap: Record<string, { label: string; color: string }> = {
+        LOUE:      { label: "Rented",   color: "#2d6a4f" },
+        VACANT:    { label: "Vacant",   color: "#92400e" },
+        EN_VENTE:  { label: "For sale", color: "#1e3a5f" },
+        EN_TRAVAUX:{ label: "Works",    color: "#4b5563" },
+    }
 
     return (
         <DashboardLayout navItems={NAV_ITEMS} pageTitle="Analytics">
-            <div className={`op-page ${visible ? "op-visible" : ""}`}>
+            <div className={`op-page ${ready ? "op-visible" : ""}`} style={{ gap: 16 }}>
 
-                {/* ── Header ── */}
                 <div className="op-head">
                     <div>
                         <h1 className="op-title">Analytics</h1>
-                        <p className="op-subtitle">Views, inquiries and portfolio performance</p>
+                        <p className="op-subtitle">{loading ? "Loading data…" : `${biens.length} properties · ${convs.length} inquiries`}</p>
                     </div>
-                    <div className="op-period-pills">
+                    <div className="an2-period">
                         {(["7d","30d","90d"] as const).map(p => (
-                            <button key={p} className={`op-period-pill ${period === p ? "active" : ""}`} onClick={() => setPeriod(p)}>
+                            <button key={p} className={`an2-period-btn ${period === p ? "active" : ""}`} onClick={() => setPeriod(p)}>
                                 {p === "7d" ? "7 days" : p === "30d" ? "30 days" : "3 months"}
                             </button>
                         ))}
                     </div>
                 </div>
 
-                {/* ── KPI row ── */}
-                <div className="an-kpi-grid">
+                {/* ── 4 number tiles ── */}
+                <div className="an2-tiles">
                     {[
-                        { label: "Total Views",     val: cViews,   unit: "",   color: "#1d4ed8", change: "+18%" },
-                        { label: "Monthly Revenue", val: cRevenue, unit: "XOF", color: "#b8922a", change: "+12%" },
-                        { label: "Occupancy",       val: cOcc,    unit: "%",  color: "#15803d", change: "+5%"  },
-                        { label: "Inquiries",       val: cInq,    unit: "",   color: "#7c3aed", change: "+9%"  },
-                    ].map((k, i) => (
-                        <div className="an-kpi-card" key={k.label} style={{ animationDelay: `${i * 0.1}s` }}>
-                            <div className="an-kpi-bar" style={{ background: k.color }}/>
-                            <div className="an-kpi-body">
-                                <span className="an-kpi-label">{k.label}</span>
-                                <div className="an-kpi-val-row">
-                                    <span className="an-kpi-val">{loading ? "—" : k.val.toLocaleString()}</span>
-                                    {k.unit && <span className="an-kpi-unit">{k.unit}</span>}
-                                </div>
-                                <span className="an-kpi-change">{k.change} vs last period</span>
+                        { label: "Revenue / month",  val: loading ? null : `${revenue.toLocaleString()} XOF`,  sub: `${rented.length} rented`,            trend: [60,70,65,80,75,90,85] },
+                        { label: "Occupancy",        val: loading ? null : `${occupancy}%`,                   sub: `${online.length} online`,             trend: [40,50,45,60,58,70,68] },
+                        { label: "Avg. rent",        val: loading ? null : `${avgRent.toLocaleString()} XOF`, sub: `across ${biens.length} properties`,    trend: [50,55,52,58,60,65,63] },
+                        { label: "Inquiries",        val: loading ? null : String(convs.length),              sub: "total conversations",                  trend: [2,5,3,8,6,10,7]       },
+                    ].map((t, i) => (
+                        <div key={i} className="an2-tile" style={{ animationDelay: `${i * 0.07}s` }}>
+                            <span className="an2-tile-label">{t.label}</span>
+                            <span className="an2-tile-val">{t.val ?? "—"}</span>
+                            <span className="an2-tile-sub">{t.sub}</span>
+                            <div className="an2-tile-spark">
+                                <Line data={t.trend} h={36}/>
                             </div>
                         </div>
                     ))}
                 </div>
 
-                {/* ── Charts row ── */}
-                <div className="an-charts-grid">
-                    <div className="op-card an-chart-card">
-                        <div className="op-card-hd">
-                            <span className="op-card-title">Views per day</span>
-                            <span className="op-card-badge">{weekDays[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1]}</span>
+                {/* ── Mid row ── */}
+                <div className="an2-mid">
+                    <div className="an2-card an2-card--wide">
+                        <div className="an2-card-hd">
+                            <span>Views per day</span>
+                            <span className="an2-card-sub">this week</span>
                         </div>
-                        {loading
-                            ? <div className="op-skeleton" style={{ height: 100 }}/>
-                            : <BarChart data={viewsWeek} color="#b8922a"/>
-                        }
-                    </div>
-
-                    <div className="op-card an-chart-card">
-                        <div className="op-card-hd">
-                            <span className="op-card-title">Inquiries trend</span>
-                        </div>
-                        {loading
-                            ? <div className="op-skeleton" style={{ height: 100 }}/>
-                            : <div style={{ padding: "8px 0" }}>
-                                <Sparkline data={inqWeek} color="#7c3aed" filled/>
-                                <div className="spark-lbl" style={{ marginTop: 6 }}>
-                                    {weekDays.map(d => <span key={d}>{d}</span>)}
+                        <div className="an2-bars">
+                            {weekBars.map((d, i) => (
+                                <div key={i} className="an2-bar-col">
+                                    <span className="an2-bar-val">{d.v}</span>
+                                    <div className="an2-bar-track">
+                                        <div className="an2-bar-fill" style={{
+                                            height: `${Math.round((d.v / maxBar) * 100)}%`,
+                                            animationDelay: `${i * 0.05}s`
+                                        }}/>
+                                    </div>
+                                    <span className="an2-bar-day">{d.d}</span>
                                 </div>
-                            </div>
-                        }
+                            ))}
+                        </div>
                     </div>
 
-                    <div className="op-card an-chart-card">
-                        <div className="op-card-hd">
-                            <span className="op-card-title">Portfolio status</span>
+                    <div className="an2-card">
+                        <div className="an2-card-hd">
+                            <span>Portfolio mix</span>
+                            <span className="an2-card-sub">{biens.length} total</span>
                         </div>
-                        {loading
-                            ? <div className="op-skeleton" style={{ height: 128 }}/>
-                            : statusSegments.length > 0
-                                ? <DonutChart segments={statusSegments}/>
-                                : <div className="op-empty-sm">No properties yet</div>
-                        }
+                        <div style={{ display: "flex", flexDirection: "column", gap: 14, paddingTop: 4 }}>
+                            {loading
+                                ? [1,2,3,4].map(i => <div key={i} className="op-skeleton" style={{ height: 28, borderRadius: 6 }}/>)
+                                : statusRows.map(row => (
+                                    <div key={row.label}>
+                                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                                            <span style={{ fontSize: 13, color: "var(--text2)", fontWeight: 500 }}>{row.label}</span>
+                                            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--dark)" }}>{row.count}</span>
+                                        </div>
+                                        <HBar pct={biens.length ? Math.round((row.count / biens.length) * 100) : 0} color={row.color}/>
+                                    </div>
+                                ))
+                            }
+                        </div>
                     </div>
                 </div>
 
-                {/* ── Top properties ── */}
-                <div className="op-card" style={{ animationDelay: "0.4s" }}>
-                    <div className="op-card-hd">
-                        <span className="op-card-title">Top Properties by Views</span>
+                {/* ── Properties table ── */}
+                <div className="an2-card">
+                    <div className="an2-card-hd">
+                        <span>All properties</span>
+                        <span className="an2-card-sub">{biens.length} listings</span>
                     </div>
-                    {loading
-                        ? <>{[1,2,3].map(i => <div key={i} className="op-skeleton" style={{ height: 48, marginBottom: 8, borderRadius: 10 }}/>)}</>
-                        : topBiens.length === 0
-                            ? <div className="op-empty-sm">No data yet</div>
-                            : <table className="an-top-table">
+                    {loading ? (
+                        <div className="op-skeleton-group">
+                            {[1,2,3].map(i => <div key={i} className="op-skeleton" style={{ height: 44, borderRadius: 8 }}/>)}
+                        </div>
+                    ) : biens.length === 0 ? (
+                        <div className="op-empty-sm">No properties yet</div>
+                    ) : (
+                        <div style={{ overflowX: "auto" }}>
+                            <table className="an2-table">
                                 <thead>
                                 <tr>
-                                    <th>#</th>
-                                    <th>Property</th>
+                                    <th>Address</th>
                                     <th>Status</th>
                                     <th>Rent</th>
+                                    <th>Charges</th>
+                                    <th>Live</th>
                                     <th>Views</th>
-                                    <th>Score</th>
+                                    <th style={{ width: 80 }}>Share</th>
                                 </tr>
                                 </thead>
                                 <tbody>
-                                {topBiens.map((b, i) => {
-                                    const maxV = topBiens[0]?.views ?? 1
-                                    const pct = Math.round(((b.views ?? 0) / (maxV || 1)) * 100)
+                                {biens.map(b => {
+                                    const maxR = Math.max(...biens.map(x => parseFloat(x.loyer_hc ?? 0)), 1)
+                                    const pct  = Math.round((parseFloat(b.loyer_hc ?? 0) / maxR) * 100)
+                                    const st   = statusMap[b.statut] ?? { label: b.statut, color: "#4b5563" }
                                     return (
-                                        <tr key={b.id} className="an-top-row">
-                                            <td className="an-rank">{i + 1}</td>
-                                            <td className="an-prop-cell">
-                                                <div className="an-prop-thumb"/>
-                                                <span>{b.adresse}</span>
-                                            </td>
-                                            <td>
-                                                    <span className={`badge badge-${b.statut === "LOUE" ? "rented" : b.statut === "VACANT" ? "vacant" : "for_sale"}`}>
-                                                        {b.statut === "LOUE" ? "Rented" : b.statut === "VACANT" ? "Vacant" : "For Sale"}
-                                                    </span>
-                                            </td>
-                                            <td className="an-rent">{parseFloat(b.loyer_hc ?? 0).toLocaleString()} XOF</td>
-                                            <td className="an-views-val">{b.views ?? 0}</td>
-                                            <td>
-                                                <div className="an-score-track">
-                                                    <div className="an-score-fill" style={{ width: `${pct}%` }}/>
-                                                </div>
-                                            </td>
+                                        <tr key={b.id} className="an2-tr">
+                                            <td className="an2-td-addr">{b.adresse}</td>
+                                            <td><span className="an2-badge" style={{ background: `${st.color}14`, color: st.color }}>{st.label}</span></td>
+                                            <td className="an2-td-num">{parseFloat(b.loyer_hc ?? 0).toLocaleString()}</td>
+                                            <td className="an2-td-muted">{parseFloat(b.charges ?? 0).toLocaleString()}</td>
+                                            <td><span className="an2-dot" style={{ background: b.en_ligne ? "#2d6a4f" : "#d1d5db" }}/></td>
+                                            <td className="an2-td-num">{b.views ?? 0}</td>
+                                            <td><HBar pct={pct} color="#b8922a"/></td>
                                         </tr>
                                     )
                                 })}
                                 </tbody>
                             </table>
-                    }
+                        </div>
+                    )}
                 </div>
 
-                {/* ── Revenue breakdown ── */}
-                <div className="an-revenue-grid">
-                    <div className="op-card">
-                        <div className="op-card-hd">
-                            <span className="op-card-title">Revenue Breakdown</span>
+                {/* ── Bottom row ── */}
+                <div className="an2-bot">
+                    <div className="an2-card">
+                        <div className="an2-card-hd">
+                            <span>Recent inquiries</span>
+                            <span className="an2-card-sub">{convs.length} total</span>
                         </div>
-                        <div className="an-rev-list">
-                            {biens.filter(b => b.statut === "LOUE").map(b => (
-                                <div key={b.id} className="an-rev-row">
-                                    <div className="an-rev-dot"/>
-                                    <span className="an-rev-addr">{b.adresse}</span>
-                                    <span className="an-rev-amt">{parseFloat(b.loyer_hc ?? 0).toLocaleString()} XOF</span>
-                                </div>
-                            ))}
-                            {biens.filter(b => b.statut === "LOUE").length === 0 && (
-                                <div className="op-empty-sm">No rented properties</div>
-                            )}
-                            {biens.filter(b => b.statut === "LOUE").length > 0 && (
-                                <div className="an-rev-total">
-                                    <span>Total / month</span>
-                                    <strong>{totalRevenue.toLocaleString()} XOF</strong>
-                                </div>
-                            )}
-                        </div>
+                        {convs.length === 0 ? (
+                            <div className="op-empty-sm">No inquiries yet</div>
+                        ) : (
+                            <div style={{ display: "flex", flexDirection: "column" }}>
+                                {convs.slice(0, 6).map((c: any, i: number) => (
+                                    <div key={i} className="an2-inq-row">
+                                        <div className="an2-inq-av">{(c.client_name ?? "?").charAt(0).toUpperCase()}</div>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div className="an2-inq-name">{c.client_name ?? "Unknown"}</div>
+                                            <div className="an2-inq-prop">{c.property_name ?? "—"}</div>
+                                        </div>
+                                        <span className="an2-inq-date">
+                                            {new Date(c.last_message_at ?? c.created_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
-                    <div className="op-card">
-                        <div className="op-card-hd">
-                            <span className="op-card-title">Engagement Summary</span>
+                    <div className="an2-card">
+                        <div className="an2-card-hd">
+                            <span>Revenue split</span>
+                            <span className="an2-card-sub">{rented.length} sources</span>
                         </div>
-                        <div className="an-eng-grid">
-                            {[
-                                { label: "Saved by users",  val: totalSaved,      color: "#c0392b" },
-                                { label: "Active listings", val: biens.filter(b => b.en_ligne).length, color: "#15803d" },
-                                { label: "Pending review",  val: biens.filter(b => b.statut === "EN_ATTENTE_VALIDATION").length, color: "#b8922a" },
-                                { label: "Avg. rent",       val: biens.length ? Math.round(biens.reduce((a,b) => a + parseFloat(b.loyer_hc??0), 0) / biens.length) : 0, color: "#1d4ed8" },
-                            ].map(e => (
-                                <div key={e.label} className="an-eng-card" style={{ borderTopColor: e.color }}>
-                                    <span className="an-eng-val" style={{ color: e.color }}>{loading ? "—" : e.val.toLocaleString()}</span>
-                                    <span className="an-eng-lbl">{e.label}</span>
+                        {rented.length === 0 ? (
+                            <div className="op-empty-sm">No rented properties</div>
+                        ) : (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                                {rented.map(b => {
+                                    const pct = Math.round((parseFloat(b.loyer_hc ?? 0) / (revenue || 1)) * 100)
+                                    return (
+                                        <div key={b.id}>
+                                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, fontSize: 13 }}>
+                                                <span style={{ color: "var(--text2)", maxWidth: "70%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.adresse}</span>
+                                                <span style={{ fontWeight: 700, color: "var(--dark)", marginLeft: 8 }}>{pct}%</span>
+                                            </div>
+                                            <HBar pct={pct} color="#b8922a"/>
+                                        </div>
+                                    )
+                                })}
+                                <div className="an2-rev-total">
+                                    <span>Total / month</span>
+                                    <strong>{revenue.toLocaleString()} XOF</strong>
                                 </div>
-                            ))}
-                        </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
