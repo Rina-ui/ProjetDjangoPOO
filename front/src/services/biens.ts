@@ -214,13 +214,14 @@ export const fetchBiensByOwner = async (ownerId: number): Promise<Bien[]> => {
 
 export const createBien = async (payload: CreateBienPayload) => {
     // Le backend stocke photos/equipements en JSONField: on envoie un vrai JSON.
+    // Les photos seront uploadées séparément après la création du bien via upload-photos.
     const body = {
         proprietaire: payload.proprietaire,
         categorie: payload.categorie,
         type_bien: payload.type_bien,
         adresse: payload.adresse,
         description: payload.description,
-        photos: (payload.photos || []).map((item) => item.name),
+        photos: [],
         equipements: payload.equipements,
         loyer_hc: payload.loyer_hc,
         charges: payload.charges,

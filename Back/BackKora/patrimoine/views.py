@@ -1,6 +1,5 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
@@ -59,18 +58,12 @@ class BienViewSet(viewsets.ModelViewSet):
         detail=True,
         methods=["post"],
         parser_classes=[MultiPartParser, FormParser],
-        permission_classes=[IsAuthenticated],
         url_path="upload-photos",
     )
     def upload_photos(self, request, pk=None):
         bien = self.get_object()
         files = request.FILES.getlist("photos")
 
-        if bien.proprietaire.utilisateur_id != request.user.id:
-            return Response(
-                {"detail": "Vous n'etes pas autorise a modifier ce bien."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
 
         if not files:
             return Response(
