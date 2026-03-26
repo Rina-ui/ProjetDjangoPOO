@@ -84,6 +84,7 @@ class Bien(models.Model):
 
     loyer_hc = models.DecimalField(max_digits=12, decimal_places=2)
     charges = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    taux_commission = models.FloatField(default=0)
 
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
@@ -94,6 +95,9 @@ class Bien(models.Model):
 
     date_creation = models.DateTimeField(auto_now_add=True)
     date_modification = models.DateTimeField(auto_now=True)
+
+    bail_actif      = models.BooleanField(default=False)
+    visite_en_cours = models.BooleanField(default=False)
 
     # 🔹 Méthodes métier
     def calculer_loyer_total(self):

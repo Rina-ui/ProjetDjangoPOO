@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react"
+import { useState, useEffect } from "react"
 import DashboardLayout from "../../../component/sidebar"
+import { NotificationBell } from "../../../component/NotificationBell.tsx"
+import { calcSplit, DEFAULT_COMMISSION } from "../../../context/PaymentContext"
 import "../../../style/dashboard.css"
+import "../../../style/owner-pages.css"
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000"
-const token = () => localStorage.getItem("access_token")
-
 const NAV_ITEMS = [
     { label: "Dashboard",    path: "/dashboard/admin" },
     { label: "Leads",        path: "/dashboard/admin/leads" },
@@ -14,211 +15,247 @@ const NAV_ITEMS = [
     { label: "Settings",     path: "/dashboard/admin/settings" },
 ]
 
-interface Bail {
-    id: number
-    bien_adresse: string
-    locataire_nom: string
-    loyer_initial: string
-    date_entree: string
-    date_sortie: string | null
-    actif: boolean
-    depot_garantie: string
+const fmt = (iso: string) => new Date(iso).toLocaleDateString("fr-FR", { day:"2-digit", month:"short", year:"numeric" })
+
+const ss: Record<string, { bg:string; color:string; label:string }> = {
+    SUCCESS: { bg:"#f0fdf4", color:"#15803d", label:"Réussi"     },
+    PENDING: { bg:"#fffbeb", color:"#92400e", label:"En attente" },
+    FAILED:  { bg:"#fef2f2", color:"#c0392b", label:"Échoué"     },
 }
 
-const Transactions = () => {
-    const [baux,    setBaux]    = useState<Bail[]>([])
+// ── Panneau commissions ───────────────────────────────────
+const CommissionPanel = ({ onClose }: { onClose: () => void }) => {
+    const [biens,   setBiens]   = useState<any[]>([])
     const [loading, setLoading] = useState(true)
-    const [filter,  setFilter]  = useState<"all" | "actif" | "expire">("all")
-    const [search,  setSearch]  = useState("")
-    const [mounted, setMounted] = useState(false)
+    const [saving,  setSaving]  = useState<number|null>(null)
+    const [saved,   setSaved]   = useState<number|null>(null)
+    const [taux,    setTaux]    = useState<Record<number,string>>({})
+    const token = localStorage.getItem("access_token")
 
     useEffect(() => {
-        setTimeout(() => setMounted(true), 50)
-        fetch(`${BASE_URL}/api/locataires/baux/`, { headers: { Authorization: `Bearer ${token()}` } })
-            .then(r => r.json())
-            .then(d => setBaux(Array.isArray(d) ? d : d.results ?? []))
-            .catch(() => setBaux([]))
-            .finally(() => setLoading(false))
+        fetch(`${BASE_URL}/api/patrimoine/biens/`, { headers: { Authorization: `Bearer ${token}` } })
+            .then(r => r.json()).then(d => {
+            const list = Array.isArray(d) ? d : d.results ?? []
+            setBiens(list)
+            const init: Record<number,string> = {}
+            list.forEach((b: any) => {
+                const t = b.taux_commission ?? b.commission ?? DEFAULT_COMMISSION
+                init[b.id] = String(Math.round(t <= 1 ? t * 100 : t))
+            })
+            setTaux(init)
+            setLoading(false)
+        }).catch(() => setLoading(false))
     }, [])
 
-    const filtered = baux
-        .filter(b => filter === "all" || (filter === "actif" ? b.actif : !b.actif))
-        .filter(b =>
-            (b.bien_adresse ?? "").toLowerCase().includes(search.toLowerCase()) ||
-            (b.locataire_nom ?? "").toLowerCase().includes(search.toLowerCase())
-        )
-
-    const totalRevenue = baux.filter(b => b.actif).reduce((sum, b) => sum + parseFloat(b.loyer_initial || "0"), 0)
-    const totalDeposit = baux.reduce((sum, b) => sum + parseFloat(b.depot_garantie || "0"), 0)
-    const activeBaux   = baux.filter(b => b.actif).length
-
-    const fmt = (iso: string) => new Date(iso).toLocaleDateString("en", { month: "short", day: "numeric", year: "numeric" })
-
-    // Sparkline simulation
-    const months = ["J","F","M","A","M","J","J","A","S","O","N","D"]
-    const barHeights = [45, 62, 55, 78, 65, 82, 58, 90, 72, 85, 68, 95]
+    const save = async (b: any) => {
+        const raw = parseFloat(taux[b.id] ?? "10")
+        if (isNaN(raw) || raw < 0 || raw > 50) return
+        setSaving(b.id)
+        try {
+            await fetch(`${BASE_URL}/api/patrimoine/biens/${b.id}/`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ taux_commission: raw / 100 }),
+            })
+            setSaved(b.id); setTimeout(() => setSaved(null), 2000)
+        } finally { setSaving(null) }
+    }
 
     return (
-        <DashboardLayout navItems={NAV_ITEMS} pageTitle="Transactions">
-            <style>{`
-                @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
-                @keyframes growBar { from{height:0} to{height:var(--h)} }
-                .tx-anim { animation: fadeUp .4s cubic-bezier(.4,0,.2,1) both; }
-                .bar-anim { animation: growBar .8s cubic-bezier(.4,0,.2,1) both; }
-            `}</style>
-
-            <div className="pg-header">
-                <div>
-                    <div className="pg-title">Transactions</div>
-                    <div className="pg-subtitle">Lease contracts and financial overview</div>
-                </div>
-                <div className="tbl-search-wrap" style={{ width: 260 }}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
-                    <input placeholder="Search leases…" value={search} onChange={e => setSearch(e.target.value)} style={{ width: 200 }}/>
-                </div>
-            </div>
-
-            {/* KPI Cards */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 24 }}>
-                {[
-                    { label: "Monthly Revenue",  value: `$${totalRevenue.toLocaleString()}`,  color: "#15803d", bg: "#f0fdf4", sub: "Active leases" },
-                    { label: "Active Leases",    value: String(activeBaux),                    color: "#1d4ed8", bg: "#eff6ff", sub: `of ${baux.length} total` },
-                    { label: "Total Deposits",   value: `$${totalDeposit.toLocaleString()}`,   color: "#7c3aed", bg: "#f5f3ff", sub: "Held in escrow" },
-                    { label: "Avg. Rent",        value: activeBaux > 0 ? `$${Math.round(totalRevenue / activeBaux).toLocaleString()}` : "$0", color: "#b8922a", bg: "#fdf6e7", sub: "Per active lease" },
-                ].map((s, i) => (
-                    <div key={s.label} className="stat-card tx-anim" style={{ animationDelay: `${i * 80}ms` }}>
-                        <div className="stat-icon-wrap" style={{ background: s.bg }}>
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={s.color} strokeWidth="2">
-                                <rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>
-                            </svg>
-                        </div>
-                        <div className="stat-body">
-                            <span className="stat-label">{s.label}</span>
-                            <span className="stat-value" style={{ color: s.color, fontSize: 20 }}>{s.value}</span>
-                            <span style={{ fontSize: 11, color: "var(--text3)" }}>{s.sub}</span>
-                        </div>
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.5)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, backdropFilter:"blur(2px)" }}>
+            <div style={{ background:"#fff", borderRadius:20, width:520, maxHeight:"85vh", overflow:"auto", boxShadow:"0 24px 64px rgba(0,0,0,.22)" }}>
+                <div style={{ padding:"22px 24px 0", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                    <div>
+                        <div style={{ fontSize:16, fontWeight:800, color:"var(--dark)" }}>Commissions par bien</div>
+                        <div style={{ fontSize:12, color:"var(--text3)", marginTop:2 }}>Taux appliqué à chaque paiement de loyer</div>
                     </div>
-                ))}
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 16, marginBottom: 24 }}>
-                {/* Revenue chart */}
-                <div className="card">
-                    <div className="card-hd">
-                        <div className="card-title">Revenue Overview</div>
-                        <span style={{ fontSize: 12, color: "var(--green)", fontWeight: 600 }}>+12.4% this year</span>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 120, padding: "0 4px" }}>
-                        {barHeights.map((h, i) => (
-                            <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                                <div style={{
-                                    width: "100%", height: `${h}%`,
-                                    background: i === 11 ? "var(--gold)" : "var(--bg2)",
-                                    borderRadius: "4px 4px 0 0",
-                                    transition: "height .8s cubic-bezier(.4,0,.2,1)",
-                                    transitionDelay: `${i * 60}ms`,
-                                    position: "relative"
-                                }}>
-                                    {i === 11 && (
-                                        <div style={{
-                                            position: "absolute", top: -24, left: "50%", transform: "translateX(-50%)",
-                                            background: "var(--gold)", color: "#fff", fontSize: 10, fontWeight: 700,
-                                            padding: "2px 6px", borderRadius: 4, whiteSpace: "nowrap"
-                                        }}>Peak</div>
-                                    )}
+                    <button onClick={onClose} style={{ background:"var(--bg2)", border:"none", borderRadius:8, width:32, height:32, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"var(--text3)" }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+                <div style={{ padding:"14px 24px 24px" }}>
+                    {loading ? (
+                        <div className="op-skeleton-group">{[1,2,3].map(i => <div key={i} className="op-skeleton" style={{ height:64, borderRadius:10 }}/>)}</div>
+                    ) : biens.length === 0 ? (
+                        <div className="op-empty-sm">Aucun bien</div>
+                    ) : biens.map(b => {
+                        const cur = parseFloat(taux[b.id] ?? "10")
+                        const loyer = parseFloat(b.loyer_hc ?? 0)
+                        const { agence, proprio } = calcSplit(loyer, cur / 100)
+                        return (
+                            <div key={b.id} style={{ padding:"14px 0", borderBottom:"1px solid var(--border)" }}>
+                                <div style={{ fontSize:13, fontWeight:700, color:"var(--dark)", marginBottom:8, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{b.adresse}</div>
+                                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                                    <div style={{ position:"relative", width:88 }}>
+                                        <input type="number" min="0" max="50" step="0.5"
+                                               value={taux[b.id] ?? "10"}
+                                               onChange={e => setTaux(p => ({ ...p, [b.id]: e.target.value }))}
+                                               style={{ width:"100%", padding:"8px 28px 8px 10px", borderRadius:9, border:"1.5px solid var(--border)", fontSize:14, fontWeight:700, outline:"none", background:"var(--bg)", color:"var(--dark)", boxSizing:"border-box" }}
+                                        />
+                                        <span style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", fontSize:12, fontWeight:700, color:"var(--text3)" }}>%</span>
+                                    </div>
+                                    <div style={{ flex:1, display:"flex", gap:7, flexWrap:"wrap", fontSize:12 }}>
+                                        <span style={{ background:"#f0fdf4", color:"#2d6a4f", padding:"3px 10px", borderRadius:20, fontWeight:700 }}>Proprio: {proprio.toLocaleString()} XOF</span>
+                                        <span style={{ background:"#faf5e8", color:"#92400e", padding:"3px 10px", borderRadius:20, fontWeight:700 }}>Agence: {agence.toLocaleString()} XOF</span>
+                                    </div>
+                                    <button onClick={() => save(b)} disabled={saving === b.id} style={{ padding:"8px 14px", borderRadius:9, border:"none", background:saved===b.id?"#15803d":"#1a1814", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer", minWidth:60, transition:"background .2s" }}>
+                                        {saving===b.id ? "…" : saved===b.id ? "OK" : "Sauver"}
+                                    </button>
                                 </div>
-                                <span style={{ fontSize: 9, color: "var(--text3)" }}>{months[i]}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Lease status donut */}
-                <div className="card" style={{ display: "flex", flexDirection: "column" }}>
-                    <div className="card-hd"><div className="card-title">Lease Status</div></div>
-                    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12, justifyContent: "center" }}>
-                        {[
-                            { label: "Active",   value: activeBaux,               color: "var(--green)", pct: baux.length ? Math.round(activeBaux / baux.length * 100) : 0 },
-                            { label: "Expired",  value: baux.length - activeBaux, color: "var(--text3)", pct: baux.length ? Math.round((baux.length - activeBaux) / baux.length * 100) : 0 },
-                        ].map(s => (
-                            <div key={s.label}>
-                                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 6 }}>
-                                    <span style={{ fontWeight: 600 }}>{s.label}</span>
-                                    <span style={{ color: s.color, fontWeight: 700 }}>{s.value} ({s.pct}%)</span>
+                                <div style={{ marginTop:8, height:4, background:"var(--bg2)", borderRadius:99, overflow:"hidden", display:"flex" }}>
+                                    <div style={{ width:`${100-cur}%`, background:"#2d6a4f", height:"100%", borderRadius:"99px 0 0 99px", transition:"width .3s" }}/>
+                                    <div style={{ width:`${cur}%`, background:"#b8922a", height:"100%", borderRadius:"0 99px 99px 0", transition:"width .3s" }}/>
                                 </div>
-                                <div style={{ height: 6, background: "var(--bg2)", borderRadius: 3, overflow: "hidden" }}>
-                                    <div style={{ height: "100%", width: `${s.pct}%`, background: s.color, borderRadius: 3, transition: "width 1s cubic-bezier(.4,0,.2,1)" }}/>
+                                <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:"var(--text3)", marginTop:3 }}>
+                                    <span>Propriétaire {(100-cur).toFixed(1)}%</span>
+                                    <span>Agence {cur}%</span>
                                 </div>
                             </div>
-                        ))}
-                    </div>
+                        )
+                    })}
                 </div>
             </div>
+        </div>
+    )
+}
 
-            {/* Leases table */}
-            <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px 20px", borderBottom: "1px solid var(--border)" }}>
-                    <div className="tab-pills">
-                        {(["all", "actif", "expire"] as const).map(f => (
-                            <button key={f} className={`tab-pill ${filter === f ? "tab-pill--active" : ""}`} onClick={() => setFilter(f)}>
-                                {f === "all" ? "All" : f === "actif" ? "Active" : "Expired"}
-                            </button>
-                        ))}
+// ── Page transactions ─────────────────────────────────────
+export const AdminTransactionsPage = () => {
+    const [payments, setPayments] = useState<any[]>([])
+    const [loading,  setLoading]  = useState(true)
+    const [filter,   setFilter]   = useState<"all"|"success"|"pending"|"failed">("all")
+    const [search,   setSearch]   = useState("")
+    const [ready,    setReady]    = useState(false)
+    const [showComm, setShowComm] = useState(false)
+    const token = localStorage.getItem("access_token")
+
+    useEffect(() => {
+        fetch(`${BASE_URL}/api/paiements/tous/`, { headers: { Authorization: `Bearer ${token}` } })
+            .then(r => r.ok ? r.json() : [])
+            .then(d => { setPayments(Array.isArray(d) ? d : d.results ?? []); setLoading(false); setTimeout(() => setReady(true), 80) })
+            .catch(() => { setLoading(false); setTimeout(() => setReady(true), 80) })
+    }, [])
+
+    const rows = payments
+        .filter(p => filter === "all" || p.statut?.toLowerCase() === filter)
+        .filter(p => !search || p.bien_adresse?.toLowerCase().includes(search.toLowerCase()) || p.locataire_nom?.toLowerCase().includes(search.toLowerCase()))
+
+    const ok          = payments.filter(p => p.statut === "SUCCESS")
+    const total       = ok.reduce((a, p) => a + (p.montant ?? 0), 0)
+    const totalAgence = ok.reduce((a, p) => a + (p.montant_agence ?? calcSplit(p.montant ?? 0, p.taux_commission).agence), 0)
+    const totalProprio = total - totalAgence
+    const avgPct      = ok.length ? Math.round(ok.reduce((a, p) => a + ((p.taux_commission ?? DEFAULT_COMMISSION) * 100), 0) / ok.length) : Math.round(DEFAULT_COMMISSION * 100)
+
+    const Tile = ({ l, v, sub, c }: { l:string; v:string|number; sub?:string; c?:string }) => (
+        <div style={{ background:"#fff", border:"1px solid var(--border)", borderRadius:14, padding:"16px 18px" }}>
+            <div style={{ fontSize:10.5, fontWeight:700, letterSpacing:".08em", textTransform:"uppercase", color:"var(--text3)", marginBottom:5 }}>{l}</div>
+            <div style={{ fontSize:22, fontWeight:800, letterSpacing:"-.03em", color:c??"var(--dark)", lineHeight:1 }}>{v}</div>
+            {sub && <div style={{ fontSize:11.5, color:"var(--text3)", marginTop:4 }}>{sub}</div>}
+        </div>
+    )
+
+    return (
+        <DashboardLayout navItems={NAV_ITEMS} pageTitle="Transactions" pageAction={<NotificationBell/>}>
+            <div className={`op-page ${ready ? "op-visible" : ""}`} style={{ gap:18 }}>
+                <div className="op-head">
+                    <div>
+                        <h1 className="op-title">Transactions</h1>
+                        <p className="op-subtitle">{payments.length} paiements · commission moy. {avgPct}%</p>
                     </div>
-                    <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--text3)" }}>{filtered.length} leases</span>
+                    <button onClick={() => setShowComm(true)} style={{ display:"inline-flex", alignItems:"center", gap:7, padding:"9px 18px", borderRadius:11, border:"1.5px solid var(--border)", background:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", color:"var(--text2)" }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14"/></svg>
+                        Gérer les commissions
+                    </button>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "2fr 1.5fr 1fr 1fr 1fr 1fr", gap: 12, padding: "10px 20px", background: "var(--bg)", borderBottom: "1px solid var(--border)" }}>
-                    {["Property", "Tenant", "Monthly Rent", "Deposit", "Start Date", "Status"].map(h => (
-                        <div key={h} style={{ fontSize: 11, fontWeight: 600, color: "var(--text3)", textTransform: "uppercase", letterSpacing: ".5px" }}>{h}</div>
-                    ))}
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12 }}>
+                    <Tile l="Volume total"         v={`${total.toLocaleString()} XOF`}        sub={`${ok.length} réussis`}/>
+                    <Tile l="Commissions agence"   v={`${totalAgence.toLocaleString()} XOF`}  sub={`moy. ${avgPct}%`}        c="#b8922a"/>
+                    <Tile l="Reversé propriétaires" v={`${totalProprio.toLocaleString()} XOF`} sub="net proprios"             c="#2d6a4f"/>
+                    <Tile l="En attente"           v={payments.filter(p=>p.statut==="PENDING").length} sub="non confirmés"   c="#92400e"/>
                 </div>
 
-                {loading && <div style={{ padding: 40, textAlign: "center", color: "var(--text3)", fontSize: 13 }}>Loading…</div>}
-
-                {filtered.map((b, i) => (
-                    <div key={b.id} className="tx-anim"
-                         style={{
-                             display: "grid", gridTemplateColumns: "2fr 1.5fr 1fr 1fr 1fr 1fr",
-                             gap: 12, padding: "14px 20px", alignItems: "center",
-                             borderBottom: "1px solid var(--border)",
-                             animationDelay: `${i * 40}ms`,
-                             transition: "background .15s"
-                         }}
-                         onMouseEnter={e => (e.currentTarget.style.background = "var(--bg)")}
-                         onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-                    >
-                        <div>
-                            <div style={{ fontSize: 13, fontWeight: 600 }}>{b.bien_adresse}</div>
+                {total > 0 && (
+                    <div style={{ background:"#fff", border:"1px solid var(--border)", borderRadius:14, padding:"16px 20px" }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, fontWeight:600, color:"var(--text3)", marginBottom:8 }}>
+                            <span>Répartition du volume</span>
+                            <span>{total.toLocaleString()} XOF</span>
                         </div>
-                        <div style={{ fontSize: 13, color: "var(--text2)" }}>{b.locataire_nom}</div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--green)" }}>
-                            ${parseFloat(b.loyer_initial).toLocaleString()}
+                        <div style={{ height:8, background:"var(--bg2)", borderRadius:99, overflow:"hidden", display:"flex" }}>
+                            <div style={{ width:`${Math.round(totalProprio/total*100)}%`, background:"#2d6a4f", height:"100%", borderRadius:"99px 0 0 99px", transition:"width .8s" }}/>
+                            <div style={{ width:`${Math.round(totalAgence/total*100)}%`, background:"#b8922a", height:"100%", borderRadius:"0 99px 99px 0" }}/>
                         </div>
-                        <div style={{ fontSize: 13, color: "var(--text2)" }}>
-                            ${parseFloat(b.depot_garantie).toLocaleString()}
+                        <div style={{ display:"flex", gap:16, marginTop:8, fontSize:11, color:"var(--text3)" }}>
+                            <span style={{ display:"flex", alignItems:"center", gap:5 }}><span style={{ width:8, height:8, borderRadius:2, background:"#2d6a4f", display:"inline-block" }}/> Propriétaires — {totalProprio.toLocaleString()} XOF</span>
+                            <span style={{ display:"flex", alignItems:"center", gap:5 }}><span style={{ width:8, height:8, borderRadius:2, background:"#b8922a", display:"inline-block" }}/> Agence — {totalAgence.toLocaleString()} XOF</span>
                         </div>
-                        <div style={{ fontSize: 12, color: "var(--text3)" }}>{fmt(b.date_entree)}</div>
-                        <div>
-                            <span style={{
-                                fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20,
-                                background: b.actif ? "var(--green-bg)" : "var(--bg2)",
-                                color: b.actif ? "var(--green)" : "var(--text3)"
-                            }}>
-                                {b.actif ? "Active" : "Expired"}
-                            </span>
-                        </div>
-                    </div>
-                ))}
-
-                {!loading && filtered.length === 0 && (
-                    <div style={{ padding: 48, textAlign: "center", color: "var(--text3)", fontSize: 13 }}>
-                        No transactions found
                     </div>
                 )}
+
+                <div style={{ background:"#fff", border:"1px solid var(--border)", borderRadius:14, padding:"18px 20px" }}>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, marginBottom:16, flexWrap:"wrap" }}>
+                        <div style={{ display:"flex", gap:4 }}>
+                            {(["all","success","pending","failed"] as const).map(f => (
+                                <button key={f} onClick={() => setFilter(f)} style={{ padding:"6px 14px", borderRadius:8, border:"1.5px solid transparent", background:filter===f?"var(--dark)":"transparent", color:filter===f?"#fff":"var(--text3)", fontSize:12, fontWeight:600, cursor:"pointer" }}>
+                                    {{ all:"Tous", success:"Réussis", pending:"En attente", failed:"Échoués" }[f]}
+                                </button>
+                            ))}
+                        </div>
+                        <div style={{ display:"flex", alignItems:"center", gap:8, background:"var(--bg)", border:"1.5px solid var(--border)", borderRadius:10, padding:"7px 12px" }}>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Locataire, adresse…" style={{ border:"none", background:"transparent", fontSize:13, color:"var(--text)", outline:"none", width:160 }}/>
+                        </div>
+                    </div>
+
+                    {loading ? (
+                        <div className="op-skeleton-group">{[1,2,3,4].map(i => <div key={i} className="op-skeleton" style={{ height:48, borderRadius:8 }}/>)}</div>
+                    ) : rows.length === 0 ? (
+                        <div className="op-empty-sm" style={{ textAlign:"center", padding:"28px 0" }}>Aucun paiement trouvé</div>
+                    ) : (
+                        <div style={{ overflowX:"auto" }}>
+                            <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+                                <thead>
+                                <tr>{["Date","Locataire","Bien","Montant","Comm.","Proprio","Agence","Statut"].map(h => (
+                                    <th key={h} style={{ textAlign:"left", fontSize:10, fontWeight:700, letterSpacing:".08em", textTransform:"uppercase", color:"var(--text3)", padding:"0 10px 10px 0", whiteSpace:"nowrap" }}>{h}</th>
+                                ))}</tr>
+                                </thead>
+                                <tbody>
+                                {rows.map((p,i) => {
+                                    const st = ss[p.statut] ?? ss.PENDING
+                                    const t  = p.taux_commission ?? DEFAULT_COMMISSION
+                                    const { agence, proprio } = calcSplit(p.montant ?? 0, t)
+                                    return (
+                                        <tr key={p.id??i} style={{ borderTop:"1px solid var(--border)" }}>
+                                            <td style={{ padding:"11px 10px 11px 0", color:"var(--text3)", fontSize:12, whiteSpace:"nowrap" }}>{fmt(p.created_at)}</td>
+                                            <td style={{ padding:"11px 10px", fontWeight:600, color:"var(--dark)", whiteSpace:"nowrap" }}>{p.locataire_nom ?? "—"}</td>
+                                            <td style={{ padding:"11px 10px", color:"var(--text2)", maxWidth:140, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.bien_adresse ?? "—"}</td>
+                                            <td style={{ padding:"11px 10px", fontWeight:800, color:"var(--dark)", whiteSpace:"nowrap" }}>{(p.montant??0).toLocaleString()}</td>
+                                            <td style={{ padding:"11px 10px" }}><span style={{ fontSize:11, fontWeight:700, background:"var(--bg2)", color:"var(--text3)", padding:"2px 8px", borderRadius:20 }}>{Math.round(t*100)}%</span></td>
+                                            <td style={{ padding:"11px 10px", fontWeight:700, color:"#2d6a4f", whiteSpace:"nowrap" }}>{proprio.toLocaleString()}</td>
+                                            <td style={{ padding:"11px 10px", fontWeight:700, color:"#b8922a", whiteSpace:"nowrap" }}>{agence.toLocaleString()}</td>
+                                            <td style={{ padding:"11px 10px" }}><span style={{ fontSize:10, fontWeight:700, background:st.bg, color:st.color, padding:"3px 9px", borderRadius:20 }}>{st.label}</span></td>
+                                        </tr>
+                                    )
+                                })}
+                                </tbody>
+                                <tfoot>
+                                <tr style={{ borderTop:"2px solid var(--border)" }}>
+                                    <td colSpan={3} style={{ padding:"10px 10px 0 0", fontSize:12, fontWeight:700, color:"var(--text3)" }}>Total ({rows.filter(p=>p.statut==="SUCCESS").length} réussis)</td>
+                                    <td style={{ padding:"10px 10px 0", fontWeight:800, color:"var(--dark)" }}>{rows.filter(p=>p.statut==="SUCCESS").reduce((a,p)=>a+(p.montant??0),0).toLocaleString()} XOF</td>
+                                    <td/>
+                                    <td style={{ padding:"10px 10px 0", fontWeight:800, color:"#2d6a4f" }}>{rows.filter(p=>p.statut==="SUCCESS").reduce((a,p)=>a+calcSplit(p.montant??0,p.taux_commission).proprio,0).toLocaleString()} XOF</td>
+                                    <td style={{ padding:"10px 10px 0", fontWeight:800, color:"#b8922a" }}>{rows.filter(p=>p.statut==="SUCCESS").reduce((a,p)=>a+calcSplit(p.montant??0,p.taux_commission).agence,0).toLocaleString()} XOF</td>
+                                    <td/>
+                                </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    )}
+                </div>
             </div>
+            {showComm && <CommissionPanel onClose={() => setShowComm(false)}/>}
         </DashboardLayout>
     )
 }
 
-export default Transactions
+export default AdminTransactionsPage

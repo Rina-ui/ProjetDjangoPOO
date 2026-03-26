@@ -48,7 +48,20 @@ class VisiteSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at']
 
     def get_bien_detail(self, obj):
-        return BienMiniSerializer(obj.bien, context=self.context).data
+        b   = obj.bien
+        req = self.context.get('request')
+        photo = None
+        if b.photos_bien.exists():
+            img   = b.photos_bien.first().image
+            photo = req.build_absolute_uri(img.url) if req else img.url
+        return {
+            'id':               b.id,
+            'adresse':          b.adresse,
+            'loyer_hc':         str(b.loyer_hc),
+            'statut':           b.statut,
+            'proprietaire_nom': str(b.proprietaire),
+            'photo':            photo,
+        }
 
 
 class BienSauvegardeSerializer(serializers.ModelSerializer):

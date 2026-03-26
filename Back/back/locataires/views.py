@@ -4,6 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from .models import Locataire, Bail, BienSauvegarde, Visitebien
 from .serializers import LocataireSerializer, BailSerializer, BienSauvegardeSerializer, VisiteSerializer
+from patrimoine.models import Bien
 
 
 class LocataireViewSet(viewsets.ModelViewSet):
@@ -33,19 +34,57 @@ class VisiteViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Visitebien.objects.filter(client=self.request.user).select_related('bien')
-
-    def perform_create(self, serializer):
-        serializer.save(client=self.request.user)
+        return Visitebien.objects.filter(
+            client=self.request.user
+        ).select_related('bien', 'bien__proprietaire')
 
     def get_serializer_context(self):
         return {'request': self.request}
 
+    def create(self, request, *args, **kwargs):
+        bien_id = request.data.get('bien')
+        # Bloquer double réservation
+        deja = Visitebien.objects.filter(
+            bien_id=bien_id,
+            client=request.user,
+            statut__in=['EN_ATTENTE', 'CONFIRMEE']
+        ).exists()
+        if deja:
+            return Response(
+                {'detail': 'Vous avez déjà une visite planifiée pour ce bien.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(client=request.user)
+        Bien.objects.filter(id=bien_id).update(visite_en_cours=True)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
     @action(detail=True, methods=['post'])
     def annuler(self, request, pk=None):
         visite = self.get_object()
+        if visite.client != request.user:
+            return Response(status=status.HTTP_403_FORBIDDEN)
         visite.statut = 'ANNULEE'
         visite.save()
+        Bien.objects.filter(id=visite.bien_id).update(visite_en_cours=False)
+        return Response({'success': True})
+
+    @action(detail=True, methods=['post'])
+    def confirmer(self, request, pk=None):
+        """Admin confirme la visite."""
+        visite = self.get_object()
+        visite.statut = 'CONFIRMEE'
+        visite.save()
+        return Response({'success': True})
+
+    @action(detail=True, methods=['post'])
+    def effectuee(self, request, pk=None):
+        """Admin marque la visite comme effectuée."""
+        visite = self.get_object()
+        visite.statut = 'EFFECTUEE'
+        visite.save()
+        Bien.objects.filter(id=visite.bien_id).update(visite_en_cours=False)
         return Response({'success': True})
 
 

@@ -35,6 +35,7 @@ import AdminProperties   from "./view/dashboard/admin/Properties"
 import AdminTransactions from "./view/dashboard/admin/Transactions"
 import AdminCalendar     from "./view/dashboard/admin/Calendar"
 import AdminSettings     from "./view/dashboard/admin/Settings"
+import { PaymentProvider } from "./context/PaymentContext"
 
 // ── Redirect selon le rôle
 const DashboardRedirect = () => {
@@ -53,45 +54,47 @@ const DashboardRedirect = () => {
 const App = () => (
     <AuthProvider>
         <BrowserRouter>
-            <ChatProvider>
-                <NotificationProvider>
-                    <Routes>
-                        {/* ── Public */}
-                        <Route path="/"               element={<Home />} />
-                        <Route path="/login"          element={<Login />} />
-                        <Route path="/register"       element={<Register />} />
-                        <Route path="/not-authorized" element={<NotAuthorized />} />
-                        <Route path="/2fa/setup"      element={<TwoFactorSetup />} />
-                        <Route path="/2fa/verify"     element={<TwoFactorVerify />} />
-                        <Route path="/dashboard"      element={<DashboardRedirect />} />
+            <PaymentProvider>
+                <ChatProvider>
+                    <NotificationProvider>
+                        <Routes>
+                            {/* ── Public */}
+                            <Route path="/"               element={<Home />} />
+                            <Route path="/login"          element={<Login />} />
+                            <Route path="/register"       element={<Register />} />
+                            <Route path="/not-authorized" element={<NotAuthorized />} />
+                            <Route path="/2fa/setup"      element={<TwoFactorSetup />} />
+                            <Route path="/2fa/verify"     element={<TwoFactorVerify />} />
+                            <Route path="/dashboard"      element={<DashboardRedirect />} />
 
-                        {/* ── Admin */}
-                        <Route path="/dashboard/admin" element={<ProtectedRoute allowedRoles={["admin"]}><AdminDashboard /></ProtectedRoute>}/>
-                        <Route path="/dashboard/admin/leads" element={<ProtectedRoute allowedRoles={["admin"]}><AdminLeads /></ProtectedRoute>}/>
-                        <Route path="/dashboard/admin/properties" element={<ProtectedRoute allowedRoles={["admin"]}><AdminProperties /></ProtectedRoute>}/>
-                        <Route path="/dashboard/admin/transactions" element={<ProtectedRoute allowedRoles={["admin"]}><AdminTransactions /></ProtectedRoute>}/>
-                        <Route path="/dashboard/admin/calendar" element={<ProtectedRoute allowedRoles={["admin"]}><AdminCalendar /></ProtectedRoute>}/>
-                        <Route path="/dashboard/admin/settings" element={<ProtectedRoute allowedRoles={["admin"]}><AdminSettings /></ProtectedRoute>}/>
+                            {/* ── Admin */}
+                            <Route path="/dashboard/admin" element={<ProtectedRoute allowedRoles={["admin"]}><AdminDashboard /></ProtectedRoute>}/>
+                            <Route path="/dashboard/admin/leads" element={<ProtectedRoute allowedRoles={["admin"]}><AdminLeads /></ProtectedRoute>}/>
+                            <Route path="/dashboard/admin/properties" element={<ProtectedRoute allowedRoles={["admin"]}><AdminProperties /></ProtectedRoute>}/>
+                            <Route path="/dashboard/admin/transactions" element={<ProtectedRoute allowedRoles={["admin"]}><AdminTransactions /></ProtectedRoute>}/>
+                            <Route path="/dashboard/admin/calendar" element={<ProtectedRoute allowedRoles={["admin"]}><AdminCalendar /></ProtectedRoute>}/>
+                            <Route path="/dashboard/admin/settings" element={<ProtectedRoute allowedRoles={["admin"]}><AdminSettings /></ProtectedRoute>}/>
 
-                        {/* ── Owner */}
-                        <Route path="/dashboard/owner" element={<ProtectedRoute allowedRoles={["owner"]}><OwnerOverview /></ProtectedRoute>}/>
-                        <Route path="/dashboard/owner/properties" element={<ProtectedRoute allowedRoles={["owner"]}><OwnerProperties /></ProtectedRoute>}/>
-                        <Route path="/dashboard/owner/analytics" element={<ProtectedRoute allowedRoles={["owner"]}><OwnerAnalytics /></ProtectedRoute>}/>
-                        <Route path="/dashboard/owner/messages" element={<ProtectedRoute allowedRoles={["owner"]}><OwnerMessages /></ProtectedRoute>}/>
-                        <Route path="/dashboard/owner/settings" element={<ProtectedRoute allowedRoles={["owner"]}><OwnerSettings /></ProtectedRoute>}/>
+                            {/* ── Owner */}
+                            <Route path="/dashboard/owner" element={<ProtectedRoute allowedRoles={["owner"]}><OwnerOverview /></ProtectedRoute>}/>
+                            <Route path="/dashboard/owner/properties" element={<ProtectedRoute allowedRoles={["owner"]}><OwnerProperties /></ProtectedRoute>}/>
+                            <Route path="/dashboard/owner/analytics" element={<ProtectedRoute allowedRoles={["owner"]}><OwnerAnalytics /></ProtectedRoute>}/>
+                            <Route path="/dashboard/owner/messages" element={<ProtectedRoute allowedRoles={["owner"]}><OwnerMessages /></ProtectedRoute>}/>
+                            <Route path="/dashboard/owner/settings" element={<ProtectedRoute allowedRoles={["owner"]}><OwnerSettings /></ProtectedRoute>}/>
 
-                        {/* ── Client */}
-                        <Route path="/dashboard/client" element={<ProtectedRoute allowedRoles={["client"]}><ClientBrowse /></ProtectedRoute>}/>
-                        <Route path="/dashboard/client/saved" element={<ProtectedRoute allowedRoles={["client"]}><ClientSaved /></ProtectedRoute>}/>
-                        <Route path="/dashboard/client/visits" element={<ProtectedRoute allowedRoles={["client"]}><ClientVisits /></ProtectedRoute>}/>
-                        <Route path="/dashboard/client/messages" element={<ProtectedRoute allowedRoles={["client"]}><ClientMessages /></ProtectedRoute>}/>
-                        <Route path="/dashboard/client/settings" element={<ProtectedRoute allowedRoles={["client"]}><ClientSettings /></ProtectedRoute>}/>
+                            {/* ── Client */}
+                            <Route path="/dashboard/client" element={<ProtectedRoute allowedRoles={["client"]}><ClientBrowse /></ProtectedRoute>}/>
+                            <Route path="/dashboard/client/saved" element={<ProtectedRoute allowedRoles={["client"]}><ClientSaved /></ProtectedRoute>}/>
+                            <Route path="/dashboard/client/visits" element={<ProtectedRoute allowedRoles={["client"]}><ClientVisits /></ProtectedRoute>}/>
+                            <Route path="/dashboard/client/messages" element={<ProtectedRoute allowedRoles={["client"]}><ClientMessages /></ProtectedRoute>}/>
+                            <Route path="/dashboard/client/settings" element={<ProtectedRoute allowedRoles={["client"]}><ClientSettings /></ProtectedRoute>}/>
 
-                        {/* ── Fallback */}
-                        <Route path="*" element={<Navigate to="/" replace />} />
-                    </Routes>
-                </NotificationProvider>
-            </ChatProvider>
+                            {/* ── Fallback */}
+                            <Route path="*" element={<Navigate to="/" replace />} />
+                        </Routes>
+                    </NotificationProvider>
+                </ChatProvider>
+            </PaymentProvider>
         </BrowserRouter>
     </AuthProvider>
 )

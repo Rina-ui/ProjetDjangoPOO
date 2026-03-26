@@ -125,6 +125,25 @@ class BienViewSet(viewsets.ModelViewSet):
         bien.save()
         return Response({'success': True, 'message': 'Bien rejeté'})
 
+    @action(detail=True, methods=['post'])
+    def activer_bail(self, request, pk=None):
+        """Admin active le bail → débloque le paiement côté client."""
+        bien = self.get_object()
+        bien.bail_actif = True
+        bien.statut     = 'LOUE'
+        bien.save()
+        return Response({'success': True, 'message': 'Bail activé'})
+
+    @action(detail=True, methods=['post'])
+    def desactiver_bail(self, request, pk=None):
+        """Admin désactive le bail (fin de contrat)."""
+        bien = self.get_object()
+        bien.bail_actif      = False
+        bien.visite_en_cours = False
+        bien.statut          = 'VACANT'
+        bien.save()
+        return Response({'success': True, 'message': 'Bail désactivé'})
+
 
 class CategorieViewSet(viewsets.ModelViewSet):
     queryset         = Categorie.objects.all()

@@ -106,11 +106,15 @@ const AddPropertyModal = ({ onClose, onSuccess }: { onClose: () => void, onSucce
             for (const photo of photos) {
                 const fd = new FormData()
                 fd.append("image", photo)
-                await fetch(`${BASE_URL}/api/patrimoine/biens/${bienId}/upload_photo/`, {
+                const res = await fetch(`${BASE_URL}/api/patrimoine/biens/${bienId}/upload_photo/`, {
                     method: "POST",
                     headers: { Authorization: `Bearer ${token}` },
                     body: fd
                 })
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}))
+                    throw new Error(JSON.stringify(err))
+                }
             }
             setStep(3)
         } catch (e: any) {
@@ -123,21 +127,24 @@ const AddPropertyModal = ({ onClose, onSuccess }: { onClose: () => void, onSucce
     const handleStep3 = async () => {
         setLoading(true); setError("")
         try {
-            // Upload GLB si présent
             if (glbFile) {
                 const fd = new FormData()
                 fd.append("modele_3d", glbFile)
-                await fetch(`${BASE_URL}/api/patrimoine/biens/${bienId}/upload_3d/`, {
+                const res = await fetch(`${BASE_URL}/api/patrimoine/biens/${bienId}/upload_3d/`, {
                     method: "POST",
                     headers: { Authorization: `Bearer ${token}` },
                     body: fd
                 })
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}))
+                    throw new Error(JSON.stringify(err))
+                }
             }
-            // Soumettre pour validation admin
             await fetch(`${BASE_URL}/api/patrimoine/biens/${bienId}/demander_validation/`, {
                 method: "POST",
                 headers: { Authorization: `Bearer ${token}` }
             })
+            await new Promise(r => setTimeout(r, 600)) // laisser Django persister
             onSuccess()
             onClose()
         } catch (e: any) {
