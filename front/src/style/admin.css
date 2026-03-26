@@ -25,6 +25,25 @@
     --shadow-lg:  0 16px 48px rgba(0,0,0,.12);
 }
 
+html[data-theme="dark"] {
+    --gold: #d2b057;
+    --gold-light: #d8be78;
+    --gold-dim: #3a3120;
+    --green: #4fbf78;
+    --red: #ea6c61;
+    --dark: #eceef1;
+    --bg: #0f1113;
+    --bg2: #1a1d20;
+    --border: #2a2f35;
+    --text: #eceef1;
+    --text2: #b5bcc6;
+    --text3: #8892a0;
+    --white: #151617;
+    --shadow-sm: 0 2px 8px rgba(0,0,0,.35);
+    --shadow-md: 0 6px 24px rgba(0,0,0,.45);
+    --shadow-lg: 0 16px 48px rgba(0,0,0,.55);
+}
+
 /* ── WRAPPER ─────────────────────────────────────── */
 .adm {
     display: flex;

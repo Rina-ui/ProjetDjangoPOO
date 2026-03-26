@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react"
 import DashboardLayout from "../../../component/sidebar"
+import { useAuth } from "../../../context/AuthContext"
+import { extractSavedCountByProperty } from "../../../utils/savedProperties"
 import "../../../style/dashboard.css"
 import "../../../style/owner-pages.css"
 import "../../../style/Analytics.css"
@@ -37,30 +39,61 @@ const HBar = ({ pct, color }: { pct: number; color: string }) => (
 )
 
 const AnalyticsPage = () => {
+    const { user } = useAuth()
     const [biens,   setBiens]   = useState<any[]>([])
     const [convs,   setConvs]   = useState<any[]>([])
+    const [likesByBien, setLikesByBien] = useState<Record<number, number>>({})
     const [loading, setLoading] = useState(true)
     const [period,  setPeriod]  = useState<"7d"|"30d"|"90d">("30d")
     const [ready,   setReady]   = useState(false)
     const token = localStorage.getItem("access_token")
+
+    const toNumber = (value: unknown): number | null => {
+        const num = Number(value)
+        return Number.isFinite(num) ? num : null
+    }
+
+    const getLikeCount = (bien: any) => {
+        const id = toNumber(bien?.id)
+        const fromSaves = id !== null ? likesByBien[id] : undefined
+        return fromSaves
+            ?? toNumber(bien?.likes_count)
+            ?? toNumber(bien?.nb_sauvegardes)
+            ?? toNumber(bien?.saved)
+            ?? 0
+    }
 
     useEffect(() => {
         Promise.all([
             fetch(`${BASE_URL}/api/patrimoine/biens/`,   { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
             fetch(`${BASE_URL}/api/chat/conversations/`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
         ]).then(([b, c]) => {
-            setBiens(Array.isArray(b) ? b : b.results ?? [])
+            const list = Array.isArray(b) ? b : b.results ?? []
+            const ownerId = Number(user?.id)
+            const ownerBiens = Number.isFinite(ownerId)
+                ? list.filter((item: any) => Number(item?.proprietaire) === ownerId)
+                : list
+            setBiens(ownerBiens)
             setConvs(Array.isArray(c) ? c : c.results ?? [])
             setLoading(false)
             setTimeout(() => setReady(true), 60)
         }).catch(() => setLoading(false))
-    }, [])
+
+        fetch(`${BASE_URL}/api/locataires/sauvegardes/?_ts=${Date.now()}`, {
+            headers: { Authorization: `Bearer ${token}` },
+            cache: "no-store"
+        })
+            .then(r => (r.ok ? r.json() : null))
+            .then(data => setLikesByBien(data ? extractSavedCountByProperty(data) : {}))
+            .catch(() => setLikesByBien({}))
+    }, [user?.id])
 
     const rented    = biens.filter(b => b.statut === "LOUE")
     const online    = biens.filter(b => b.en_ligne)
     const revenue   = rented.reduce((a, b) => a + parseFloat(b.loyer_hc ?? 0), 0)
     const occupancy = biens.length ? Math.round((rented.length / biens.length) * 100) : 0
     const avgRent   = biens.length ? Math.round(biens.reduce((a, b) => a + parseFloat(b.loyer_hc ?? 0), 0) / biens.length) : 0
+    const totalLikes = biens.reduce((a, b) => a + getLikeCount(b), 0)
 
     const days = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
     const weekBars = [8,14,11,20,17,24,19].map((v, i) => ({ d: days[i], v }))
@@ -104,7 +137,7 @@ const AnalyticsPage = () => {
                         { label: "Revenue / month",  val: loading ? null : `${revenue.toLocaleString()} XOF`,  sub: `${rented.length} rented`,            trend: [60,70,65,80,75,90,85] },
                         { label: "Occupancy",        val: loading ? null : `${occupancy}%`,                   sub: `${online.length} online`,             trend: [40,50,45,60,58,70,68] },
                         { label: "Avg. rent",        val: loading ? null : `${avgRent.toLocaleString()} XOF`, sub: `across ${biens.length} properties`,    trend: [50,55,52,58,60,65,63] },
-                        { label: "Inquiries",        val: loading ? null : String(convs.length),              sub: "total conversations",                  trend: [2,5,3,8,6,10,7]       },
+                        { label: "Likes",            val: loading ? null : String(totalLikes),                sub: "saved by users",                        trend: [2,5,3,8,6,10,7]       },
                     ].map((t, i) => (
                         <div key={i} className="an2-tile" style={{ animationDelay: `${i * 0.07}s` }}>
                             <span className="an2-tile-label">{t.label}</span>
@@ -185,6 +218,7 @@ const AnalyticsPage = () => {
                                     <th>Charges</th>
                                     <th>Live</th>
                                     <th>Views</th>
+                                    <th>Likes</th>
                                     <th style={{ width: 80 }}>Share</th>
                                 </tr>
                                 </thead>
@@ -201,6 +235,7 @@ const AnalyticsPage = () => {
                                             <td className="an2-td-muted">{parseFloat(b.charges ?? 0).toLocaleString()}</td>
                                             <td><span className="an2-dot" style={{ background: b.en_ligne ? "#2d6a4f" : "#d1d5db" }}/></td>
                                             <td className="an2-td-num">{b.views ?? 0}</td>
+                                            <td className="an2-td-num">{getLikeCount(b)}</td>
                                             <td><HBar pct={pct} color="#b8922a"/></td>
                                         </tr>
                                     )

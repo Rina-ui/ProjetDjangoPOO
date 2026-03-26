@@ -12,6 +12,7 @@ import type { Comment } from "../../data/property"
 import { useChat } from "../../context/Chatcontext"
 import { PaymentModal } from "../../component/PayementModal.tsx"
 import { NotificationBell } from "../../component/NotificationBell.tsx"
+import { extractSavedIds, extractSavedMap } from "../../utils/savedProperties"
 import "../../style/dashboard.css"
 import "../../style/client3d.css"
 
@@ -55,6 +56,7 @@ const mapBien = (b: any) => ({
     bail_actif:       b.bail_actif      ?? false,
     visite_en_cours:  b.visite_en_cours ?? false,
 })
+
 
 // ── Modal réservation visite ──────────────────────────────
 const BookVisitModal = ({ prop, onClose, onSuccess }: {
@@ -150,6 +152,8 @@ const ClientDashboard = () => {
     const [showPay,        setShowPay]        = useState(false)
     const [showBookVisit,  setShowBookVisit]  = useState(false)
     const [profile,        setProfile]        = useState<any>(null)
+    const [savingIds,      setSavingIds]      = useState<number[]>([])
+    const [savedMap,       setSavedMap]       = useState<Record<number, number>>({})
 
     useEffect(() => {
         const token = localStorage.getItem("access_token")
@@ -171,9 +175,85 @@ const ClientDashboard = () => {
             .finally(() => setLoadingProps(false))
     }, [])
 
-    const toggleSave = (id: number, e: React.MouseEvent) => {
+    const refreshSavedState = async () => {
+        const token = localStorage.getItem("access_token")
+        const [idsRes, savesRes] = await Promise.all([
+            fetch(`${BASE_URL}/api/locataires/sauvegardes/ids/?_ts=${Date.now()}`, {
+                headers: { Authorization: `Bearer ${token}` },
+                cache: "no-store"
+            }),
+            fetch(`${BASE_URL}/api/locataires/sauvegardes/?_ts=${Date.now()}`, {
+                headers: { Authorization: `Bearer ${token}` },
+                cache: "no-store"
+            })
+        ])
+
+        if (!idsRes.ok || !savesRes.ok) throw new Error("Failed to fetch saved state")
+
+        const idsData = await idsRes.json()
+        const savesData = await savesRes.json()
+        setSavedIds(extractSavedIds(idsData))
+        setSavedMap(extractSavedMap(savesData))
+    }
+
+    useEffect(() => {
+        refreshSavedState().catch(() => {
+            setSavedIds([])
+            setSavedMap({})
+        })
+    }, [])
+
+    const toggleSave = async (id: number, e: React.MouseEvent) => {
         e.stopPropagation()
-        setSavedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])
+        if (savingIds.includes(id)) return
+
+        const token = localStorage.getItem("access_token")
+
+        const wasSaved = savedIds.includes(id)
+        setSavingIds(prev => [...prev, id])
+        // Feedback immédiat, puis synchro serveur.
+        setSavedIds(prev => wasSaved ? prev.filter(i => i !== id) : [...prev, id])
+
+        try {
+            if (wasSaved) {
+                let saveId = savedMap[id]
+                if (!saveId) {
+                    const savesRes = await fetch(`${BASE_URL}/api/locataires/sauvegardes/?_ts=${Date.now()}`, {
+                        headers: { Authorization: `Bearer ${token}` },
+                        cache: "no-store"
+                    })
+                    if (!savesRes.ok) throw new Error("Failed to fetch saves")
+                    const savesData = await savesRes.json()
+                    const map = extractSavedMap(savesData)
+                    setSavedMap(map)
+                    saveId = map[id]
+                }
+                if (!saveId) throw new Error("Save entry not found")
+
+                const delRes = await fetch(`${BASE_URL}/api/locataires/sauvegardes/${saveId}/`, {
+                    method: "DELETE",
+                    headers: { Authorization: `Bearer ${token}` }
+                })
+                if (!delRes.ok) throw new Error("Failed to remove save")
+            } else {
+                const addRes = await fetch(`${BASE_URL}/api/locataires/sauvegardes/`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ bien: id })
+                })
+                if (!addRes.ok) throw new Error("Failed to add save")
+            }
+
+            await refreshSavedState()
+        } catch {
+            // Rollback si l'appel échoue.
+            setSavedIds(prev => wasSaved ? [...new Set([...prev, id])] : prev.filter(i => i !== id))
+        } finally {
+            setSavingIds(prev => prev.filter(x => x !== id))
+        }
     }
 
     const submitComment = () => {
@@ -362,9 +442,8 @@ const ClientDashboard = () => {
                                         Réserver une visite
                                     </button>
                                     <button className="btn-ghost"
-                                            onClick={() => setSavedIds(p => p.includes(selectedProp.id)
-                                                ? p.filter(i => i !== selectedProp.id)
-                                                : [...p, selectedProp.id])}
+                                            onClick={e => { void toggleSave(selectedProp.id, e) }}
+                                            disabled={savingIds.includes(selectedProp.id)}
                                             style={{ color: savedIds.includes(selectedProp.id) ? "var(--red)" : undefined }}>
                                         {savedIds.includes(selectedProp.id) ? "Saved" : "Save"}
                                     </button>
@@ -515,7 +594,7 @@ const ClientDashboard = () => {
                             <div className="p-card-img">
                                 <img src={prop.img} alt={prop.address} className="p-card-photo"/>
                                 {prop.tag && <span className="p-tag">{prop.tag}</span>}
-                                <button className={`p-save-btn ${savedIds.includes(prop.id) ? "p-save-btn--saved" : ""}`} onClick={e => toggleSave(prop.id, e)}>
+                                <button className={`p-save-btn ${savedIds.includes(prop.id) ? "p-save-btn--saved" : ""}`} onClick={e => { void toggleSave(prop.id, e) }} disabled={savingIds.includes(prop.id)}>
                                     <IconHeart size={14} filled={savedIds.includes(prop.id)} color={savedIds.includes(prop.id) ? "var(--red)" : "var(--text2)"}/>
                                 </button>
                                 <div className="p-agent">

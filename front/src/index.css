@@ -1,3 +1,45 @@
+:root {
+  --white: #ffffff;
+  --bg: #f7f6f4;
+  --bg2: #f0ede8;
+  --border: #e5e1da;
+  --border2: #d4cfc7;
+  --text: #1a1814;
+  --text2: #6b6560;
+  --text3: #9d9893;
+  --gold: #b8922a;
+  --gold-bg: #fdf6e7;
+  --green: #15803d;
+  --green-bg: #f0fdf4;
+  --red: #c0392b;
+  --red-bg: #fef2f2;
+  --blue: #1d4ed8;
+  --blue-bg: #eff6ff;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+html[data-theme="dark"] {
+  --white: #151617;
+  --bg: #0f1113;
+  --bg2: #1a1d20;
+  --border: #2a2f35;
+  --border2: #3a424a;
+  --text: #eceef1;
+  --text2: #b5bcc6;
+  --text3: #8892a0;
+  --gold: #d2b057;
+  --gold-bg: #332a17;
+  --green: #4fbf78;
+  --green-bg: #173123;
+  --red: #ea6c61;
+  --red-bg: #3a1b1b;
+  --blue: #7fa8ff;
+  --blue-bg: #1d2c4f;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -8,4 +50,7 @@ body {
   width: 100%;
   min-height: 100vh;
   overflow-x: hidden;
+  background: var(--bg);
+  color: var(--text);
+  transition: background-color 0.2s ease, color 0.2s ease;
 }

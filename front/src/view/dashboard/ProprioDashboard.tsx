@@ -4,6 +4,9 @@ import {
     IconMapPin, IconEye, IconMessage, IconHeart,
     IconBuilding, IconEdit, IconTrash, IconTrendUp, IconPlus
 } from "../../component/Icons"
+import { useAuth } from "../../context/AuthContext"
+import { extractSavedCountByProperty } from "../../utils/savedProperties"
+import { resolveMediaUrl } from "../../utils/media"
 import "../../style/dashboard.css"
 import InvestmentTimeline from "../../component/investmen_timline.tsx"
 
@@ -17,17 +20,31 @@ const NAV_ITEMS = [
     { label: "Settings",      path: "/dashboard/owner/settings" },
 ]
 
-// ── MODAL AJOUT PROPRIÉTÉ ─────────────────────────────────
-const AddPropertyModal = ({ onClose, onSuccess }: { onClose: () => void, onSuccess: () => void }) => {
+// ── MODAL AJOUT / EDIT PROPRIÉTÉ ──────────────────────────
+const AddPropertyModal = ({
+    mode = "add",
+    bien,
+    onClose,
+    onSuccess,
+}: {
+    mode?: "add" | "edit"
+    bien?: any
+    onClose: () => void
+    onSuccess: () => void
+}) => {
     const [step,       setStep]       = useState<1|2|3>(1)
     const [loading,    setLoading]    = useState(false)
     const [error,      setError]      = useState("")
-    const [bienId,     setBienId]     = useState<number|null>(null)
+    const [bienId,     setBienId]     = useState<number|null>(bien?.id ?? null)
     const [categories, setCategories] = useState<any[]>([])
 
     const [form, setForm] = useState({
-        adresse: "", description: "", loyer_hc: "",
-        charges: "0", statut: "VACANT", categorie: ""
+        adresse: bien?.adresse ?? "",
+        description: bien?.description ?? "",
+        loyer_hc: bien?.loyer_hc ?? "",
+        charges: bien?.charges ?? "0",
+        statut: bien?.statut ?? "VACANT",
+        categorie: bien?.categorie ? String(bien.categorie) : "",
     })
     const [photos,   setPhotos]   = useState<File[]>([])
     const [previews, setPreviews] = useState<string[]>([])
@@ -56,7 +73,7 @@ const AddPropertyModal = ({ onClose, onSuccess }: { onClose: () => void, onSucce
             .then(data => {
                 const list = Array.isArray(data) ? data : data.results ?? []
                 setCategories(list)
-                if (list.length > 0) set("categorie", String(list[0].id))
+                if (list.length > 0 && !form.categorie) set("categorie", String(list[0].id))
             })
             .catch(() => {})
     }, [])
@@ -66,8 +83,10 @@ const AddPropertyModal = ({ onClose, onSuccess }: { onClose: () => void, onSucce
         if (!form.categorie) { setError("Please select a category"); return }
         setLoading(true); setError("")
         try {
-            const res = await fetch(`${BASE_URL}/api/patrimoine/biens/`, {
-                method: "POST",
+            const url = mode === "edit" ? `${BASE_URL}/api/patrimoine/biens/${bienId}/` : `${BASE_URL}/api/patrimoine/biens/`
+            const method = mode === "edit" ? "PATCH" : "POST"
+            const res = await fetch(url, {
+                method,
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                 body: JSON.stringify({
                     adresse:     form.adresse,
@@ -84,7 +103,9 @@ const AddPropertyModal = ({ onClose, onSuccess }: { onClose: () => void, onSucce
                 throw new Error(JSON.stringify(err))
             }
             const data = await res.json()
-            setBienId(data.data.id)
+            if (mode === "add") {
+                setBienId(data.data?.id ?? data.id)
+            }
             setStep(2)
         } catch (e: any) {
             setError(e.message)
@@ -161,7 +182,7 @@ const AddPropertyModal = ({ onClose, onSuccess }: { onClose: () => void, onSucce
             <div style={{ background: "#fff", borderRadius: 20, padding: 32, width: 500, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
                     <div>
-                        <div style={{ fontSize: 17, fontWeight: 700 }}>Add Property</div>
+                        <div style={{ fontSize: 17, fontWeight: 700 }}>{mode === "edit" ? "Edit Property" : "Add Property"}</div>
                         <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}>Step {step} of 3 — {steps[step-1]}</div>
                     </div>
                     <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "var(--text3)" }}>×</button>
@@ -293,13 +314,33 @@ const AddPropertyModal = ({ onClose, onSuccess }: { onClose: () => void, onSucce
 }
 // ── COMPOSANT PRINCIPAL ───────────────────────────────────
 const ProprioDashboard = () => {
+    const { user } = useAuth()
     const [biens,       setBiens]       = useState<any[]>([])
+    const [likesByBien, setLikesByBien] = useState<Record<number, number>>({})
     const [loading,     setLoading]     = useState(true)
     const [activeTab,   setActiveTab]   = useState<"all"|"sale"|"rent">("all")
     const [showAddProp, setShowAddProp] = useState(false)
+    const [editBien, setEditBien] = useState<any | null>(null)
+    const [galleryBien, setGalleryBien] = useState<any | null>(null)
+    const [galleryIndex, setGalleryIndex] = useState(0)
     const [conversations, setConversations] = useState<any[]>([])
 
     const token = localStorage.getItem("access_token")
+
+    const toNumber = (value: unknown): number | null => {
+        const num = Number(value)
+        return Number.isFinite(num) ? num : null
+    }
+
+    const getLikeCount = (bien: any) => {
+        const id = toNumber(bien?.id)
+        const fromSaves = id !== null ? likesByBien[id] : undefined
+        return fromSaves
+            ?? toNumber(bien?.likes_count)
+            ?? toNumber(bien?.nb_sauvegardes)
+            ?? toNumber(bien?.saved)
+            ?? 0
+    }
 
     // ── Charger les biens depuis l'API ────────────────────
     const fetchBiens = async () => {
@@ -309,11 +350,33 @@ const ProprioDashboard = () => {
                 headers: { Authorization: `Bearer ${token}` }
             })
             const data = await res.json()
-            setBiens(Array.isArray(data) ? data : data.results ?? [])
+            const list = Array.isArray(data) ? data : data.results ?? []
+            const ownerId = Number(user?.id)
+            const ownerBiens = Number.isFinite(ownerId)
+                ? list.filter((b: any) => Number(b?.proprietaire) === ownerId)
+                : list
+            setBiens(ownerBiens)
         } catch {
             setBiens([])
         } finally {
             setLoading(false)
+        }
+    }
+
+    const fetchLikes = async () => {
+        try {
+            const res = await fetch(`${BASE_URL}/api/locataires/sauvegardes/?_ts=${Date.now()}`, {
+                headers: { Authorization: `Bearer ${token}` },
+                cache: "no-store"
+            })
+            if (!res.ok) {
+                setLikesByBien({})
+                return
+            }
+            const data = await res.json()
+            setLikesByBien(extractSavedCountByProperty(data))
+        } catch {
+            setLikesByBien({})
         }
     }
 
@@ -333,7 +396,8 @@ const ProprioDashboard = () => {
     useEffect(() => {
         fetchBiens()
         fetchConversations()
-    }, [])
+        fetchLikes()
+    }, [user?.id])
 
     // ── Supprimer un bien ─────────────────────────────────
     const handleDelete = async (id: number) => {
@@ -357,7 +421,7 @@ const ProprioDashboard = () => {
     // ── Stats dynamiques ──────────────────────────────────
     const totalViews    = biens.reduce((a, b) => a + (b.views ?? 0), 0)
     const totalInq      = conversations.length
-    const totalSaved    = biens.reduce((a, b) => a + (b.saved ?? 0), 0)
+    const totalSaved    = biens.reduce((a, b) => a + getLikeCount(b), 0)
     const activeListings = biens.filter(b => b.statut !== "LOUE").length
 
     // ── Filtrage ──────────────────────────────────────────
@@ -373,6 +437,50 @@ const ProprioDashboard = () => {
         EN_VENTE: { label: "For Sale",     css: "for_sale" },
         EN_TRAVAUX: { label: "In Works",   css: "pending"  },
     }[s] ?? { label: s, css: "vacant" })
+
+    const getGalleryPhotos = (bien: any): string[] => (
+        Array.isArray(bien?.photos_list)
+            ? bien.photos_list
+                .map((p: any) => resolveMediaUrl(p?.image, BASE_URL))
+                .filter((src: string | null): src is string => Boolean(src))
+            : []
+    )
+
+    const galleryPhotos = galleryBien ? getGalleryPhotos(galleryBien) : []
+    const activeGalleryPhoto = galleryPhotos[galleryIndex] ?? null
+
+    const openGallery = (bien: any) => {
+        const photos = getGalleryPhotos(bien)
+        if (photos.length === 0) return
+        setGalleryBien(bien)
+        setGalleryIndex(0)
+    }
+
+    const closeGallery = () => {
+        setGalleryBien(null)
+        setGalleryIndex(0)
+    }
+
+    const goNextPhoto = () => {
+        if (galleryPhotos.length === 0) return
+        setGalleryIndex(prev => (prev + 1) % galleryPhotos.length)
+    }
+
+    const goPrevPhoto = () => {
+        if (galleryPhotos.length === 0) return
+        setGalleryIndex(prev => (prev - 1 + galleryPhotos.length) % galleryPhotos.length)
+    }
+
+    useEffect(() => {
+        if (!galleryBien) return
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Escape") closeGallery()
+            if (event.key === "ArrowRight") goNextPhoto()
+            if (event.key === "ArrowLeft") goPrevPhoto()
+        }
+        window.addEventListener("keydown", onKeyDown)
+        return () => window.removeEventListener("keydown", onKeyDown)
+    }, [galleryBien, galleryPhotos.length])
 
     return (
         <DashboardLayout
@@ -392,7 +500,16 @@ const ProprioDashboard = () => {
         >
             {showAddProp && (
                 <AddPropertyModal
+                    mode="add"
                     onClose={() => setShowAddProp(false)}
+                    onSuccess={fetchBiens}
+                />
+            )}
+            {editBien && (
+                <AddPropertyModal
+                    mode="edit"
+                    bien={editBien}
+                    onClose={() => setEditBien(null)}
                     onSuccess={fetchBiens}
                 />
             )}
@@ -448,9 +565,12 @@ const ProprioDashboard = () => {
 
                     {filtered.map(b => {
                         const st = mapStatut(b.statut)
+                        const coverSrc = resolveMediaUrl(b.photos_list?.[0]?.image, BASE_URL)
                         return (
-                            <div className="prop-row" key={b.id}>
-                                <div className="prop-thumb-lg"/>
+                            <div className="prop-row" key={b.id} onClick={() => openGallery(b)}>
+                                <div className="prop-thumb-lg">
+                                    {coverSrc && <img src={coverSrc} alt={b.adresse ?? "Property photo"}/>}
+                                </div>
                                 <div className="prop-main">
                                     <div className="prop-name">{b.adresse}</div>
                                     <div className="prop-loc">
@@ -469,20 +589,21 @@ const ProprioDashboard = () => {
                                 <div className="prop-metrics">
                                     <div className="metric"><span className="metric-val">{b.loyer_hc}</span><span className="metric-lbl">Rent</span></div>
                                     <div className="metric"><span className="metric-val">{b.charges}</span><span className="metric-lbl">Charges</span></div>
+                                    <div className="metric"><span className="metric-val">{getLikeCount(b)}</span><span className="metric-lbl">Likes</span></div>
                                 </div>
                                 <div className="prop-actions">
                                     {!b.en_ligne && (
                                         <button
                                             className="btn-icon"
                                             title="Submit for validation"
-                                            onClick={() => handlePublish(b.id)}
+                                            onClick={(e) => { e.stopPropagation(); handlePublish(b.id) }}
                                             style={{ color: "#b8922a" }}
                                         >
                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
                                         </button>
                                     )}
-                                    <button className="btn-icon"><IconEdit size={14}/></button>
-                                    <button className="btn-icon" onClick={() => handleDelete(b.id)}><IconTrash size={14}/></button>
+                                    <button className="btn-icon" title="Edit property" onClick={(e) => { e.stopPropagation(); setEditBien(b) }}><IconEdit size={14}/></button>
+                                    <button className="btn-icon" onClick={(e) => { e.stopPropagation(); handleDelete(b.id) }}><IconTrash size={14}/></button>
                                 </div>
                             </div>
                         )
@@ -549,6 +670,48 @@ const ProprioDashboard = () => {
                     propertyPrice={parseFloat(biens[0]?.loyer_hc ?? 850000) * 12 * 10}
                     propertyName={biens[0]?.adresse ?? "My Portfolio"}
                 />
+            )}
+
+            {galleryBien && activeGalleryPhoto && (
+                <div className="owner-gallery-overlay" onClick={closeGallery}>
+                    <div className="owner-gallery-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="owner-gallery-top">
+                            <div>
+                                <div className="owner-gallery-title">{galleryBien.adresse ?? "Property photos"}</div>
+                                <div className="owner-gallery-count">{galleryIndex + 1} / {galleryPhotos.length}</div>
+                            </div>
+                            <button className="owner-gallery-close" onClick={closeGallery}>×</button>
+                        </div>
+
+                        <div className="owner-gallery-main">
+                            {galleryPhotos.length > 1 && (
+                                <button className="owner-gallery-nav owner-gallery-nav--left" onClick={goPrevPhoto}>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
+                                </button>
+                            )}
+                            <img src={activeGalleryPhoto} alt={galleryBien.adresse ?? "Property"} className="owner-gallery-photo"/>
+                            {galleryPhotos.length > 1 && (
+                                <button className="owner-gallery-nav owner-gallery-nav--right" onClick={goNextPhoto}>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
+                                </button>
+                            )}
+                        </div>
+
+                        {galleryPhotos.length > 1 && (
+                            <div className="owner-gallery-thumbs">
+                                {galleryPhotos.map((src: string, idx: number) => (
+                                    <button
+                                        key={`${galleryBien.id}-${idx}`}
+                                        className={`owner-gallery-thumb ${idx === galleryIndex ? "is-active" : ""}`}
+                                        onClick={() => setGalleryIndex(idx)}
+                                    >
+                                        <img src={src} alt={`Photo ${idx + 1}`}/>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
             )}
         </DashboardLayout>
     )

@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import { AuthProvider, useAuth } from "./context/AuthContext"
 import { ChatProvider } from "./context/Chatcontext"
 import { NotificationProvider } from "./context/Notificationcontext"
+import { ThemeProvider } from "./context/ThemeContext"
 import ProtectedRoute from "./routes/ProtectedRoute"
 
 // ── Pages 2FA
@@ -52,12 +53,13 @@ const DashboardRedirect = () => {
 }
 
 const App = () => (
-    <AuthProvider>
-        <BrowserRouter>
-            <PaymentProvider>
-                <ChatProvider>
-                    <NotificationProvider>
-                        <Routes>
+    <ThemeProvider>
+        <AuthProvider>
+            <BrowserRouter>
+                <PaymentProvider>
+                    <ChatProvider>
+                        <NotificationProvider>
+                            <Routes>
                             {/* ── Public */}
                             <Route path="/"               element={<Home />} />
                             <Route path="/login"          element={<Login />} />
@@ -91,12 +93,13 @@ const App = () => (
 
                             {/* ── Fallback */}
                             <Route path="*" element={<Navigate to="/" replace />} />
-                        </Routes>
-                    </NotificationProvider>
-                </ChatProvider>
-            </PaymentProvider>
-        </BrowserRouter>
-    </AuthProvider>
+                            </Routes>
+                        </NotificationProvider>
+                    </ChatProvider>
+                </PaymentProvider>
+            </BrowserRouter>
+        </AuthProvider>
+    </ThemeProvider>
 )
 
 export default App

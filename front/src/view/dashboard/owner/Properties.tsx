@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react"
 import DashboardLayout from "../../../component/sidebar"
-import { IconPlus, IconEdit, IconTrash, IconEye } from "../../../component/Icons"
+import { IconPlus, IconEdit, IconTrash, IconEye, IconHeart } from "../../../component/Icons"
+import { useAuth } from "../../../context/AuthContext"
+import { extractSavedCountByProperty } from "../../../utils/savedProperties"
+import { resolveMediaUrl } from "../../../utils/media"
 import "../../../style/dashboard.css"
 import "../../../style/owner-pages.css"
 
@@ -302,9 +305,11 @@ const DeleteConfirm = ({ id, onClose, onDone }: { id: number; onClose: () => voi
 
 // ── Main ─────────────────────────────────────────────────
 const PropertiesPage = () => {
+    const { user } = useAuth()
     const [biens, setBiens]     = useState<any[]>([])
+    const [likesByBien, setLikesByBien] = useState<Record<number, number>>({})
     const [loading, setLoading] = useState(true)
-    const [filter, setFilter]   = useState<"all"|"online"|"pending"|"offline">("all")
+    const [filter, setFilter]   = useState<"all"|"online"|"pending"|"offline"|"liked">("all")
     const [sort, setSort]       = useState<"date"|"rent"|"views">("date")
     const [search, setSearch]   = useState("")
     const [visible, setVisible] = useState(false)
@@ -313,18 +318,58 @@ const PropertiesPage = () => {
     const [deleteId, setDeleteId] = useState<number|null>(null)
     const token = localStorage.getItem("access_token")
 
+    const toNumber = (value: unknown): number | null => {
+        const num = Number(value)
+        return Number.isFinite(num) ? num : null
+    }
+
+    const getLikeCount = (bien: any) => {
+        const id = toNumber(bien?.id)
+        const fromSaves = id !== null ? likesByBien[id] : undefined
+        return fromSaves
+            ?? toNumber(bien?.likes_count)
+            ?? toNumber(bien?.nb_sauvegardes)
+            ?? toNumber(bien?.saved)
+            ?? 0
+    }
+
     const fetchBiens = async () => {
         setLoading(true)
         try {
             const res = await fetch(`${BASE_URL}/api/patrimoine/biens/`, { headers: { Authorization: `Bearer ${token}` } })
             const data = await res.json()
-            setBiens(Array.isArray(data) ? data : data.results ?? [])
+            const list = Array.isArray(data) ? data : data.results ?? []
+            const ownerId = Number(user?.id)
+            const ownerBiens = Number.isFinite(ownerId)
+                ? list.filter((b: any) => Number(b?.proprietaire) === ownerId)
+                : list
+            setBiens(ownerBiens)
             setTimeout(() => setVisible(true), 80)
         } catch { setBiens([]) }
         finally { setLoading(false) }
     }
 
-    useEffect(() => { fetchBiens() }, [])
+    const fetchLikes = async () => {
+        try {
+            const res = await fetch(`${BASE_URL}/api/locataires/sauvegardes/?_ts=${Date.now()}`, {
+                headers: { Authorization: `Bearer ${token}` },
+                cache: "no-store"
+            })
+            if (!res.ok) {
+                setLikesByBien({})
+                return
+            }
+            const data = await res.json()
+            setLikesByBien(extractSavedCountByProperty(data))
+        } catch {
+            setLikesByBien({})
+        }
+    }
+
+    useEffect(() => {
+        fetchBiens()
+        fetchLikes()
+    }, [user?.id])
 
     const handlePublish = async (id: number) => {
         await fetch(`${BASE_URL}/api/patrimoine/biens/${id}/demander_validation/`, {
@@ -346,6 +391,7 @@ const PropertiesPage = () => {
             if (filter === "online")  return b.en_ligne
             if (filter === "pending") return b.statut === "EN_ATTENTE_VALIDATION"
             if (filter === "offline") return !b.en_ligne
+            if (filter === "liked") return getLikeCount(b) > 0
             return true
         })
         .filter(b => !search || b.adresse?.toLowerCase().includes(search.toLowerCase()))
@@ -360,6 +406,7 @@ const PropertiesPage = () => {
         online:  biens.filter(b => b.en_ligne).length,
         pending: biens.filter(b => b.statut === "EN_ATTENTE_VALIDATION").length,
         offline: biens.filter(b => !b.en_ligne).length,
+        liked:   biens.filter(b => getLikeCount(b) > 0).length,
     }
 
     return (
@@ -387,7 +434,7 @@ const PropertiesPage = () => {
                 {/* Filters + search */}
                 <div className="pr-toolbar">
                     <div className="pr-filter-tabs">
-                        {(["all","online","pending","offline"] as const).map(f => (
+                        {(["all","online","pending","offline","liked"] as const).map(f => (
                             <button key={f} className={`pr-filter-tab ${filter === f ? "active" : ""}`} onClick={() => setFilter(f)}>
                                 {f.charAt(0).toUpperCase() + f.slice(1)}
                                 <span className="pr-count">{counts[f]}</span>
@@ -424,12 +471,13 @@ const PropertiesPage = () => {
                     <div className="pr-grid">
                         {filtered.map((b, idx) => {
                             const st = mapStatut(b.statut)
+                            const coverSrc = resolveMediaUrl(b.photos_list?.[0]?.image, BASE_URL)
                             return (
                                 <div key={b.id} className="pr-card" style={{ animationDelay: `${idx * 0.07}s` }}>
                                     {/* Thumbnail */}
                                     <div className="pr-card-img">
-                                        {b.photos_list?.[0]
-                                            ? <img src={`${BASE_URL}${b.photos_list[0].image}`} alt=""/>
+                                        {coverSrc
+                                            ? <img src={coverSrc} alt={b.adresse ?? "Property photo"}/>
                                             : <div className="pr-card-img-placeholder">
                                                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--border)" strokeWidth="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
                                             </div>
@@ -449,6 +497,7 @@ const PropertiesPage = () => {
                                         {b.description && <p className="pr-card-desc">{b.description}</p>}
                                         <div className="pr-card-stats">
                                             <span><IconEye size={12} color="var(--text3)"/> {b.views ?? 0}</span>
+                                            <span><IconHeart size={12} color="#c0392b"/> {getLikeCount(b)}</span>
                                             <span>Charges: {parseFloat(b.charges ?? 0).toLocaleString()} XOF</span>
                                         </div>
                                     </div>
