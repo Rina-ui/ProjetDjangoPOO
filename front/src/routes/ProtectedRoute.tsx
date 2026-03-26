@@ -1,6 +1,6 @@
 import { Navigate } from "react-router-dom"
 import { useAuth, type Role } from "../context/AuthContext"
-import type {JSX} from "react"
+import type { JSX } from "react"
 
 interface ProtectedRouteProps {
     children: JSX.Element
@@ -8,10 +8,19 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
-    const { user, isAuthenticated } = useAuth()
+    const { user, isAuthenticated, loading } = useAuth()
+
+    // Attendre la fin du check de session au refresh avant toute redirection.
+    if (loading) {
+        return (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", color: "var(--text3)", fontSize: 14 }}>
+                Loading...
+            </div>
+        )
+    }
 
     if (!isAuthenticated) return <Navigate to="/login" replace />
-    if (!allowedRoles.includes(user!.role)) return <Navigate to="/not-authorized" replace />
+    if (!user || !allowedRoles.includes(user.role)) return <Navigate to="/not-authorized" replace />
 
     return children
 }
