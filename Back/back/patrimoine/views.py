@@ -145,6 +145,8 @@ class BienViewSet(viewsets.ModelViewSet):
         return Response({'success': True, 'message': 'Bail désactivé'})
 
 
+
+
 class CategorieViewSet(viewsets.ModelViewSet):
     queryset         = Categorie.objects.all()
     serializer_class = CategorieSerializer

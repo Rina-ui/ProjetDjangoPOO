@@ -10,8 +10,9 @@ import { COMMENTS } from "../../data/property"
 import PropertyComparator from "../../component/PropertyComparator"
 import type { Comment } from "../../data/property"
 import { useChat } from "../../context/Chatcontext"
-import { PaymentModal } from "../../component/PayementModal.tsx"
-import { NotificationBell } from "../../component/NotificationBell.tsx"
+import { PaymentModal }    from "../../component/PayementModal"
+import { NotificationBell } from "../../component/NotificationBell"
+import { BookVisitModal }   from "../../component/BookVisitmodal"
 import { extractSavedIds, extractSavedMap } from "../../utils/savedProperties"
 import "../../style/dashboard.css"
 import "../../style/client3d.css"
@@ -56,79 +57,6 @@ const mapBien = (b: any) => ({
     bail_actif:       b.bail_actif      ?? false,
     visite_en_cours:  b.visite_en_cours ?? false,
 })
-
-
-// ── Modal réservation visite ──────────────────────────────
-const BookVisitModal = ({ prop, onClose, onSuccess }: {
-    prop: any; onClose: () => void; onSuccess: () => void
-}) => {
-    const [date,    setDate]    = useState("")
-    const [note,    setNote]    = useState("")
-    const [loading, setLoading] = useState(false)
-    const [error,   setError]   = useState("")
-
-    const submit = async () => {
-        if (!date) { setError("Choisissez une date et heure"); return }
-        if (new Date(date) <= new Date()) { setError("La date doit être dans le futur"); return }
-        setLoading(true); setError("")
-        try {
-            const token = localStorage.getItem("access_token")
-            const res = await fetch(`${BASE_URL}/api/locataires/visites/`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ bien: prop.id, date_visite: date, note })
-            })
-            if (!res.ok) {
-                const err = await res.json()
-                throw new Error(err.detail ?? JSON.stringify(err))
-            }
-            onSuccess()
-            onClose()
-        } catch(e: any) {
-            setError(e.message)
-        } finally { setLoading(false) }
-    }
-
-    return (
-        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.5)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:2000, backdropFilter:"blur(2px)" }}>
-            <div style={{ background:"#fff", borderRadius:20, padding:32, width:420, boxShadow:"0 24px 64px rgba(0,0,0,.22)" }}>
-                <div style={{ fontSize:16, fontWeight:800, marginBottom:4 }}>Réserver une visite</div>
-                <div style={{ fontSize:12, color:"var(--text3)", marginBottom:20 }}>{prop.address}</div>
-
-                <label style={{ fontSize:12, fontWeight:600, color:"var(--text2)", display:"block", marginBottom:5 }}>Date et heure *</label>
-                <input
-                    type="datetime-local"
-                    value={date}
-                    onChange={e => setDate(e.target.value)}
-                    min={new Date(Date.now() + 3600000).toISOString().slice(0,16)}
-                    style={{ width:"100%", padding:"10px 12px", borderRadius:10, border:"1.5px solid var(--border)", fontSize:14, marginBottom:14, boxSizing:"border-box", outline:"none" }}
-                />
-
-                <label style={{ fontSize:12, fontWeight:600, color:"var(--text2)", display:"block", marginBottom:5 }}>Message (optionnel)</label>
-                <textarea
-                    value={note}
-                    onChange={e => setNote(e.target.value)}
-                    placeholder="Questions, préférences horaires…"
-                    rows={3}
-                    style={{ width:"100%", padding:"10px 12px", borderRadius:10, border:"1.5px solid var(--border)", fontSize:13, resize:"none", boxSizing:"border-box", outline:"none" }}
-                />
-
-                {error && (
-                    <div style={{ fontSize:12, color:"#c0392b", background:"#fef2f2", borderRadius:8, padding:"8px 12px", marginTop:10 }}>{error}</div>
-                )}
-
-                <div style={{ display:"flex", gap:10, marginTop:20 }}>
-                    <button onClick={onClose} style={{ flex:1, padding:"12px", borderRadius:12, border:"1.5px solid var(--border)", background:"transparent", fontSize:14, fontWeight:600, cursor:"pointer" }}>
-                        Annuler
-                    </button>
-                    <button onClick={submit} disabled={loading} style={{ flex:1, padding:"12px", borderRadius:12, border:"none", background:"#1a1814", color:"#fff", fontSize:14, fontWeight:700, cursor:"pointer", opacity:loading?0.6:1 }}>
-                        {loading ? "Envoi…" : "Confirmer"}
-                    </button>
-                </div>
-            </div>
-        </div>
-    )
-}
 
 // ── Dashboard principal ───────────────────────────────────
 const ClientDashboard = () => {
@@ -187,69 +115,42 @@ const ClientDashboard = () => {
                 cache: "no-store"
             })
         ])
-
         if (!idsRes.ok || !savesRes.ok) throw new Error("Failed to fetch saved state")
-
-        const idsData = await idsRes.json()
+        const idsData   = await idsRes.json()
         const savesData = await savesRes.json()
         setSavedIds(extractSavedIds(idsData))
         setSavedMap(extractSavedMap(savesData))
     }
 
     useEffect(() => {
-        refreshSavedState().catch(() => {
-            setSavedIds([])
-            setSavedMap({})
-        })
+        refreshSavedState().catch(() => { setSavedIds([]); setSavedMap({}) })
     }, [])
 
     const toggleSave = async (id: number, e: React.MouseEvent) => {
         e.stopPropagation()
         if (savingIds.includes(id)) return
-
-        const token = localStorage.getItem("access_token")
-
+        const token    = localStorage.getItem("access_token")
         const wasSaved = savedIds.includes(id)
         setSavingIds(prev => [...prev, id])
-        // Feedback immédiat, puis synchro serveur.
         setSavedIds(prev => wasSaved ? prev.filter(i => i !== id) : [...prev, id])
-
         try {
             if (wasSaved) {
                 let saveId = savedMap[id]
                 if (!saveId) {
-                    const savesRes = await fetch(`${BASE_URL}/api/locataires/sauvegardes/?_ts=${Date.now()}`, {
-                        headers: { Authorization: `Bearer ${token}` },
-                        cache: "no-store"
-                    })
-                    if (!savesRes.ok) throw new Error("Failed to fetch saves")
-                    const savesData = await savesRes.json()
-                    const map = extractSavedMap(savesData)
-                    setSavedMap(map)
-                    saveId = map[id]
+                    const r = await fetch(`${BASE_URL}/api/locataires/sauvegardes/?_ts=${Date.now()}`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" })
+                    if (!r.ok) throw new Error()
+                    const map = extractSavedMap(await r.json())
+                    setSavedMap(map); saveId = map[id]
                 }
                 if (!saveId) throw new Error("Save entry not found")
-
-                const delRes = await fetch(`${BASE_URL}/api/locataires/sauvegardes/${saveId}/`, {
-                    method: "DELETE",
-                    headers: { Authorization: `Bearer ${token}` }
-                })
-                if (!delRes.ok) throw new Error("Failed to remove save")
+                const d = await fetch(`${BASE_URL}/api/locataires/sauvegardes/${saveId}/`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } })
+                if (!d.ok) throw new Error()
             } else {
-                const addRes = await fetch(`${BASE_URL}/api/locataires/sauvegardes/`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ bien: id })
-                })
-                if (!addRes.ok) throw new Error("Failed to add save")
+                const a = await fetch(`${BASE_URL}/api/locataires/sauvegardes/`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ bien: id }) })
+                if (!a.ok) throw new Error()
             }
-
             await refreshSavedState()
         } catch {
-            // Rollback si l'appel échoue.
             setSavedIds(prev => wasSaved ? [...new Set([...prev, id])] : prev.filter(i => i !== id))
         } finally {
             setSavingIds(prev => prev.filter(x => x !== id))
@@ -258,46 +159,48 @@ const ClientDashboard = () => {
 
     const submitComment = () => {
         if (!comment.trim() || !selectedProp) return
-        const newComment: Comment = { name: "You", date: "Just now", rating: 5, text: comment }
-        setAllComments(prev => ({ ...prev, [selectedProp.id]: [newComment, ...(prev[selectedProp.id] || [])] }))
+        const c: Comment = { name: "You", date: "Just now", rating: 5, text: comment }
+        setAllComments(prev => ({ ...prev, [selectedProp.id]: [c, ...(prev[selectedProp.id] || [])] }))
         setComment("")
     }
 
     const handleContactOwner = async () => {
         if (!selectedProp) return
         setContacting(true)
-        try {
-            await openConversation(selectedProp.id, selectedProp.owner_id ?? 0)
-            navigate("/dashboard/client/messages")
-        } catch {
-            console.error("Failed to open conversation")
-        } finally {
-            setContacting(false)
-        }
+        try { await openConversation(selectedProp.id, selectedProp.owner_id ?? 0); navigate("/dashboard/client/messages") }
+        catch { console.error("Failed to open conversation") }
+        finally { setContacting(false) }
     }
 
     const filtered = properties.filter(p => {
         if (activeType === "Sell") return false
-        if (activeType === "Rent" && p.status !== "For Rent")  return false
+        if (activeType === "Rent" && p.status !== "For Rent") return false
         if (activeType === "Buy"  && p.status !== "For Sale") return false
-        if (search && !p.address.toLowerCase().includes(search.toLowerCase())
-            && !p.agent.toLowerCase().includes(search.toLowerCase())) return false
+        if (search && !p.address.toLowerCase().includes(search.toLowerCase()) && !p.agent.toLowerCase().includes(search.toLowerCase())) return false
         return true
     })
 
     // ── VUE DÉTAIL ────────────────────────────────────────
     if (selectedProp) {
         const propComments = allComments[selectedProp.id] || []
-        const isRent       = selectedProp.status === "For Rent"
-        const canPay       = isRent && selectedProp.bail_actif
-        const hasVisit     = selectedProp.visite_en_cours
+        const isRent   = selectedProp.status === "For Rent"
+        const canPay   = isRent && selectedProp.bail_actif
+        const hasVisit = selectedProp.visite_en_cours
+
         return (
             <>
                 {show3D && <Viewer3D prop={selectedProp} onClose={() => setShow3D(false)}/>}
 
+                {/* ── BookVisitModal — composant externe, reçoit tenant ── */}
                 {showBookVisit && (
                     <BookVisitModal
                         prop={selectedProp}
+                        tenant={{
+                            firstname: profile?.first_name,
+                            lastname:  profile?.last_name,
+                            email:     profile?.email,
+                            phone:     profile?.telephone,
+                        }}
                         onClose={() => setShowBookVisit(false)}
                         onSuccess={() => setSelectedProp((p: any) => ({ ...p, visite_en_cours: true }))}
                     />
@@ -350,7 +253,6 @@ const ClientDashboard = () => {
                                 </div>
                             </div>
 
-                            {/* Comments */}
                             <div className="card" style={{ marginTop:16 }}>
                                 <div className="card-hd">
                                     <span className="card-title">Reviews & Comments ({propComments.length})</span>
@@ -368,7 +270,7 @@ const ClientDashboard = () => {
                                             </div>
                                             <div className="comment-stars">
                                                 {[1,2,3,4,5].map(s => (
-                                                    <IconStar key={s} size={12} color={s <= c.rating ? "var(--gold)" : "var(--border2)"} filled={s <= c.rating}/>
+                                                    <IconStar key={s} size={12} color={s <= c.rating ? "#b8922a" : "#d4cfc7"} filled={s <= c.rating}/>
                                                 ))}
                                             </div>
                                             <p className="comment-text">{c.text}</p>
@@ -390,15 +292,14 @@ const ClientDashboard = () => {
                         </div>
 
                         <div className="detail-right-panel">
-                            <div style={{ display:"flex", gap:8, marginBottom:12 }}>
+                            <div style={{ display:"flex", gap:8, marginBottom:12, flexWrap:"wrap" }}>
                                 <span className={`badge badge-${selectedProp.status === "For Sale" ? "sale" : "rent"}`}>{selectedProp.status}</span>
                                 <span style={{ display:"flex", alignItems:"center", gap:4, fontSize:12, color:"var(--text3)" }}>
                                     <IconEye size={13} color="var(--text3)"/> {selectedProp.views.toLocaleString()} views
                                 </span>
-                                {/* Badge statut bail */}
                                 {canPay && (
-                                    <span style={{ fontSize:10, fontWeight:700, background:"var(--green-bg)", color:"var(--green)", padding:"2px 8px", borderRadius:20 }}>
-                                        ✓ Bail actif
+                                    <span style={{ fontSize:10, fontWeight:700, background:"#f0fdf4", color:"#15803d", padding:"2px 8px", borderRadius:20 }}>
+                                        Bail actif
                                     </span>
                                 )}
                             </div>
@@ -430,15 +331,10 @@ const ClientDashboard = () => {
                                 ))}
                             </div>
 
-                            {/* ── LOGIQUE D'ACTIONS ── */}
-
-                            {/* ÉTAPE 1 — Pas encore de visite */}
+                            {/* ÉTAPE 1 — Pas de visite */}
                             {!hasVisit && !canPay && (
                                 <div className="detail-actions">
-                                    <button
-                                        className="btn-primary"
-                                        onClick={() => setShowBookVisit(true)}
-                                    >
+                                    <button className="btn-primary" onClick={() => setShowBookVisit(true)}>
                                         Réserver une visite
                                     </button>
                                     <button className="btn-ghost"
@@ -450,50 +346,37 @@ const ClientDashboard = () => {
                                 </div>
                             )}
 
-                            {/* ÉTAPE 2 — Visite planifiée, bail pas encore signé */}
+                            {/* ÉTAPE 2 — Visite planifiée */}
                             {hasVisit && !canPay && (
                                 <>
-                                    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 14px", background:"var(--gold-bg)", border:"1px solid var(--gold)", borderRadius:12, marginBottom:10, fontSize:13 }}>
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="2">
-                                            <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
-                                        </svg>
-                                        <span style={{ color:"var(--gold)", fontWeight:600 }}>Visite planifiée — en attente de confirmation</span>
+                                    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 14px", background:"#fffbeb", border:"1px solid #f0d980", borderRadius:12, marginBottom:10, fontSize:13 }}>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#b8922a" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                                        <span style={{ color:"#92400e", fontWeight:600 }}>Visite planifiée — en attente de confirmation</span>
                                     </div>
-                                    <button
-                                        onClick={handleContactOwner}
-                                        disabled={contacting}
-                                        style={{ width:"100%", padding:"12px 0", background:"var(--bg2)", color:"var(--text)", border:"1.5px solid var(--border)", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}
-                                    >
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-                                        </svg>
+                                    <button onClick={handleContactOwner} disabled={contacting} style={{ width:"100%", padding:"12px 0", background:"var(--bg2)", color:"var(--text)", border:"1.5px solid var(--border)", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
                                         {contacting ? "Ouverture…" : "Demander le dossier à l'admin"}
                                     </button>
                                 </>
                             )}
 
-                            {/* ÉTAPE 3 — Bail actif → paiement disponible */}
+                            {/* ÉTAPE 3 — Bail actif */}
                             {canPay && (
                                 <>
-                                    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 14px", background:"var(--green-bg)", border:"1px solid var(--green)", borderRadius:12, marginBottom:10, fontSize:13 }}>
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2.5" strokeLinecap="round">
-                                            <polyline points="20 6 9 17 4 12"/>
-                                        </svg>
-                                        <span style={{ color:"var(--green)", fontWeight:600 }}>Contrat signé — paiement activé</span>
+                                    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 14px", background:"#f0fdf4", border:"1px solid #bbf7d0", borderRadius:12, marginBottom:10, fontSize:13 }}>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#15803d" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                        <span style={{ color:"#15803d", fontWeight:600 }}>Contrat signé — paiement activé</span>
                                     </div>
-                                    <button
-                                        onClick={() => setShowPay(true)}
-                                        style={{ width:"100%", padding:"12px 0", background:"var(--gold)", color:"var(--white)", border:"none", borderRadius:12, fontSize:14, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}
-                                    >
-                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                                            <rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>
-                                        </svg>
+                                    <button onClick={() => setShowPay(true)}
+                                            style={{ width:"100%", padding:"12px 0", background:"#b8922a", color:"#fff", border:"none", borderRadius:12, fontSize:14, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}
+                                            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "#c9a030" }}
+                                            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "#b8922a" }}>
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
                                         Payer le loyer — {selectedProp.loyer_hc?.toLocaleString() ?? "—"} XOF/mois
                                     </button>
                                 </>
                             )}
 
-                            {/* Carte agent */}
                             <div className="card" style={{ marginTop:12 }}>
                                 <div style={{ fontSize:11, color:"var(--text3)", marginBottom:10, fontWeight:600, textTransform:"uppercase", letterSpacing:".4px" }}>Listed by</div>
                                 <div style={{ display:"flex", alignItems:"center", gap:12 }}>
@@ -502,14 +385,12 @@ const ClientDashboard = () => {
                                         <div style={{ fontSize:13, fontWeight:700 }}>{selectedProp.agent}</div>
                                         <div style={{ fontSize:11, color:"var(--text3)" }}>Certified Agent · KÔRÂ</div>
                                     </div>
-                                    <button className="btn-ghost" style={{ padding:"6px 12px", fontSize:12 }}
-                                            disabled={contacting} onClick={handleContactOwner}>
+                                    <button className="btn-ghost" style={{ padding:"6px 12px", fontSize:12 }} disabled={contacting} onClick={handleContactOwner}>
                                         {contacting ? "Opening…" : "Contact Owner"}
                                     </button>
                                 </div>
                             </div>
 
-                            {/* Map */}
                             <div className="detail-map-wrap">
                                 <div className="detail-map-header">
                                     <IconMap size={14} color="var(--gold)"/>
@@ -592,7 +473,9 @@ const ClientDashboard = () => {
                             <div className="p-card-img">
                                 <img src={prop.img} alt={prop.address} className="p-card-photo"/>
                                 {prop.tag && <span className="p-tag">{prop.tag}</span>}
-                                <button className={`p-save-btn ${savedIds.includes(prop.id) ? "p-save-btn--saved" : ""}`} onClick={e => { void toggleSave(prop.id, e) }} disabled={savingIds.includes(prop.id)}>
+                                <button className={`p-save-btn ${savedIds.includes(prop.id) ? "p-save-btn--saved" : ""}`}
+                                        onClick={e => { void toggleSave(prop.id, e) }}
+                                        disabled={savingIds.includes(prop.id)}>
                                     <IconHeart size={14} filled={savedIds.includes(prop.id)} color={savedIds.includes(prop.id) ? "var(--red)" : "var(--text2)"}/>
                                 </button>
                                 <div className="p-agent">
