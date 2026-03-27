@@ -217,6 +217,7 @@ const AdminDashboard = () => {
     }
 
     const isPendingThumbFailed = (key: string) => Boolean(failedPendingThumbs[key])
+    const isTmpUser = (u: any) => String(u?.username ?? "").toLowerCase().startsWith("tmp")
 
     // Stats dynamiques
     const [stats, setStats] = useState({
@@ -255,18 +256,36 @@ const AdminDashboard = () => {
             })
             .catch(() => {})
 
-        // Stats — utilisateurs
-        fetch(`${BASE_URL}/api/utilisateurs/users/`, {
-            headers: { Authorization: `Bearer ${token}` }
-        })
-            .then(r => r.json())
-            .then(data => {
-                const list = Array.isArray(data) ? data : data.results ?? []
-                setUsers(list)
-                setStats(s => ({
-                    ...s,
-                    totalUsers: list.length,
-                }))
+        // Stats — utilisateurs (pagination complete)
+        const collectAllUserPages = async (initialUrl: string) => {
+            const all: any[] = []
+            let nextUrl: string | null = initialUrl
+
+            while (nextUrl) {
+                const res = await fetch(nextUrl, {
+                    headers: { Authorization: `Bearer ${token}` }
+                })
+                if (!res.ok) throw new Error("users_fetch_failed")
+                const data = await res.json()
+
+                if (Array.isArray(data)) {
+                    all.push(...data)
+                    nextUrl = null
+                } else {
+                    all.push(...(data.results ?? []))
+                    nextUrl = data.next ?? null
+                }
+            }
+
+            return all
+        }
+
+        collectAllUserPages(`${BASE_URL}/users/`)
+            .catch(() => collectAllUserPages(`${BASE_URL}/api/utilisateurs/users/`))
+            .then(all => {
+                const visibleUsers = all.filter(u => !isTmpUser(u))
+                setUsers(visibleUsers)
+                setStats(s => ({ ...s, totalUsers: visibleUsers.length }))
             })
             .catch(() => {})
 

@@ -41,6 +41,54 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [user,    setUser]    = useState<User | null>(null)
     const [loading, setLoading] = useState(true)
 
+    const clearTokens = () => {
+        localStorage.removeItem("access_token")
+        localStorage.removeItem("refresh_token")
+    }
+
+    const fetchMe = async (access: string) => {
+        const meRes = await fetch(`${BASE_URL}/api/auth/me/`, {
+            headers: { Authorization: `Bearer ${access}` }
+        })
+        if (!meRes.ok) return null
+        return meRes.json()
+    }
+
+    const refreshAccessToken = async (): Promise<string | null> => {
+        const refresh = localStorage.getItem("refresh_token")
+        if (!refresh) return null
+
+        const refreshEndpoints = [
+            `${BASE_URL}/api/auth/token/refresh/`,
+            `${BASE_URL}/api/auth/refresh/`,
+        ]
+
+        for (const endpoint of refreshEndpoints) {
+            try {
+                const res = await fetch(endpoint, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ refresh })
+                })
+                if (!res.ok) continue
+
+                const data = await res.json()
+                const access = data?.access ?? data?.token
+                if (!access) continue
+
+                localStorage.setItem("access_token", access)
+                if (data?.refresh) {
+                    localStorage.setItem("refresh_token", data.refresh)
+                }
+                return access
+            } catch {
+                // Try next known refresh endpoint.
+            }
+        }
+
+        return null
+    }
+
     const setUserFromMe = (me: any) => {
         setUser({
             id: String(me.id),
@@ -55,54 +103,59 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.setItem("access_token", tokens.access)
         localStorage.setItem("refresh_token", tokens.refresh)
 
-        const meRes = await fetch(`${BASE_URL}/api/auth/me/`, {
-            headers: { Authorization: `Bearer ${tokens.access}` }
-        })
-        if (!meRes.ok) {
-            localStorage.removeItem("access_token")
-            localStorage.removeItem("refresh_token")
-            throw new Error("Impossible de recuperer le profil utilisateur")
+        let me = await fetchMe(tokens.access)
+        if (!me) {
+            const refreshedAccess = await refreshAccessToken()
+            if (!refreshedAccess) {
+                clearTokens()
+                throw new Error("Impossible de recuperer le profil utilisateur")
+            }
+            me = await fetchMe(refreshedAccess)
+            if (!me) {
+                clearTokens()
+                throw new Error("Impossible de recuperer le profil utilisateur")
+            }
         }
-        const me = await meRes.json()
+
         clearPending2FA()
         setUserFromMe(me)
     }
 
     useEffect(() => {
-        const token = localStorage.getItem("access_token")
-        if (!token) { setLoading(false); return }
-        
-        fetch(`${BASE_URL}/api/auth/me/`, {
-            headers: { Authorization: `Bearer ${token}` }
-        })
-            .then(async r => {
-                if (!r.ok) {
-                    // Token invalide, supprimer les tokens
-                    if (r.status === 401) {
-                        localStorage.removeItem("access_token")
-                        localStorage.removeItem("refresh_token")
+        const initializeSession = async () => {
+            const access = localStorage.getItem("access_token")
+            const refresh = localStorage.getItem("refresh_token")
+            if (!access && !refresh) {
+                setLoading(false)
+                return
+            }
+
+            try {
+                let me = access ? await fetchMe(access) : null
+
+                if (!me) {
+                    const refreshedAccess = await refreshAccessToken()
+                    if (refreshedAccess) {
+                        me = await fetchMe(refreshedAccess)
                     }
-                    return null
                 }
-                return r.json()
-            })
-            .then(data => {
-                if (data) {
-                    setUser({
-                        id:       String(data.id),
-                        fullName: `${data.first_name} ${data.last_name}`.trim() || data.username,
-                        email:    data.email,
-                        role:     mapRole(data.role),
-                        username: data.username,
-                    })
+
+                if (me) {
+                    setUserFromMe(me)
+                } else {
+                    clearTokens()
+                    setUser(null)
                 }
-            })
-            .catch(err => {
+            } catch (err) {
                 console.error("Auth check failed:", err)
-                localStorage.removeItem("access_token")
-                localStorage.removeItem("refresh_token")
-            })
-            .finally(() => setLoading(false))
+                clearTokens()
+                setUser(null)
+            } finally {
+                setLoading(false)
+            }
+        }
+
+        initializeSession()
     }, [])
 
     const login = async (username: string, password: string) => {
@@ -154,8 +207,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const logout = () => {
-        localStorage.removeItem("access_token")
-        localStorage.removeItem("refresh_token")
+        clearTokens()
         clearPending2FA()
         setUser(null)
     }

@@ -44,8 +44,6 @@ const DashboardLayout = ({ children, navItems, pageTitle, pageAction }: Dashboar
     const roleLabel: Record<string, string> = { admin: "Administrator", owner: "Property Owner", client: "Client" }
     const roleColor: Record<string, string> = { admin: "#b45309", owner: "#15803d", client: "#1d4ed8" }
 
-    const today = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
-
     return (
         <div className="dl-wrapper">
             {/* SIDEBAR */}
@@ -119,11 +117,6 @@ const DashboardLayout = ({ children, navItems, pageTitle, pageAction }: Dashboar
                                 </svg>
                             )}
                             {theme === "dark" ? "Light" : "Dark"}
-                        </button>
-                        <button className="dl-date-btn">
-                            <IconCalendar size={14} color="var(--text2)" />
-                            {today}
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" strokeWidth="2.5"><path d="M6 9l6 6 6-6"/></svg>
                         </button>
                         {pageAction}
                     </div>

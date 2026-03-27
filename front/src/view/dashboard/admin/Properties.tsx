@@ -48,6 +48,7 @@ const Properties = () => {
     const [photoModal, setPhotoModal] = useState<Bien | null>(null)
     const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0)
     const [failedImages, setFailedImages] = useState<Record<string, boolean>>({})
+    const [togglingOnlineId, setTogglingOnlineId] = useState<number | null>(null)
 
     useEffect(() => {
         fetch(`${BASE_URL}/api/patrimoine/biens/`, { headers: { Authorization: `Bearer ${token()}` } })
@@ -84,6 +85,34 @@ const Properties = () => {
         })
         setBiens(prev => prev.map(b => b.id === id ? { ...b, statut: "REJETE" } : b))
         setRejectId(null); setRejectMsg("")
+    }
+
+    const toggleOnline = async (bien: Bien) => {
+        setTogglingOnlineId(bien.id)
+        const nextOnline = !bien.en_ligne
+        try {
+            const res = await fetch(`${BASE_URL}/api/patrimoine/biens/${bien.id}/`, {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token()}`
+                },
+                body: JSON.stringify({ en_ligne: nextOnline })
+            })
+
+            if (!res.ok) throw new Error("toggle_failed")
+
+            const updated = await res.json().catch(() => null)
+            const persistedOnline = typeof updated?.en_ligne === "boolean"
+                ? updated.en_ligne
+                : nextOnline
+
+            setBiens(prev => prev.map(b => b.id === bien.id ? { ...b, en_ligne: persistedOnline } : b))
+        } catch {
+            // Keep UI unchanged if backend update failed.
+        } finally {
+            setTogglingOnlineId(null)
+        }
     }
 
     const openPhotoModal = (bien: Bien) => {
@@ -297,8 +326,22 @@ const Properties = () => {
                                         </>
                                     )}
                                     {b.statut !== "EN_ATTENTE_VALIDATION" && (
-                                        <button className="btn-icon">
-                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                                        <button
+                                            onClick={() => toggleOnline(b)}
+                                            disabled={togglingOnlineId === b.id}
+                                            style={{
+                                                padding: "6px 12px",
+                                                borderRadius: 8,
+                                                border: "1px solid var(--border)",
+                                                background: b.en_ligne ? "#fef2f2" : "#f0fdf4",
+                                                color: b.en_ligne ? "var(--red)" : "var(--green)",
+                                                fontSize: 12,
+                                                fontWeight: 600,
+                                                cursor: "pointer",
+                                                opacity: togglingOnlineId === b.id ? 0.7 : 1
+                                            }}
+                                        >
+                                            {togglingOnlineId === b.id ? "..." : b.en_ligne ? "Mettre hors ligne" : "Mettre en ligne"}
                                         </button>
                                     )}
                                 </div>
@@ -348,6 +391,24 @@ const Properties = () => {
                                             <button onClick={() => approve(b.id)} className="btn-primary" style={{ flex: 1, justifyContent: "center", fontSize: 11, padding: "6px 10px" }}>Approve</button>
                                             <button onClick={() => setRejectId(b.id)} className="btn-ghost" style={{ flex: 1, justifyContent: "center", fontSize: 11, padding: "6px 10px", color: "var(--red)", borderColor: "var(--red)" }}>Reject</button>
                                         </div>
+                                    )}
+                                    {b.statut !== "EN_ATTENTE_VALIDATION" && (
+                                        <button
+                                            onClick={() => toggleOnline(b)}
+                                            disabled={togglingOnlineId === b.id}
+                                            className="btn-ghost"
+                                            style={{
+                                                width: "100%",
+                                                justifyContent: "center",
+                                                fontSize: 11,
+                                                padding: "6px 10px",
+                                                color: b.en_ligne ? "var(--red)" : "var(--green)",
+                                                borderColor: b.en_ligne ? "var(--red)" : "var(--green)",
+                                                opacity: togglingOnlineId === b.id ? 0.7 : 1
+                                            }}
+                                        >
+                                            {togglingOnlineId === b.id ? "Mise a jour..." : b.en_ligne ? "Mettre hors ligne" : "Mettre en ligne"}
+                                        </button>
                                     )}
                                 </div>
                             </div>
