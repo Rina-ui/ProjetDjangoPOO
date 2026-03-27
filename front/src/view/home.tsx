@@ -11,8 +11,24 @@ import FooterSection     from "../component/FooterSection"
 
 const Home = () => {
     const [activeFilter, setActiveFilter] = useState<string>("City")
+    const [lookingFor, setLookingFor] = useState("")
+    const [price, setPrice] = useState("any")
+    const [location, setLocation] = useState("any")
+    const [rooms, setRooms] = useState("2")
     const navigate = useNavigate()
     const filters = ["City", "House", "Residential", "Apartment"]
+
+    const runSearch = () => {
+        const params = new URLSearchParams()
+        if (lookingFor.trim()) params.set("q", lookingFor.trim())
+        if (activeFilter === "Apartment") params.set("category", "Apartment")
+        if (activeFilter === "House") params.set("category", "House")
+        if (location !== "any") params.set("location", location)
+        if (price !== "any") params.set("price", price)
+        if (rooms) params.set("rooms", rooms)
+        params.set("type", "Rent")
+        navigate(`/dashboard/client?${params.toString()}`)
+    }
 
     return (
         <div className="home">
@@ -48,10 +64,10 @@ const Home = () => {
                 <div className="search-box">
                     <h3 className="search-title">Find the best place</h3>
                     <div className="search-fields">
-                        <div className="field"><label>Looking for</label><input type="text" placeholder="Enter type" /></div>
-                        <div className="field"><label>Price</label><select><option>Price</option><option>Under 100k</option><option>100k - 500k</option><option>500k+</option></select></div>
-                        <div className="field"><label>Locations</label><select><option>Location</option><option>Casablanca</option><option>Rabat</option><option>Lomé</option></select></div>
-                        <div className="field"><label>Number of rooms</label><select><option>2 Bed rooms</option><option>1 Bed room</option><option>3 Bed rooms</option><option>4+</option></select></div>
+                        <div className="field"><label>Looking for</label><input type="text" placeholder="Enter type" value={lookingFor} onChange={e => setLookingFor(e.target.value)} /></div>
+                        <div className="field"><label>Price</label><select value={price} onChange={e => setPrice(e.target.value)}><option value="any">Any price</option><option value="under_200k">Under 200k</option><option value="200k_500k">200k - 500k</option><option value="over_500k">500k+</option></select></div>
+                        <div className="field"><label>Locations</label><select value={location} onChange={e => setLocation(e.target.value)}><option value="any">Any location</option><option value="lome">Lome</option><option value="kara">Kara</option><option value="sokode">Sokode</option></select></div>
+                        <div className="field"><label>Number of rooms</label><select value={rooms} onChange={e => setRooms(e.target.value)}><option value="2">2 Bed rooms</option><option value="1">1 Bed room</option><option value="3">3 Bed rooms</option><option value="4+">4+</option></select></div>
                     </div>
                     <div className="search-footer">
                         <div className="filter-row">
@@ -60,7 +76,7 @@ const Home = () => {
                                 <button key={f} className={`filter-btn ${activeFilter === f ? "active" : ""}`} onClick={() => setActiveFilter(f)}>{f}</button>
                             ))}
                         </div>
-                        <button className="btn-search" onClick={() => navigate("/register")}>Search Properties</button>
+                        <button className="btn-search" onClick={runSearch}>Search Properties</button>
                     </div>
                 </div>
             </section>

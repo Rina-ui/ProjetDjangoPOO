@@ -20,6 +20,14 @@ const NAV_ITEMS = [
     { label: "Settings",      path: "/dashboard/owner/settings" },
 ]
 
+const getCategoriesFromPayload = (data: any): any[] => {
+    if (Array.isArray(data)) return data
+    if (Array.isArray(data?.results)) return data.results
+    if (Array.isArray(data?.data)) return data.data
+    if (Array.isArray(data?.categories)) return data.categories
+    return []
+}
+
 // ── MODAL AJOUT / EDIT PROPRIÉTÉ ──────────────────────────
 const AddPropertyModal = ({
     mode = "add",
@@ -37,6 +45,8 @@ const AddPropertyModal = ({
     const [error,      setError]      = useState("")
     const [bienId,     setBienId]     = useState<number|null>(bien?.id ?? null)
     const [categories, setCategories] = useState<any[]>([])
+    const [categoriesLoading, setCategoriesLoading] = useState(true)
+    const [categoriesError, setCategoriesError] = useState("")
 
     const [form, setForm] = useState({
         adresse: bien?.adresse ?? "",
@@ -44,7 +54,9 @@ const AddPropertyModal = ({
         loyer_hc: bien?.loyer_hc ?? "",
         charges: bien?.charges ?? "0",
         statut: bien?.statut ?? "VACANT",
-        categorie: bien?.categorie ? String(bien.categorie) : "",
+        categorie: bien?.categorie
+            ? String(typeof bien.categorie === "object" ? bien.categorie.id ?? "" : bien.categorie)
+            : "",
     })
     const [photos,   setPhotos]   = useState<File[]>([])
     const [previews, setPreviews] = useState<string[]>([])
@@ -66,16 +78,36 @@ const AddPropertyModal = ({
 
     // Charger les catégories au montage
     useEffect(() => {
-        fetch(`${BASE_URL}/api/patrimoine/categories/`, {
-            headers: { Authorization: `Bearer ${token}` }
-        })
-            .then(r => r.json())
-            .then(data => {
-                const list = Array.isArray(data) ? data : data.results ?? []
+        let active = true
+
+        const loadCategories = async () => {
+            setCategoriesLoading(true)
+            setCategoriesError("")
+            try {
+                const headers: Record<string, string> = {}
+                if (token) headers.Authorization = `Bearer ${token}`
+
+                const res = await fetch(`${BASE_URL}/api/patrimoine/categories/`, { headers })
+                if (!res.ok) throw new Error("categories_fetch_failed")
+
+                const data = await res.json()
+                const list = getCategoriesFromPayload(data)
+                if (!active) return
+
                 setCategories(list)
                 if (list.length > 0 && !form.categorie) set("categorie", String(list[0].id))
-            })
-            .catch(() => {})
+                if (list.length === 0) setCategoriesError("Aucune categorie disponible")
+            } catch {
+                if (!active) return
+                setCategories([])
+                setCategoriesError("Impossible de charger les categories")
+            } finally {
+                if (active) setCategoriesLoading(false)
+            }
+        }
+
+        void loadCategories()
+        return () => { active = false }
     }, [])
 
     const handleStep1 = async () => {
@@ -211,12 +243,20 @@ const AddPropertyModal = ({
                         ))}
                         <div style={{ marginBottom: 14 }}>
                             <label style={labelStyle}>Category *</label>
-                            <select value={form.categorie} onChange={e => set("categorie", e.target.value)} style={inputStyle}>
-                                {categories.length === 0 && <option value="">Loading…</option>}
+                            <select
+                                value={form.categorie}
+                                onChange={e => set("categorie", e.target.value)}
+                                style={inputStyle}
+                                disabled={categoriesLoading || categories.length === 0}
+                            >
+                                {categoriesLoading && <option value="">Loading categories...</option>}
+                                {!categoriesLoading && categories.length === 0 && <option value="">No category</option>}
+                                {!categoriesLoading && categories.length > 0 && !form.categorie && <option value="">Select category</option>}
                                 {categories.map(c => (
-                                    <option key={c.id} value={c.id}>{c.nom}</option>
+                                    <option key={c.id} value={c.id}>{c.nom ?? c.libelle ?? `Category ${c.id}`}</option>
                                 ))}
                             </select>
+                            {categoriesError && <div style={{ marginTop: 6, color: "#c0392b", fontSize: 12 }}>{categoriesError}</div>}
                         </div>
                         <div style={{ marginBottom: 14 }}>
                             <label style={labelStyle}>Status</label>

@@ -28,6 +28,31 @@ interface Bien {
     categorie_nom: string
 }
 
+const normalizeOnlineValue = (value: unknown): boolean => {
+    if (typeof value === "boolean") return value
+    if (typeof value === "number") return value === 1
+    if (typeof value === "string") {
+        const v = value.trim().toLowerCase()
+        if (["1", "true", "yes", "on", "online"].includes(v)) return true
+        if (["0", "false", "no", "off", "offline", ""].includes(v)) return false
+    }
+    return Boolean(value)
+}
+
+const normalizeBien = (raw: Partial<Bien> & Record<string, unknown>): Bien => ({
+    ...raw,
+    id: Number(raw.id ?? 0),
+    adresse: String(raw.adresse ?? ""),
+    loyer_hc: String(raw.loyer_hc ?? "0"),
+    statut: String(raw.statut ?? "VACANT"),
+    en_ligne: normalizeOnlineValue(raw.en_ligne),
+    description: String(raw.description ?? ""),
+    proprietaire_nom: String(raw.proprietaire_nom ?? ""),
+    photos_list: Array.isArray(raw.photos_list) ? raw.photos_list as Bien["photos_list"] : [],
+    date_creation: String(raw.date_creation ?? ""),
+    categorie_nom: String(raw.categorie_nom ?? ""),
+})
+
 const STATUT: Record<string, { label: string; bg: string; color: string }> = {
     VACANT:                { label: "Available",  bg: "#f0fdf4", color: "#15803d" },
     LOUE:                  { label: "Rented",     bg: "#fdf6e7", color: "#b8922a" },
@@ -49,11 +74,15 @@ const Properties = () => {
     const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0)
     const [failedImages, setFailedImages] = useState<Record<string, boolean>>({})
     const [togglingOnlineId, setTogglingOnlineId] = useState<number | null>(null)
+    const [toggleMsg, setToggleMsg] = useState("")
 
     useEffect(() => {
         fetch(`${BASE_URL}/api/patrimoine/biens/`, { headers: { Authorization: `Bearer ${token()}` } })
             .then(r => r.json())
-            .then(d => setBiens(Array.isArray(d) ? d : d.results ?? []))
+            .then(d => {
+                const rows = Array.isArray(d) ? d : d.results ?? []
+                setBiens(rows.map((item: Partial<Bien> & Record<string, unknown>) => normalizeBien(item)))
+            })
             .catch(() => setBiens([]))
             .finally(() => setLoading(false))
     }, [])
@@ -89,9 +118,11 @@ const Properties = () => {
 
     const toggleOnline = async (bien: Bien) => {
         setTogglingOnlineId(bien.id)
-        const nextOnline = !bien.en_ligne
+        setToggleMsg("")
+        const nextOnline = !normalizeOnlineValue(bien.en_ligne)
         try {
-            const res = await fetch(`${BASE_URL}/api/patrimoine/biens/${bien.id}/`, {
+            const endpoint = `${BASE_URL}/api/patrimoine/biens/${bien.id}/`
+            let res = await fetch(endpoint, {
                 method: "PATCH",
                 headers: {
                     "Content-Type": "application/json",
@@ -100,16 +131,69 @@ const Properties = () => {
                 body: JSON.stringify({ en_ligne: nextOnline })
             })
 
-            if (!res.ok) throw new Error("toggle_failed")
+            // Compat backend: certains serializers attendent 1/0 au lieu de true/false.
+            if (!res.ok) {
+                res = await fetch(endpoint, {
+                    method: "PATCH",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token()}`
+                    },
+                    body: JSON.stringify({ en_ligne: nextOnline ? 1 : 0 })
+                })
+            }
+
+            // Compat backend: certains endpoints refusent PATCH partiel et exigent un PUT complet.
+            if (!res.ok) {
+                const fullPayload = {
+                    adresse: bien.adresse,
+                    description: bien.description,
+                    loyer_hc: parseFloat(String(bien.loyer_hc || "0")),
+                    statut: bien.statut,
+                    en_ligne: nextOnline,
+                }
+                res = await fetch(endpoint, {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token()}`
+                    },
+                    body: JSON.stringify(fullPayload)
+                })
+            }
+
+            if (!res.ok) {
+                const errText = await res.text().catch(() => "")
+                throw new Error(errText || "toggle_failed")
+            }
 
             const updated = await res.json().catch(() => null)
-            const persistedOnline = typeof updated?.en_ligne === "boolean"
-                ? updated.en_ligne
-                : nextOnline
+            let persistedOnline = nextOnline
+
+            if (updated && typeof updated === "object" && "en_ligne" in updated) {
+                persistedOnline = normalizeOnlineValue((updated as Record<string, unknown>).en_ligne)
+            } else {
+                // On relit le bien si l'API ne renvoie pas de payload exploitable.
+                const verifyRes = await fetch(`${BASE_URL}/api/patrimoine/biens/${bien.id}/`, {
+                    headers: { Authorization: `Bearer ${token()}` }
+                })
+                if (verifyRes.ok) {
+                    const verifyData = await verifyRes.json().catch(() => null)
+                    if (verifyData && typeof verifyData === "object" && "en_ligne" in verifyData) {
+                        persistedOnline = normalizeOnlineValue((verifyData as Record<string, unknown>).en_ligne)
+                    }
+                }
+            }
 
             setBiens(prev => prev.map(b => b.id === bien.id ? { ...b, en_ligne: persistedOnline } : b))
-        } catch {
-            // Keep UI unchanged if backend update failed.
+            setPhotoModal(prev => prev && prev.id === bien.id ? { ...prev, en_ligne: persistedOnline } : prev)
+            setToggleMsg(persistedOnline ? "Bien mis en ligne" : "Bien mis hors ligne")
+            setTimeout(() => setToggleMsg(""), 2200)
+        } catch (e: any) {
+            const msg = String(e?.message ?? "").trim()
+            const compactMsg = msg.length > 140 ? `${msg.slice(0, 140)}...` : msg
+            setToggleMsg(compactMsg ? `Impossible de mettre a jour ce bien: ${compactMsg}` : "Impossible de mettre a jour ce bien")
+            setTimeout(() => setToggleMsg(""), 2500)
         } finally {
             setTogglingOnlineId(null)
         }
@@ -193,6 +277,11 @@ const Properties = () => {
                 <div>
                     <div className="pg-title">All Properties</div>
                     <div className="pg-subtitle">{biens.length} total listings · {stats.online} online</div>
+                    {toggleMsg && (
+                        <div style={{ marginTop: 6, fontSize: 12, color: toggleMsg.startsWith("Impossible") ? "var(--red)" : "var(--green)", fontWeight: 600 }}>
+                            {toggleMsg}
+                        </div>
+                    )}
                 </div>
                 <div style={{ display: "flex", gap: 10 }}>
                     <div className="tbl-search-wrap" style={{ width: 260 }}>
@@ -308,6 +397,17 @@ const Properties = () => {
                                     <span style={{ background: sc.bg, color: sc.color, fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20 }}>
                                         {sc.label}
                                     </span>
+                                    <span style={{
+                                        marginLeft: 6,
+                                        background: b.en_ligne ? "var(--green-bg)" : "var(--red-bg)",
+                                        color: b.en_ligne ? "var(--green)" : "var(--red)",
+                                        fontSize: 11,
+                                        fontWeight: 600,
+                                        padding: "3px 10px",
+                                        borderRadius: 20
+                                    }}>
+                                        {b.en_ligne ? "Online" : "Offline"}
+                                    </span>
                                 </div>
                                 <div style={{ fontSize: 12, color: "var(--text3)" }}>
                                     {new Date(b.date_creation).toLocaleDateString("en", { month: "short", day: "numeric", year: "numeric" })}
@@ -333,7 +433,7 @@ const Properties = () => {
                                                 padding: "6px 12px",
                                                 borderRadius: 8,
                                                 border: "1px solid var(--border)",
-                                                background: b.en_ligne ? "#fef2f2" : "#f0fdf4",
+                                                background: b.en_ligne ? "var(--red-bg)" : "var(--green-bg)",
                                                 color: b.en_ligne ? "var(--red)" : "var(--green)",
                                                 fontSize: 12,
                                                 fontWeight: 600,
@@ -380,6 +480,20 @@ const Properties = () => {
                                     })()}
                                     <span style={{ ...sc, position: "absolute", top: 10, left: 10, zIndex: 1, background: sc.bg, color: sc.color, fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 4 }}>
                                         {sc.label}
+                                    </span>
+                                    <span style={{
+                                        position: "absolute",
+                                        top: 10,
+                                        right: 10,
+                                        zIndex: 1,
+                                        background: b.en_ligne ? "var(--green-bg)" : "var(--red-bg)",
+                                        color: b.en_ligne ? "var(--green)" : "var(--red)",
+                                        fontSize: 10,
+                                        fontWeight: 700,
+                                        padding: "3px 8px",
+                                        borderRadius: 4
+                                    }}>
+                                        {b.en_ligne ? "Online" : "Offline"}
                                     </span>
                                 </div>
                                 <div className="p-body">
@@ -567,6 +681,17 @@ const Properties = () => {
                                             fontSize: 11, fontWeight: 600, padding: "4px 10px", borderRadius: 6
                                         }}>
                                             {STATUT[photoModal.statut]?.label}
+                                        </span>
+                                        <span style={{
+                                            marginLeft: 6,
+                                            background: photoModal.en_ligne ? "var(--green-bg)" : "var(--red-bg)",
+                                            color: photoModal.en_ligne ? "var(--green)" : "var(--red)",
+                                            fontSize: 11,
+                                            fontWeight: 600,
+                                            padding: "4px 10px",
+                                            borderRadius: 6
+                                        }}>
+                                            {photoModal.en_ligne ? "Online" : "Offline"}
                                         </span>
                                     </div>
                                 </div>

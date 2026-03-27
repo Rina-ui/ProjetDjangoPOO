@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import DashboardLayout from "../../component/sidebar"
 import Viewer3D from "../../component/viewer3d"
 import {
@@ -27,7 +27,78 @@ const NAV_ITEMS = [
     { label: "Settings", path: "/dashboard/client/settings" },
 ]
 
-const mapBien = (b: any) => ({
+const PROPERTY_FILTERS = ["all", "House", "Villa", "Apartment", "Guesthouse"] as const
+const PRICE_FILTERS = ["any", "under_200k", "200k_500k", "over_500k"] as const
+const LOCATION_FILTERS = ["any", "lome", "kara", "sokode"] as const
+
+const normalizeText = (value: string) =>
+    value
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim()
+
+const toActiveType = (value: string | null): "Buy" | "Rent" | "Sell" => {
+    if (value === "Buy" || value === "Rent" || value === "Sell") return value
+    return "Rent"
+}
+
+const toPropertyFilter = (value: string | null): string => {
+    if (value && PROPERTY_FILTERS.includes(value as (typeof PROPERTY_FILTERS)[number])) return value
+    return "all"
+}
+
+const toPriceFilter = (value: string | null): (typeof PRICE_FILTERS)[number] => {
+    if (value && PRICE_FILTERS.includes(value as (typeof PRICE_FILTERS)[number])) {
+        return value as (typeof PRICE_FILTERS)[number]
+    }
+    return "any"
+}
+
+const toLocationFilter = (value: string | null): (typeof LOCATION_FILTERS)[number] => {
+    if (value && LOCATION_FILTERS.includes(value as (typeof LOCATION_FILTERS)[number])) {
+        return value as (typeof LOCATION_FILTERS)[number]
+    }
+    return "any"
+}
+
+const matchesPropertyCategory = (category: string, filter: string) => {
+    const c = normalizeText(category)
+    const f = normalizeText(filter)
+    const aliases: Record<string, string[]> = {
+        house: ["house", "maison"],
+        villa: ["villa"],
+        apartment: ["apartment", "appartement", "apt"],
+        guesthouse: ["guesthouse", "guest house", "gite", "maison d'hotes", "maison dhotes"],
+    }
+    const needles = aliases[f] ?? [f]
+    return needles.some(n => c.includes(n))
+}
+
+const extractListFromPayload = (payload: any): any[] => {
+    if (Array.isArray(payload)) return payload
+    if (Array.isArray(payload?.results)) return payload.results
+    if (Array.isArray(payload?.data)) return payload.data
+    if (Array.isArray(payload?.categories)) return payload.categories
+    return []
+}
+
+const buildCategoryLabel = (bien: any, categoryById: Record<number, string>) => {
+    const directName = bien?.categorie_nom ?? bien?.categorie?.nom ?? bien?.categorie?.name
+    if (typeof directName === "string" && directName.trim()) return directName
+
+    const categoryId = Number(
+        typeof bien?.categorie === "object"
+            ? bien?.categorie?.id
+            : bien?.categorie
+    )
+    if (Number.isFinite(categoryId) && categoryById[categoryId]) {
+        return categoryById[categoryId]
+    }
+    return ""
+}
+
+const mapBien = (b: any, categoryById: Record<number, string> = {}) => ({
     id:               b.id,
     owner_id:         b.proprietaire,
     agent:            b.proprietaire_nom ?? "Owner",
@@ -46,6 +117,7 @@ const mapBien = (b: any) => ({
     reviews:          0,
     desc:             b.description ?? "",
     features:         b.equipements?.features ?? [],
+    category:         buildCategoryLabel(b, categoryById),
     img:              b.photos_list?.[0]?.image
         ?? "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800&q=80",
     gallery:          b.photos_list?.slice(1).map((p: any) => p.image) ?? [],
@@ -61,14 +133,17 @@ const mapBien = (b: any) => ({
 // ── Dashboard principal ───────────────────────────────────
 const ClientDashboard = () => {
     const navigate = useNavigate()
+    const [searchParams] = useSearchParams()
     const { openConversation } = useChat()
 
     const [properties,     setProperties]     = useState<any[]>([])
     const [loadingProps,   setLoadingProps]   = useState(true)
-    const [activeType,     setActiveType]     = useState<"Buy"|"Rent"|"Sell">("Rent")
-    const [activeFilter,   setActiveFilter]   = useState("House")
+    const [activeType,     setActiveType]     = useState<"Buy"|"Rent"|"Sell">(() => toActiveType(searchParams.get("type")))
+    const [activeFilter,   setActiveFilter]   = useState(() => toPropertyFilter(searchParams.get("category")))
     const [viewMode,       setViewMode]       = useState<"grid"|"map">("grid")
-    const [search,         setSearch]         = useState("")
+    const [search,         setSearch]         = useState(() => searchParams.get("q") ?? "")
+    const [priceFilter,    setPriceFilter]    = useState<(typeof PRICE_FILTERS)[number]>(() => toPriceFilter(searchParams.get("price")))
+    const [locationFilter, setLocationFilter] = useState<(typeof LOCATION_FILTERS)[number]>(() => toLocationFilter(searchParams.get("location")))
     const [savedIds,       setSavedIds]       = useState<number[]>([])
     const [selectedProp,   setSelectedProp]   = useState<any|null>(null)
     const [comment,        setComment]        = useState("")
@@ -93,11 +168,27 @@ const ClientDashboard = () => {
 
     useEffect(() => {
         const token = localStorage.getItem("access_token")
-        fetch(`${BASE_URL}/api/patrimoine/biens/`, { headers: { Authorization: `Bearer ${token}` } })
-            .then(r => r.json())
-            .then(data => {
-                const list = Array.isArray(data) ? data : data.results ?? []
-                setProperties(list.map(mapBien))
+        const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
+
+        Promise.all([
+            fetch(`${BASE_URL}/api/patrimoine/biens/`, { headers }),
+            fetch(`${BASE_URL}/api/patrimoine/categories/`, { headers }),
+        ])
+            .then(async ([biensRes, categoriesRes]) => {
+                const biensData = await biensRes.json().catch(() => null)
+                const categoryData = categoriesRes.ok ? await categoriesRes.json().catch(() => null) : null
+
+                const categoryById = extractListFromPayload(categoryData).reduce((acc, item) => {
+                    const id = Number(item?.id)
+                    const name = String(item?.nom ?? item?.libelle ?? item?.name ?? "").trim()
+                    if (Number.isFinite(id) && name) {
+                        acc[id] = name
+                    }
+                    return acc
+                }, {} as Record<number, string>)
+
+                const list = extractListFromPayload(biensData)
+                setProperties(list.map((item: any) => mapBien(item, categoryById)))
             })
             .catch(() => setProperties([]))
             .finally(() => setLoadingProps(false))
@@ -176,6 +267,17 @@ const ClientDashboard = () => {
         if (activeType === "Sell") return false
         if (activeType === "Rent" && p.status !== "For Rent") return false
         if (activeType === "Buy"  && p.status !== "For Sale") return false
+        if (activeFilter !== "all" && !matchesPropertyCategory(String(p.category ?? ""), activeFilter)) return false
+
+        if (priceFilter === "under_200k" && p.loyer_hc >= 200_000) return false
+        if (priceFilter === "200k_500k" && (p.loyer_hc < 200_000 || p.loyer_hc > 500_000)) return false
+        if (priceFilter === "over_500k" && p.loyer_hc <= 500_000) return false
+
+        if (locationFilter !== "any") {
+            const address = normalizeText(String(p.address ?? ""))
+            if (!address.includes(normalizeText(locationFilter))) return false
+        }
+
         if (search && !p.address.toLowerCase().includes(search.toLowerCase()) && !p.agent.toLowerCase().includes(search.toLowerCase())) return false
         return true
     })
@@ -452,11 +554,21 @@ const ClientDashboard = () => {
 
             <div className="c-filters">
                 <span className="c-filter-lbl">Filter:</span>
-                {["House","Villa","Apartment","Guesthouse"].map(f => (
+                {["all","House","Villa","Apartment","Guesthouse"].map(f => (
                     <button key={f} className={`c-filter-pill ${activeFilter === f ? "c-filter-pill--active" : ""}`} onClick={() => setActiveFilter(f)}>{f}</button>
                 ))}
-                <select className="c-select"><option>Any Price</option><option>Under $200K</option><option>$200K–$500K</option><option>$500K+</option></select>
-                <select className="c-select"><option>Any Location</option><option>Lomé</option><option>Kara</option><option>Sokodé</option></select>
+                <select className="c-select" value={priceFilter} onChange={e => setPriceFilter(e.target.value as (typeof PRICE_FILTERS)[number])}>
+                    <option value="any">Any Price</option>
+                    <option value="under_200k">Under 200k XOF</option>
+                    <option value="200k_500k">200k - 500k XOF</option>
+                    <option value="over_500k">Over 500k XOF</option>
+                </select>
+                <select className="c-select" value={locationFilter} onChange={e => setLocationFilter(e.target.value as (typeof LOCATION_FILTERS)[number])}>
+                    <option value="any">Any Location</option>
+                    <option value="lome">Lome</option>
+                    <option value="kara">Kara</option>
+                    <option value="sokode">Sokode</option>
+                </select>
             </div>
 
             <div style={{ fontSize:13, color:"var(--text2)", marginBottom:14 }}>

@@ -17,6 +17,34 @@ const NAV_ITEMS = [
     { label: "Settings",      path: "/dashboard/owner/settings" },
 ]
 
+const toEquipementsInput = (equipements: unknown): string => {
+    if (!equipements) return ""
+    if (typeof equipements === "string") return equipements
+    if (Array.isArray(equipements)) return equipements.map(String).join(", ")
+    if (typeof equipements === "object") {
+        const features = (equipements as { features?: unknown }).features
+        if (Array.isArray(features)) return features.map(String).join(", ")
+    }
+    return ""
+}
+
+const parseEquipementsCsv = (value: string): string[] => {
+    const raw = value
+        .split(",")
+        .map(item => item.trim())
+        .filter(Boolean)
+
+    return Array.from(new Set(raw))
+}
+
+const getCategoriesFromPayload = (data: any): any[] => {
+    if (Array.isArray(data)) return data
+    if (Array.isArray(data?.results)) return data.results
+    if (Array.isArray(data?.data)) return data.data
+    if (Array.isArray(data?.categories)) return data.categories
+    return []
+}
+
 // ── Add / Edit Property Modal ─────────────────────────────
 const PropertyModal = ({
                            mode, bien, onClose, onSuccess
@@ -31,6 +59,8 @@ const PropertyModal = ({
     const [error, setError]     = useState("")
     const [bienId, setBienId]   = useState<number|null>(bien?.id ?? null)
     const [categories, setCategories] = useState<any[]>([])
+    const [categoriesLoading, setCategoriesLoading] = useState(true)
+    const [categoriesError, setCategoriesError] = useState("")
     const [photos, setPhotos]   = useState<File[]>([])
     const [previews, setPreviews] = useState<string[]>([])
     const [glbFile, setGlbFile] = useState<File|null>(null)
@@ -42,19 +72,49 @@ const PropertyModal = ({
         loyer_hc:    bien?.loyer_hc    ?? "",
         charges:     bien?.charges     ?? "0",
         statut:      bien?.statut      ?? "VACANT",
-        categorie:   bien?.categorie   ?? "",
+        categorie:   bien?.categorie
+            ? String(typeof bien.categorie === "object" ? bien.categorie.id ?? "" : bien.categorie)
+            : "",
+        equipements: toEquipementsInput(bien?.equipements),
     })
     const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
     const token = localStorage.getItem("access_token")
 
     useEffect(() => {
-        fetch(`${BASE_URL}/api/patrimoine/categories/`, {
-            headers: { Authorization: `Bearer ${token}` }
-        }).then(r => r.json()).then(data => {
-            const list = Array.isArray(data) ? data : data.results ?? []
-            setCategories(list)
-            if (list.length > 0 && !form.categorie) set("categorie", String(list[0].id))
-        }).catch(() => {})
+        let active = true
+
+        const loadCategories = async () => {
+            setCategoriesLoading(true)
+            setCategoriesError("")
+            try {
+                const headers: Record<string, string> = {}
+                if (token) headers.Authorization = `Bearer ${token}`
+
+                const res = await fetch(`${BASE_URL}/api/patrimoine/categories/`, { headers })
+                if (!res.ok) throw new Error("categories_fetch_failed")
+
+                const data = await res.json()
+                const list = getCategoriesFromPayload(data)
+                if (!active) return
+
+                setCategories(list)
+                if (list.length > 0 && !form.categorie) {
+                    set("categorie", String(list[0].id))
+                }
+                if (list.length === 0) {
+                    setCategoriesError("Aucune categorie disponible")
+                }
+            } catch {
+                if (!active) return
+                setCategories([])
+                setCategoriesError("Impossible de charger les categories")
+            } finally {
+                if (active) setCategoriesLoading(false)
+            }
+        }
+
+        void loadCategories()
+        return () => { active = false }
     }, [])
 
     const inputCls = "op-input"
@@ -64,6 +124,11 @@ const PropertyModal = ({
         if (!form.adresse || !form.loyer_hc) { setError("Address and rent are required"); return }
         setLoading(true); setError("")
         try {
+            const features = parseEquipementsCsv(form.equipements)
+            const existingEquipements = bien?.equipements && typeof bien.equipements === "object" && !Array.isArray(bien.equipements)
+                ? bien.equipements
+                : {}
+
             const payload = {
                 adresse:     form.adresse,
                 description: form.description,
@@ -71,6 +136,10 @@ const PropertyModal = ({
                 charges:     parseFloat(form.charges),
                 statut:      form.statut,
                 categorie:   parseInt(form.categorie),
+                equipements: {
+                    ...existingEquipements,
+                    features,
+                },
                 en_ligne:    false,
             }
             const url    = mode === "edit" ? `${BASE_URL}/api/patrimoine/biens/${bienId}/` : `${BASE_URL}/api/patrimoine/biens/`
@@ -163,17 +232,39 @@ const PropertyModal = ({
                                 { label: "Description",   key: "description", type: "text",   full: true },
                                 { label: "Rent (XOF) *",  key: "loyer_hc",    type: "number", full: false },
                                 { label: "Charges (XOF)", key: "charges",     type: "number", full: false },
+                                { label: "Equipements (separes par des virgules)", key: "equipements", type: "text", full: true },
                             ].map(f => (
                                 <div key={f.key} className={`op-field ${f.full ? "full" : ""}`}>
                                     <label className={labelCls}>{f.label}</label>
-                                    <input type={f.type} className={inputCls} value={form[f.key as keyof typeof form]} onChange={e => set(f.key, e.target.value)} placeholder={f.key === "adresse" ? "e.g. Lomé, Boulevard du Mono" : ""}/>
+                                    <input
+                                        type={f.type}
+                                        className={inputCls}
+                                        value={form[f.key as keyof typeof form]}
+                                        onChange={e => set(f.key, e.target.value)}
+                                        placeholder={
+                                            f.key === "adresse"
+                                                ? "e.g. Lome, Boulevard du Mono"
+                                                : f.key === "equipements"
+                                                    ? "e.g. Climatisation, Piscine, Wi-Fi"
+                                                    : ""
+                                        }
+                                    />
                                 </div>
                             ))}
                             <div className="op-field">
                                 <label className={labelCls}>Category *</label>
-                                <select className={inputCls} value={form.categorie} onChange={e => set("categorie", e.target.value)}>
-                                    {categories.map(c => <option key={c.id} value={c.id}>{c.nom}</option>)}
+                                <select
+                                    className={inputCls}
+                                    value={form.categorie}
+                                    onChange={e => set("categorie", e.target.value)}
+                                    disabled={categoriesLoading || categories.length === 0}
+                                >
+                                    {categoriesLoading && <option value="">Loading categories...</option>}
+                                    {!categoriesLoading && categories.length === 0 && <option value="">No category</option>}
+                                    {!categoriesLoading && categories.length > 0 && !form.categorie && <option value="">Select category</option>}
+                                    {categories.map(c => <option key={c.id} value={c.id}>{c.nom ?? c.libelle ?? `Category ${c.id}`}</option>)}
                                 </select>
+                                {categoriesError && <div style={{ marginTop: 6, color: "var(--red)", fontSize: 12 }}>{categoriesError}</div>}
                             </div>
                             <div className="op-field">
                                 <label className={labelCls}>Status</label>

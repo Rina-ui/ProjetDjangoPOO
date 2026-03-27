@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from "react"
 
 export type Role = "admin" | "owner" | "client"
 
@@ -29,6 +29,31 @@ const mapRole = (role: string): Role => {
 }
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000"
+const toPositiveNumber = (value: unknown, fallback: number) => {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
+}
+
+const ACCESS_REFRESH_SKEW_MS = toPositiveNumber(import.meta.env.VITE_ACCESS_REFRESH_SKEW_MS, 2 * 60_000)
+const FALLBACK_REFRESH_INTERVAL_MS = toPositiveNumber(import.meta.env.VITE_FALLBACK_REFRESH_INTERVAL_MS, 5 * 60_000)
+const REFRESH_RETRY_DELAY_MS = toPositiveNumber(import.meta.env.VITE_REFRESH_RETRY_DELAY_MS, 20_000)
+const REFRESH_RETRY_COUNT = Math.floor(toPositiveNumber(import.meta.env.VITE_REFRESH_RETRY_COUNT, 2))
+const ACCESS_MIN_VALID_MS = 8_000
+const SESSION_RECOVERY_GRACE_MS = toPositiveNumber(import.meta.env.VITE_SESSION_RECOVERY_GRACE_MS, 10 * 60_000)
+const USER_CACHE_KEY = "auth_user_cache"
+
+const getTokenExpiryMs = (token: string): number | null => {
+    try {
+        const payload = token.split(".")[1]
+        if (!payload) return null
+
+        const base64 = payload.replace(/-/g, "+").replace(/_/g, "/")
+        const decoded = JSON.parse(atob(base64))
+        return typeof decoded?.exp === "number" ? decoded.exp * 1000 : null
+    } catch {
+        return null
+    }
+}
 
 const clearPending2FA = () => {
     sessionStorage.removeItem("pending_2fa_user")
@@ -40,6 +65,16 @@ const clearPending2FA = () => {
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [user,    setUser]    = useState<User | null>(null)
     const [loading, setLoading] = useState(true)
+    const refreshTimerRef = useRef<number | null>(null)
+    const refreshFailureSinceRef = useRef<number | null>(null)
+    const isRecoveringRef = useRef(false)
+
+    const stopSessionRefreshTimer = () => {
+        if (refreshTimerRef.current !== null) {
+            window.clearTimeout(refreshTimerRef.current)
+            refreshTimerRef.current = null
+        }
+    }
 
     const clearTokens = () => {
         localStorage.removeItem("access_token")
@@ -89,42 +124,136 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return null
     }
 
+    const refreshAccessTokenWithRetry = async (): Promise<string | null> => {
+        for (let attempt = 0; attempt <= REFRESH_RETRY_COUNT; attempt += 1) {
+            const access = await refreshAccessToken()
+            if (access) return access
+            if (attempt < REFRESH_RETRY_COUNT) {
+                await new Promise(resolve => window.setTimeout(resolve, 800))
+            }
+        }
+        return null
+    }
+
+    const loadCachedUser = (): User | null => {
+        try {
+            const raw = localStorage.getItem(USER_CACHE_KEY)
+            if (!raw) return null
+            const parsed = JSON.parse(raw) as Partial<User>
+            if (!parsed?.id || !parsed?.username || !parsed?.role) return null
+            return {
+                id: String(parsed.id),
+                fullName: String(parsed.fullName ?? parsed.username),
+                email: String(parsed.email ?? ""),
+                role: parsed.role,
+                username: String(parsed.username),
+            }
+        } catch {
+            return null
+        }
+    }
+
+    const clearCachedUser = () => {
+        localStorage.removeItem(USER_CACHE_KEY)
+    }
+
+    const scheduleSessionRefresh = (accessToken?: string | null) => {
+        stopSessionRefreshTimer()
+
+        const token = accessToken ?? localStorage.getItem("access_token")
+        const refresh = localStorage.getItem("refresh_token")
+        if (!token || !refresh) return
+
+        const expMs = getTokenExpiryMs(token)
+        const delayMs = expMs
+            ? Math.max(expMs - Date.now() - ACCESS_REFRESH_SKEW_MS, 5_000)
+            : FALLBACK_REFRESH_INTERVAL_MS
+
+        refreshTimerRef.current = window.setTimeout(async () => {
+            const refreshedAccess = await refreshAccessTokenWithRetry()
+            if (!refreshedAccess) {
+                const currentAccess = localStorage.getItem("access_token")
+                const currentExp = currentAccess ? getTokenExpiryMs(currentAccess) : null
+
+                // Si le token access est encore valide, on retente plus tard.
+                if (currentAccess && currentExp && (currentExp - Date.now()) > ACCESS_MIN_VALID_MS) {
+                    refreshFailureSinceRef.current = null
+                    refreshTimerRef.current = window.setTimeout(() => {
+                        scheduleSessionRefresh(currentAccess)
+                    }, REFRESH_RETRY_DELAY_MS)
+                    return
+                }
+
+                const failureSince = refreshFailureSinceRef.current ?? Date.now()
+                refreshFailureSinceRef.current = failureSince
+                const inGracePeriod = Date.now() - failureSince < SESSION_RECOVERY_GRACE_MS
+
+                if (inGracePeriod) {
+                    refreshTimerRef.current = window.setTimeout(() => {
+                        scheduleSessionRefresh(localStorage.getItem("access_token"))
+                    }, REFRESH_RETRY_DELAY_MS)
+                    return
+                }
+
+                clearTokens()
+                clearCachedUser()
+                setUser(null)
+                stopSessionRefreshTimer()
+                return
+            }
+
+            refreshFailureSinceRef.current = null
+            scheduleSessionRefresh(refreshedAccess)
+        }, delayMs)
+    }
+
     const setUserFromMe = (me: any) => {
-        setUser({
+        const mappedUser: User = {
             id: String(me.id),
             fullName: `${me.first_name} ${me.last_name}`.trim() || me.username,
             email: me.email,
             role: mapRole(me.role),
             username: me.username,
-        })
+        }
+        setUser(mappedUser)
+        localStorage.setItem(USER_CACHE_KEY, JSON.stringify(mappedUser))
     }
 
-    const completeLogin = async (tokens: { access: string; refresh: string }) => {
-        localStorage.setItem("access_token", tokens.access)
-        localStorage.setItem("refresh_token", tokens.refresh)
+    const attemptSessionRecovery = async () => {
+        if (isRecoveringRef.current) return
 
-        let me = await fetchMe(tokens.access)
-        if (!me) {
-            const refreshedAccess = await refreshAccessToken()
-            if (!refreshedAccess) {
-                clearTokens()
-                throw new Error("Impossible de recuperer le profil utilisateur")
+        const refresh = localStorage.getItem("refresh_token")
+        const hasUserSession = Boolean(user || loadCachedUser())
+        if (!refresh || !hasUserSession) return
+
+        isRecoveringRef.current = true
+        try {
+            const refreshedAccess = await refreshAccessTokenWithRetry()
+            if (!refreshedAccess) return
+
+            const me = await fetchMe(refreshedAccess)
+            if (me) {
+                setUserFromMe(me)
+                refreshFailureSinceRef.current = null
+                scheduleSessionRefresh(refreshedAccess)
             }
-            me = await fetchMe(refreshedAccess)
-            if (!me) {
-                clearTokens()
-                throw new Error("Impossible de recuperer le profil utilisateur")
-            }
+        } catch {
+            // Ignore transient errors: periodic scheduler will retry.
+        } finally {
+            isRecoveringRef.current = false
         }
-
-        clearPending2FA()
-        setUserFromMe(me)
     }
 
     useEffect(() => {
         const initializeSession = async () => {
             const access = localStorage.getItem("access_token")
             const refresh = localStorage.getItem("refresh_token")
+            const cachedUser = loadCachedUser()
+
+            if (cachedUser && !user) {
+                setUser(cachedUser)
+            }
+
             if (!access && !refresh) {
                 setLoading(false)
                 return
@@ -142,20 +271,60 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
                 if (me) {
                     setUserFromMe(me)
+                    refreshFailureSinceRef.current = null
+                    scheduleSessionRefresh(localStorage.getItem("access_token") ?? access)
                 } else {
-                    clearTokens()
-                    setUser(null)
+                    const hasCached = Boolean(cachedUser)
+                    if (hasCached && refresh) {
+                        scheduleSessionRefresh(localStorage.getItem("access_token"))
+                    } else {
+                        stopSessionRefreshTimer()
+                        clearTokens()
+                        clearCachedUser()
+                        setUser(null)
+                    }
                 }
             } catch (err) {
                 console.error("Auth check failed:", err)
-                clearTokens()
-                setUser(null)
+                const hasCached = Boolean(cachedUser)
+                if (hasCached && refresh) {
+                    scheduleSessionRefresh(localStorage.getItem("access_token"))
+                } else {
+                    stopSessionRefreshTimer()
+                    clearTokens()
+                    clearCachedUser()
+                    setUser(null)
+                }
             } finally {
                 setLoading(false)
             }
         }
 
+        const onVisibilityChange = () => {
+            if (document.visibilityState === "visible") {
+                void attemptSessionRecovery()
+            }
+        }
+
+        const onFocus = () => {
+            void attemptSessionRecovery()
+        }
+
+        const onOnline = () => {
+            void attemptSessionRecovery()
+        }
+
         initializeSession()
+        document.addEventListener("visibilitychange", onVisibilityChange)
+        window.addEventListener("focus", onFocus)
+        window.addEventListener("online", onOnline)
+
+        return () => {
+            document.removeEventListener("visibilitychange", onVisibilityChange)
+            window.removeEventListener("focus", onFocus)
+            window.removeEventListener("online", onOnline)
+            stopSessionRefreshTimer()
+        }
     }, [])
 
     const login = async (username: string, password: string) => {
@@ -207,7 +376,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const logout = () => {
+        stopSessionRefreshTimer()
+        refreshFailureSinceRef.current = null
         clearTokens()
+        clearCachedUser()
         clearPending2FA()
         setUser(null)
     }
@@ -222,6 +394,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const err = await res.json()
             throw new Error(JSON.stringify(err))
         }
+    }
+
+    const completeLogin = async (tokens: { access: string; refresh: string }) => {
+        localStorage.setItem("access_token", tokens.access)
+        localStorage.setItem("refresh_token", tokens.refresh)
+
+        let me = await fetchMe(tokens.access)
+        if (!me) {
+            const refreshedAccess = await refreshAccessToken()
+            if (!refreshedAccess) {
+                clearTokens()
+                throw new Error("Impossible de recuperer le profil utilisateur")
+            }
+            me = await fetchMe(refreshedAccess)
+            if (!me) {
+                clearTokens()
+                throw new Error("Impossible de recuperer le profil utilisateur")
+            }
+        }
+
+        clearPending2FA()
+        setUserFromMe(me)
+        refreshFailureSinceRef.current = null
+        scheduleSessionRefresh(localStorage.getItem("access_token") ?? tokens.access)
     }
 
     return (
