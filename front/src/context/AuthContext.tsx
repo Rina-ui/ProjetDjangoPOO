@@ -71,20 +71,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     useEffect(() => {
         const token = localStorage.getItem("access_token")
         if (!token) { setLoading(false); return }
+        
         fetch(`${BASE_URL}/api/auth/me/`, {
             headers: { Authorization: `Bearer ${token}` }
         })
-            .then(r => r.json())
-            .then(data => {
-                setUser({
-                    id:       String(data.id),
-                    fullName: `${data.first_name} ${data.last_name}`.trim() || data.username,
-                    email:    data.email,
-                    role:     mapRole(data.role),
-                    username: data.username,
-                })
+            .then(async r => {
+                if (!r.ok) {
+                    // Token invalide, supprimer les tokens
+                    if (r.status === 401) {
+                        localStorage.removeItem("access_token")
+                        localStorage.removeItem("refresh_token")
+                    }
+                    return null
+                }
+                return r.json()
             })
-            .catch(() => {
+            .then(data => {
+                if (data) {
+                    setUser({
+                        id:       String(data.id),
+                        fullName: `${data.first_name} ${data.last_name}`.trim() || data.username,
+                        email:    data.email,
+                        role:     mapRole(data.role),
+                        username: data.username,
+                    })
+                }
+            })
+            .catch(err => {
+                console.error("Auth check failed:", err)
                 localStorage.removeItem("access_token")
                 localStorage.removeItem("refresh_token")
             })

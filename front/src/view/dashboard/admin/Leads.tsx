@@ -31,24 +31,63 @@ const ROLE_COLOR: Record<string, { bg: string; color: string; label: string }> =
     ADMIN:        { bg: "#eff6ff", color: "#1d4ed8", label: "Admin" },
 }
 
+const isTmpUser = (u: Pick<User, "username">) =>
+    (u.username ?? "").toLowerCase().startsWith("tmp")
+
 const Leads = () => {
     const [users,   setUsers]   = useState<User[]>([])
     const [loading, setLoading] = useState(true)
     const [search,  setSearch]  = useState("")
-    const [roleFilter, setRole] = useState<"all" | "PROPRIETAIRE" | "LOCATAIRE">("all")
+    const [roleFilter, setRole] = useState<"all" | "PROPRIETAIRE" | "LOCATAIRE" | "ADMIN">("all")
     const [sortBy,  setSortBy]  = useState<"name" | "date" | "role">("date")
     const [selected, setSelected] = useState<User | null>(null)
     const [, setMounted] = useState(false)
 
     useEffect(() => {
-        setTimeout(() => setMounted(true), 50)
-        fetch(`${BASE_URL}/api/utilisateurs/users/`, {
-            headers: { Authorization: `Bearer ${token()}` }
-        })
-            .then(r => r.json())
-            .then(d => setUsers(Array.isArray(d) ? d : d.results ?? []))
-            .catch(() => setUsers([]))
-            .finally(() => setLoading(false))
+        const loadAllUsers = async () => {
+            setTimeout(() => setMounted(true), 50)
+
+            const collectAllPages = async (initialUrl: string) => {
+                const all: User[] = []
+                let nextUrl: string | null = initialUrl
+
+                while (nextUrl) {
+                    const res = await fetch(nextUrl, {
+                        headers: { Authorization: `Bearer ${token()}` }
+                    })
+                    if (!res.ok) throw new Error("users_fetch_failed")
+
+                    const data = await res.json()
+                    if (Array.isArray(data)) {
+                        all.push(...data)
+                        nextUrl = null
+                    } else {
+                        all.push(...(data.results ?? []))
+                        nextUrl = data.next ?? null
+                    }
+                }
+
+                return all
+            }
+
+            try {
+                // Endpoint demandé: GET http://127.0.0.1:8000/users/
+                const all = await collectAllPages(`${BASE_URL}/users/`)
+                setUsers(all.filter(u => !isTmpUser(u)))
+            } catch {
+                // Fallback de compatibilité avec l'ancien endpoint.
+                try {
+                    const all = await collectAllPages(`${BASE_URL}/api/utilisateurs/users/`)
+                    setUsers(all.filter(u => !isTmpUser(u)))
+                } catch {
+                    setUsers([])
+                }
+            } finally {
+                setLoading(false)
+            }
+        }
+
+        loadAllUsers()
     }, [])
 
     const filtered = users
@@ -127,10 +166,10 @@ const Leads = () => {
                     {/* Toolbar */}
                     <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px 20px", borderBottom: "1px solid var(--border)" }}>
                         <div className="tab-pills">
-                            {(["all", "PROPRIETAIRE", "LOCATAIRE"] as const).map(r => (
+                            {(["all", "PROPRIETAIRE", "LOCATAIRE", "ADMIN"] as const).map(r => (
                                 <button key={r} className={`tab-pill ${roleFilter === r ? "tab-pill--active" : ""}`}
                                         onClick={() => setRole(r)}>
-                                    {r === "all" ? "All" : r === "PROPRIETAIRE" ? "Owners" : "Tenants"}
+                                    {r === "all" ? "All" : r === "PROPRIETAIRE" ? "Owners" : r === "LOCATAIRE" ? "Tenants" : "Admins"}
                                 </button>
                             ))}
                         </div>
@@ -263,14 +302,7 @@ const Leads = () => {
                             ))}
                         </div>
 
-                        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 20 }}>
-                            <button className="btn-primary" style={{ justifyContent: "center" }}>
-                                Send Message
-                            </button>
-                            <button className="btn-ghost" style={{ justifyContent: "center", color: "var(--red)", borderColor: "var(--red)" }}>
-                                Deactivate Account
-                            </button>
-                        </div>
+                        {/* Actions retirees temporairement */}
                     </div>
                 )}
             </div>

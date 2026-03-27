@@ -26,14 +26,6 @@ const AdminMessages = () => {
         return d.toLocaleDateString("en", { month: "short", day: "numeric" })
     }
 
-    const formatMessageTime = (iso: string) => {
-        const d = new Date(iso)
-        const now = new Date()
-        const isToday = d.toDateString() === now.toDateString()
-        if (isToday) return d.toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit" })
-        return d.toLocaleString("en", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
-    }
-
     // Liste des propriétés uniques pour le filtre
     const properties = ["all", ...Array.from(new Set(conversations.map(c => c.property_name)))]
 
@@ -123,12 +115,14 @@ const AdminMessages = () => {
                         <div className="msg-messages">
                             {activeConv.messages.map(msg => {
                                 const isOwner = msg.sender_id === activeConv.proprietaire
-                                const authorLabel = isOwner ? "Proprietaire" : "Locataire"
                                 return (
                                     <div key={msg.id} className={`msg-bubble-wrap ${isOwner ? "msg-bubble-wrap--me" : ""}`}>
                                         {!isOwner && <div className="msg-bubble-avatar">{msg.sender_name.charAt(0)}</div>}
-                                        <div className={`msg-bubble ${isOwner ? "msg-bubble--me" : ""}`}>{msg.text}</div>
-                                        <span className="msg-bubble-time">{authorLabel} · {formatMessageTime(msg.created_at)}</span>
+                                        <div style={{ display: "flex", flexDirection: "column", gap: 2, alignItems: isOwner ? "flex-end" : "flex-start" }}>
+                                            <span style={{ fontSize: 10, color: "var(--text3)", padding: "0 4px" }}>{msg.sender_name}</span>
+                                            <div className={`msg-bubble ${isOwner ? "msg-bubble--me" : ""}`}>{msg.text}</div>
+                                        </div>
+                                        <span className="msg-bubble-time">{formatTime(msg.created_at)}</span>
                                     </div>
                                 )
                             })}

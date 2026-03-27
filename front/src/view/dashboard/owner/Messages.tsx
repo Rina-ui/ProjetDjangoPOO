@@ -41,14 +41,6 @@ const OwnerMessages = () => {
         return d.toLocaleDateString("en", { month: "short", day: "numeric" })
     }
 
-    const formatMessageTime = (iso: string) => {
-        const d = new Date(iso)
-        const now = new Date()
-        const isToday = d.toDateString() === now.toDateString()
-        if (isToday) return d.toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit" })
-        return d.toLocaleString("en", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
-    }
-
     const filtered = conversations
         .filter(c => filter === "all" || c.unread_count > 0)
         .filter(c =>
@@ -140,12 +132,11 @@ const OwnerMessages = () => {
                         <div className="msg-messages">
                             {activeConv.messages.map(msg => {
                                 const isMe = msg.sender_id === myId
-                                const authorLabel = isMe ? "Proprietaire (Vous)" : "Locataire"
                                 return (
                                     <div key={msg.id} className={`msg-bubble-wrap ${isMe ? "msg-bubble-wrap--me" : ""}`}>
                                         {!isMe && <div className="msg-bubble-avatar">{msg.sender_name.charAt(0)}</div>}
                                         <div className={`msg-bubble ${isMe ? "msg-bubble--me" : ""}`}>{msg.text}</div>
-                                        <span className="msg-bubble-time">{authorLabel} · {formatMessageTime(msg.created_at)}</span>
+                                        <span className="msg-bubble-time">{formatTime(msg.created_at)}</span>
                                     </div>
                                 )
                             })}
@@ -162,7 +153,7 @@ const OwnerMessages = () => {
                                 onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend() } }}
                             />
                             <button className="msg-send-btn" onClick={handleSend} disabled={!text.trim()}>
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
                                     <path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"/>
                                 </svg>
                             </button>

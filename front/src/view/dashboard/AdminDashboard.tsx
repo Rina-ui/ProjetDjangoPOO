@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { resolveMediaUrl } from "../../utils/media"
 import DashboardLayout from "../../component/sidebar"
 import { IconPlus, IconBarChart } from "../../component/Icons"
 import "../../style/dashboard.css"
@@ -196,16 +197,32 @@ const HouseSVG = () => (
 // ── DASHBOARD PRINCIPAL ───────────────────────────────────
 const AdminDashboard = () => {
     const [showCreateOwner, setShowCreateOwner] = useState(false)
+    const [users,          setUsers]          = useState<any[]>([])
+    const [biens,          setBiens]          = useState<any[]>([])
+    const [payments,       setPayments]       = useState<any[]>([])
     const [pendingBiens,    setPendingBiens]    = useState<any[]>([])
     const [showPending,     setShowPending]     = useState(false)
     const [rejectMotif,     setRejectMotif]     = useState("")
     const [rejectingId,     setRejectingId]     = useState<number|null>(null)
+    const [failedPendingThumbs, setFailedPendingThumbs] = useState<Record<string, boolean>>({})
+
+    const getPendingPhotoSrc = (bien: any) => {
+        const photo = bien?.photos_list?.[0]
+        const raw = photo?.image ?? photo?.url ?? photo?.image_url ?? photo?.photo ?? null
+        return resolveMediaUrl(raw, BASE_URL)
+    }
+
+    const markPendingThumbFailed = (key: string) => {
+        setFailedPendingThumbs(prev => ({ ...prev, [key]: true }))
+    }
+
+    const isPendingThumbFailed = (key: string) => Boolean(failedPendingThumbs[key])
 
     // Stats dynamiques
     const [stats, setStats] = useState({
         totalBiens:      0,
-        totalOwners:     0,
-        totalTenants:    0,
+        totalUsers:      0,
+        totalPaiements:  0,
         biensEnLigne:    0,
         biensEnAttente:  0,
     })
@@ -228,6 +245,7 @@ const AdminDashboard = () => {
             .then(r => r.json())
             .then(data => {
                 const list = Array.isArray(data) ? data : data.results ?? []
+                setBiens(list)
                 setStats(s => ({
                     ...s,
                     totalBiens:     list.length,
@@ -244,20 +262,53 @@ const AdminDashboard = () => {
             .then(r => r.json())
             .then(data => {
                 const list = Array.isArray(data) ? data : data.results ?? []
+                setUsers(list)
                 setStats(s => ({
                     ...s,
-                    totalOwners:  list.filter((u: any) => u.role === 'PROPRIETAIRE').length,
-                    totalTenants: list.filter((u: any) => u.role === 'LOCATAIRE').length,
+                    totalUsers: list.length,
                 }))
             })
             .catch(() => {})
+
+        // Paiements
+        fetch(`${BASE_URL}/api/paiements/tous/`, {
+            headers: { Authorization: `Bearer ${token}` }
+        })
+            .then(r => r.ok ? r.json() : [])
+            .then(data => {
+                const list = Array.isArray(data) ? data : data.results ?? []
+                setPayments(list)
+                setStats(s => ({ ...s, totalPaiements: list.length }))
+            })
+            .catch(() => {})
     }, [])
+
+    const byDateDesc = (a: any, b: any) => {
+        const da = new Date(a?.date_creation ?? a?.created_at ?? a?.date ?? 0).getTime()
+        const db = new Date(b?.date_creation ?? b?.created_at ?? b?.date ?? 0).getTime()
+        return db - da
+    }
+
+    const recentUsers = [...users].sort(byDateDesc).slice(0, 5)
+    const recentBiens = [...biens].sort(byDateDesc).slice(0, 5)
+    const recentPayments = [...payments].sort(byDateDesc).slice(0, 5)
 
     const handleValider = async (id: number) => {
         await fetch(`${BASE_URL}/api/patrimoine/biens/${id}/valider/`, {
             method: "POST",
             headers: { Authorization: `Bearer ${token}` }
         })
+
+        // Force aussi la persistance en base pour la visibilite locataire.
+        await fetch(`${BASE_URL}/api/patrimoine/biens/${id}/`, {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({ en_ligne: true })
+        }).catch(() => {})
+
         setPendingBiens(prev => prev.filter(b => b.id !== id))
         setStats(s => ({ ...s, biensEnAttente: s.biensEnAttente - 1, biensEnLigne: s.biensEnLigne + 1 }))
     }
@@ -275,13 +326,6 @@ const AdminDashboard = () => {
         setRejectMotif("")
     }
 
-    const r2 = 66, cx = 88, cy = 86
-    const toRad = (d: number) => (d * Math.PI) / 180
-    const pt = (pct: number) => {
-        const a = -210 + 240 * pct
-        return { x: +(cx + r2 * Math.cos(toRad(a))).toFixed(2), y: +(cy + r2 * Math.sin(toRad(a))).toFixed(2) }
-    }
-
     return (
         <DashboardLayout
             navItems={NAV_ITEMS}
@@ -292,7 +336,7 @@ const AdminDashboard = () => {
                 </button>
             }
         >
-            {showCreateOwner && <CreateOwnerModal onClose={() => setShowCreateOwner(false)}/>}
+            {showCreateOwner && <CreateOwnerModal onClose={() => setShowCreateOwner(false)} />}
 
             {/* ── PENDING VALIDATION BANNER ── */}
             {pendingBiens.length > 0 && (
@@ -329,7 +373,20 @@ const AdminDashboard = () => {
                     {pendingBiens.map(b => (
                         <div key={b.id} style={{ display: "flex", alignItems: "flex-start", gap: 14, padding: "14px 0", borderBottom: "1px solid var(--border)" }}>
                             <div style={{ width: 56, height: 56, borderRadius: 10, background: "var(--bg2)", flexShrink: 0, overflow: "hidden" }}>
-                                {b.photos_list?.[0] && <img src={`${BASE_URL}${b.photos_list[0].image}`} style={{ width: "100%", height: "100%", objectFit: "cover" }}/>}
+                                {(() => {
+                                    const thumbKey = `pending-${b.id}`
+                                    const thumbSrc = getPendingPhotoSrc(b)
+                                    return thumbSrc && !isPendingThumbFailed(thumbKey)
+                                        ? <img
+                                            src={thumbSrc}
+                                            alt="Property"
+                                            onError={() => markPendingThumbFailed(thumbKey)}
+                                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                        />
+                                        : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--border2)" strokeWidth="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+                                        </div>
+                                })()}
                             </div>
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ fontSize: 13, fontWeight: 700 }}>{b.adresse}</div>
@@ -385,9 +442,9 @@ const AdminDashboard = () => {
                 {/* ── KPI PILLS DYNAMIQUES ── */}
                 <div className="adm-pills">
                     {[
-                        { val: String(stats.totalBiens),     label: "PROPERTIES", desc: "Total properties in the platform." },
-                        { val: String(stats.totalOwners),    label: "OWNERS",     desc: "Registered property owners." },
-                        { val: String(stats.totalTenants),   label: "TENANTS",    desc: "Registered tenants on KÔRÂ." },
+                        { val: String(stats.totalUsers),      label: "USERS",      desc: "Total users registered." },
+                        { val: String(stats.totalBiens),      label: "PROPERTIES", desc: "Total properties in the platform." },
+                        { val: String(stats.totalPaiements),  label: "PAYMENTS",   desc: "Total payments tracked." },
                     ].map(k => (
                         <div className="adm-pill" key={k.label}>
                             <div className="adm-pill-left">
@@ -399,6 +456,49 @@ const AdminDashboard = () => {
                             <p className="adm-pill-desc">{k.desc}</p>
                         </div>
                     ))}
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 16 }}>
+                    <div className="adm-card">
+                        <div className="adm-card-hd"><div className="adm-card-hd-left">Utilisateurs récents</div></div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                            {recentUsers.length === 0 && <div style={{ color: "var(--text3)", fontSize: 12 }}>Aucun utilisateur</div>}
+                            {recentUsers.map((u: any) => (
+                                <div key={u.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                                    <span style={{ color: "var(--text2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                        {u.first_name || u.last_name ? `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim() : u.username}
+                                    </span>
+                                    <span style={{ color: "var(--text3)", marginLeft: 8 }}>{u.role ?? "USER"}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="adm-card">
+                        <div className="adm-card-hd"><div className="adm-card-hd-left">Biens récents</div></div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                            {recentBiens.length === 0 && <div style={{ color: "var(--text3)", fontSize: 12 }}>Aucun bien</div>}
+                            {recentBiens.map((b: any) => (
+                                <div key={b.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                                    <span style={{ color: "var(--text2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.adresse ?? "Bien"}</span>
+                                    <span style={{ color: "var(--text3)", marginLeft: 8 }}>{b.statut ?? "-"}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="adm-card">
+                        <div className="adm-card-hd"><div className="adm-card-hd-left">Paiements récents</div></div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                            {recentPayments.length === 0 && <div style={{ color: "var(--text3)", fontSize: 12 }}>Aucun paiement</div>}
+                            {recentPayments.map((p: any, i: number) => (
+                                <div key={p.id ?? i} style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                                    <span style={{ color: "var(--text2)" }}>{(p.montant ?? 0).toLocaleString()} XOF</span>
+                                    <span style={{ color: "var(--text3)", marginLeft: 8 }}>{p.statut ?? "PENDING"}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 </div>
 
                 <div className="adm-bottom">

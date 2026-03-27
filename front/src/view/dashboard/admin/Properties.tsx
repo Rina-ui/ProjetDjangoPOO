@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { resolveMediaUrl } from "../../../utils/media"
 import DashboardLayout from "../../../component/sidebar"
 import "../../../style/dashboard.css"
 
@@ -22,7 +23,7 @@ interface Bien {
     en_ligne: boolean
     description: string
     proprietaire_nom: string
-    photos_list: { image: string }[]
+    photos_list: { image?: string; url?: string; image_url?: string; photo?: string }[]
     date_creation: string
     categorie_nom: string
 }
@@ -44,10 +45,11 @@ const Properties = () => {
     const [view,    setView]    = useState<"grid" | "list">("list")
     const [rejectId,  setRejectId]  = useState<number | null>(null)
     const [rejectMsg, setRejectMsg] = useState("")
-    const [mounted, setMounted] = useState(false)
+    const [photoModal, setPhotoModal] = useState<Bien | null>(null)
+    const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0)
+    const [failedImages, setFailedImages] = useState<Record<string, boolean>>({})
 
     useEffect(() => {
-        setTimeout(() => setMounted(true), 50)
         fetch(`${BASE_URL}/api/patrimoine/biens/`, { headers: { Authorization: `Bearer ${token()}` } })
             .then(r => r.json())
             .then(d => setBiens(Array.isArray(d) ? d : d.results ?? []))
@@ -56,7 +58,21 @@ const Properties = () => {
     }, [])
 
     const approve = async (id: number) => {
-        await fetch(`${BASE_URL}/api/patrimoine/biens/${id}/valider/`, { method: "POST", headers: { Authorization: `Bearer ${token()}` } })
+        await fetch(`${BASE_URL}/api/patrimoine/biens/${id}/valider/`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token()}` }
+        })
+
+        // Force aussi le champ en_ligne a 1 en base pour la visibilite locataire.
+        await fetch(`${BASE_URL}/api/patrimoine/biens/${id}/`, {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token()}`
+            },
+            body: JSON.stringify({ en_ligne: true })
+        }).catch(() => {})
+
         setBiens(prev => prev.map(b => b.id === id ? { ...b, statut: "VACANT", en_ligne: true } : b))
     }
 
@@ -69,6 +85,60 @@ const Properties = () => {
         setBiens(prev => prev.map(b => b.id === id ? { ...b, statut: "REJETE" } : b))
         setRejectId(null); setRejectMsg("")
     }
+
+    const openPhotoModal = (bien: Bien) => {
+        setPhotoModal(bien)
+        setCurrentPhotoIndex(0)
+    }
+
+    const closePhotoModal = () => {
+        setPhotoModal(null)
+        setCurrentPhotoIndex(0)
+    }
+
+    const nextPhoto = () => {
+        if (photoModal && photoModal.photos_list) {
+            setCurrentPhotoIndex((prev) => (prev + 1) % photoModal.photos_list.length)
+        }
+    }
+
+    const prevPhoto = () => {
+        if (photoModal && photoModal.photos_list) {
+            setCurrentPhotoIndex((prev) => (prev - 1 + photoModal.photos_list.length) % photoModal.photos_list.length)
+        }
+    }
+
+    const approveFromModal = async (id: number) => {
+        await approve(id)
+        closePhotoModal()
+    }
+
+    const rejectFromModal = async (id: number) => {
+        const motif = window.prompt("Motif du rejet:")
+        if (!motif) return
+        await fetch(`${BASE_URL}/api/patrimoine/biens/${id}/rejeter/`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
+            body: JSON.stringify({ motif })
+        })
+        setBiens(prev => prev.map(b => b.id === id ? { ...b, statut: "REJETE" } : b))
+        closePhotoModal()
+    }
+
+    const getPhotoRawPath = (photo?: { image?: string; url?: string; image_url?: string; photo?: string }) => {
+        if (!photo) return null
+        return photo.image ?? photo.url ?? photo.image_url ?? photo.photo ?? null
+    }
+
+    const getPhotoSrc = (photo?: { image?: string; url?: string; image_url?: string; photo?: string }) => {
+        return resolveMediaUrl(getPhotoRawPath(photo), BASE_URL)
+    }
+
+    const markImageFailed = (key: string) => {
+        setFailedImages(prev => ({ ...prev, [key]: true }))
+    }
+
+    const isImageFailed = (key: string) => Boolean(failedImages[key])
 
     const filtered = biens
         .filter(b => statut === "all" || b.statut === statut)
@@ -180,13 +250,23 @@ const Properties = () => {
                                  }}>
                                 {/* Property */}
                                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                                    <div style={{ width: 46, height: 46, borderRadius: 10, overflow: "hidden", background: "var(--bg2)", flexShrink: 0 }}>
-                                        {b.photos_list?.[0]
-                                            ? <img src={`${BASE_URL}${b.photos_list[0].image}`} style={{ width: "100%", height: "100%", objectFit: "cover" }}/>
-                                            : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--border2)" strokeWidth="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
-                                            </div>
-                                        }
+                                    <div 
+                                        onClick={() => openPhotoModal(b)}
+                                        style={{ width: 46, height: 46, borderRadius: 10, overflow: "hidden", background: "var(--bg2)", flexShrink: 0, cursor: "pointer" }}>
+                                        {(() => {
+                                            const thumbKey = `list-${b.id}-0`
+                                            const thumbSrc = getPhotoSrc(b.photos_list?.[0])
+                                            return thumbSrc && !isImageFailed(thumbKey)
+                                                ? <img
+                                                    src={thumbSrc}
+                                                    alt="Property"
+                                                    onError={() => markImageFailed(thumbKey)}
+                                                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                                />
+                                                : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--border2)" strokeWidth="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+                                                </div>
+                                        })()}
                                     </div>
                                     <div>
                                         <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3 }}>{b.adresse}</div>
@@ -245,13 +325,16 @@ const Properties = () => {
                         const sc = STATUT[b.statut] ?? STATUT.VACANT
                         return (
                             <div key={b.id} className="p-card prop-anim" style={{ animationDelay: `${i * 50}ms` }}>
-                                <div className="p-card-img">
-                                    {b.photos_list?.[0]
-                                        ? <img src={`${BASE_URL}${b.photos_list[0].image}`} className="p-card-photo" alt=""/>
-                                        : <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg,#e8e0d0,#d4c9b0)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--border2)" strokeWidth="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
-                                        </div>
-                                    }
+                                <div className="p-card-img" onClick={() => openPhotoModal(b)} style={{ cursor: "pointer" }}>
+                                    {(() => {
+                                        const gridKey = `grid-${b.id}-0`
+                                        const gridSrc = getPhotoSrc(b.photos_list?.[0])
+                                        return gridSrc && !isImageFailed(gridKey)
+                                            ? <img src={gridSrc} className="p-card-photo" alt="Property" onError={() => markImageFailed(gridKey)}/>
+                                            : <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg,#e8e0d0,#d4c9b0)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--border2)" strokeWidth="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+                                            </div>
+                                    })()}
                                     <span style={{ ...sc, position: "absolute", top: 10, left: 10, zIndex: 1, background: sc.bg, color: sc.color, fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 4 }}>
                                         {sc.label}
                                     </span>
@@ -270,6 +353,189 @@ const Properties = () => {
                             </div>
                         )
                     })}
+                </div>
+            )}
+
+            {/* Photo Modal */}
+            {photoModal && (
+                <div style={{
+                    position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+                    background: "rgba(0,0,0,0.8)", zIndex: 1000,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    padding: "20px"
+                }}>
+                    <div style={{
+                        background: "var(--bg)", borderRadius: "12px",
+                        width: "100%", maxWidth: "600px",
+                        overflow: "hidden", boxShadow: "0 20px 60px rgba(0,0,0,0.3)"
+                    }}>
+                        {/* Header */}
+                        <div style={{
+                            padding: "16px 20px",
+                            borderBottom: "1px solid var(--border)",
+                            display: "flex", justifyContent: "space-between", alignItems: "center"
+                        }}>
+                            <div>
+                                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{photoModal.adresse}</h3>
+                                <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text3)" }}>
+                                    {photoModal.proprietaire_nom} • {photoModal.categorie_nom}
+                                </p>
+                            </div>
+                            <button onClick={closePhotoModal} style={{
+                                background: "transparent", border: "none", fontSize: 24, cursor: "pointer", padding: 0,
+                                width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center"
+                            }}>×</button>
+                        </div>
+
+                        {/* Photo Display */}
+                        <div style={{
+                            position: "relative", width: "100%", paddingBottom: "75%", overflow: "hidden",
+                            background: "var(--bg2)"
+                        }}>
+                            {photoModal.photos_list && photoModal.photos_list.length > 0 ? (
+                                <>
+                                    {(() => {
+                                        const modalPhoto = photoModal.photos_list[currentPhotoIndex]
+                                        const modalKey = `modal-${photoModal.id}-${currentPhotoIndex}`
+                                        const modalSrc = getPhotoSrc(modalPhoto)
+                                        return modalSrc && !isImageFailed(modalKey)
+                                            ? <img
+                                                src={modalSrc}
+                                                style={{
+                                                    position: "absolute", top: 0, left: 0,
+                                                    width: "100%", height: "100%", objectFit: "cover"
+                                                }}
+                                                alt="Property"
+                                                onError={() => markImageFailed(modalKey)}
+                                            />
+                                            : <div style={{
+                                                position: "absolute", top: 0, left: 0,
+                                                width: "100%", height: "100%",
+                                                display: "flex", alignItems: "center", justifyContent: "center",
+                                                color: "var(--text3)"
+                                            }}>
+                                                Photo indisponible
+                                            </div>
+                                    })()}
+                                    {photoModal.photos_list.length > 1 && (
+                                        <>
+                                            <button onClick={prevPhoto} style={{
+                                                position: "absolute", left: "10px", top: "50%",
+                                                transform: "translateY(-50%)", background: "rgba(0,0,0,0.5)",
+                                                color: "#fff", border: "none", borderRadius: "50%",
+                                                width: 36, height: 36, cursor: "pointer", fontSize: 18,
+                                                display: "flex", alignItems: "center", justifyContent: "center"
+                                            }}>‹</button>
+                                            <button onClick={nextPhoto} style={{
+                                                position: "absolute", right: "10px", top: "50%",
+                                                transform: "translateY(-50%)", background: "rgba(0,0,0,0.5)",
+                                                color: "#fff", border: "none", borderRadius: "50%",
+                                                width: 36, height: 36, cursor: "pointer", fontSize: 18,
+                                                display: "flex", alignItems: "center", justifyContent: "center"
+                                            }}>›</button>
+                                            <div style={{
+                                                position: "absolute", bottom: "10px", left: "50%",
+                                                transform: "translateX(-50%)", background: "rgba(0,0,0,0.6)",
+                                                color: "#fff", padding: "6px 12px", borderRadius: 20,
+                                                fontSize: 12, fontWeight: 600
+                                            }}>
+                                                {currentPhotoIndex + 1} / {photoModal.photos_list.length}
+                                            </div>
+                                        </>
+                                    )}
+                                </>
+                            ) : (
+                                <div style={{
+                                    position: "absolute", top: 0, left: 0,
+                                    width: "100%", height: "100%",
+                                    display: "flex", alignItems: "center", justifyContent: "center",
+                                    color: "var(--text3)"
+                                }}>
+                                    Pas de photo
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Thumbnails */}
+                        {photoModal.photos_list && photoModal.photos_list.length > 1 && (
+                            <div style={{
+                                display: "flex", gap: "6px", padding: "12px",
+                                background: "var(--bg2)", overflowX: "auto", borderTop: "1px solid var(--border)"
+                            }}>
+                                {photoModal.photos_list.map((photo, idx) => (
+                                    <div
+                                        key={idx}
+                                        onClick={() => setCurrentPhotoIndex(idx)}
+                                        style={{
+                                            width: 60, height: 60, borderRadius: 6, overflow: "hidden",
+                                            flexShrink: 0, cursor: "pointer",
+                                            border: idx === currentPhotoIndex ? "2px solid var(--gold)" : "1px solid var(--border)",
+                                            opacity: idx === currentPhotoIndex ? 1 : 0.6,
+                                            transition: "all .2s"
+                                        }}
+                                    >
+                                        {(() => {
+                                            const thumbKey = `modal-thumb-${photoModal.id}-${idx}`
+                                            const thumbSrc = getPhotoSrc(photo)
+                                            return thumbSrc && !isImageFailed(thumbKey)
+                                                ? <img src={thumbSrc} alt="Thumbnail" onError={() => markImageFailed(thumbKey)} style={{ width: "100%", height: "100%", objectFit: "cover" }}/>
+                                                : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text3)", fontSize: 10 }}>
+                                                    N/A
+                                                </div>
+                                        })()}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Details */}
+                        <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border)", background: "var(--bg)" }}>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+                                <div>
+                                    <span style={{ fontSize: 11, color: "var(--text3)", fontWeight: 600 }}>PRICE</span>
+                                    <div style={{ fontSize: 16, fontWeight: 700, marginTop: 4 }}>
+                                        ${parseFloat(photoModal.loyer_hc).toLocaleString()}
+                                    </div>
+                                </div>
+                                <div>
+                                    <span style={{ fontSize: 11, color: "var(--text3)", fontWeight: 600 }}>STATUS</span>
+                                    <div style={{ marginTop: 4 }}>
+                                        <span style={{
+                                            background: STATUT[photoModal.statut]?.bg,
+                                            color: STATUT[photoModal.statut]?.color,
+                                            fontSize: 11, fontWeight: 600, padding: "4px 10px", borderRadius: 6
+                                        }}>
+                                            {STATUT[photoModal.statut]?.label}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            <p style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.5, margin: 0 }}>
+                                {photoModal.description || "No description"}
+                            </p>
+                        </div>
+
+                        {/* Actions */}
+                        {photoModal.statut === "EN_ATTENTE_VALIDATION" && (
+                            <div style={{
+                                padding: "16px 20px",
+                                borderTop: "1px solid var(--border)",
+                                display: "flex", gap: 10,
+                                background: "var(--bg)"
+                            }}>
+                                <button onClick={() => approveFromModal(photoModal.id)} style={{
+                                    flex: 1, padding: "10px 16px", borderRadius: 8, border: "none",
+                                    background: "var(--green)", color: "#fff", fontSize: 13, fontWeight: 600,
+                                    cursor: "pointer"
+                                }}>✓ Approve</button>
+                                <button onClick={() => rejectFromModal(photoModal.id)} style={{
+                                    flex: 1, padding: "10px 16px", borderRadius: 8, border: "1px solid var(--red)",
+                                    background: "transparent", color: "var(--red)", fontSize: 13, fontWeight: 600,
+                                    cursor: "pointer"
+                                }}>✕ Reject</button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
         </DashboardLayout>
