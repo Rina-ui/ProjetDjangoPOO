@@ -22,7 +22,7 @@ const Login = () => {
             if (err?.is2FA) {
                 navigate("/2fa/verify")
             } else {
-                setError("Invalid credentials")
+                setError(err?.message || "Invalid credentials")
             }
         } finally {
             setLoading(false)

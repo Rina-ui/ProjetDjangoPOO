@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { useAuth } from "../../context/AuthContext"
 import "../../style/auth.css"
 import "../../style/twofa.css"
 
@@ -7,6 +8,7 @@ const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000"
 
 const TwoFactorVerify = () => {
     const navigate = useNavigate()
+    const { completeLogin } = useAuth()
 
     const [code,    setCode]    = useState("")
     const [error,   setError]   = useState("")
@@ -18,19 +20,44 @@ const TwoFactorVerify = () => {
         setLoading(true); setError("")
         try {
             const username = sessionStorage.getItem("pending_2fa_user")
+            const challenge = sessionStorage.getItem("pending_2fa_challenge")
+            if (!username && !challenge) {
+                setError("Session OTP expirée. Reconnectez-vous.")
+                setTimeout(() => navigate("/login"), 600)
+                return
+            }
+
+            const payload: Record<string, string> = { code, otp: code }
+            if (challenge) {
+                payload.challenge_token = challenge
+            } else if (username) {
+                payload.username = username
+            }
+
             const res = await fetch(`${BASE_URL}/api/auth/2fa/login/`, {
                 method:  "POST",
                 headers: { "Content-Type": "application/json" },
-                body:    JSON.stringify({ username, code })
+                body: JSON.stringify(payload)
             })
-            if (!res.ok) { setError("Invalid code. Check Google Authenticator."); return }
+            if (!res.ok) {
+                const err = await res.json().catch(() => null)
+                setError(err?.detail || err?.message || "Invalid code. Check Google Authenticator.")
+                return
+            }
 
             const data = await res.json()
-            localStorage.setItem("access_token",  data.access)
-            localStorage.setItem("refresh_token", data.refresh)
+            const access = data?.access ?? data?.tokens?.access
+            const refresh = data?.refresh ?? data?.tokens?.refresh
+            if (!access || !refresh) {
+                setError("Réponse OTP invalide")
+                return
+            }
+
+            await completeLogin({ access, refresh })
             sessionStorage.removeItem("pending_2fa_user")
-            sessionStorage.removeItem("pending_2fa_access")
-            sessionStorage.removeItem("pending_2fa_refresh")
+            sessionStorage.removeItem("pending_2fa_challenge")
+            sessionStorage.removeItem("pending_2fa_method")
+            sessionStorage.removeItem("pending_2fa_temp_token")
 
             setDone(true)
             setTimeout(() => navigate("/dashboard"), 900)
@@ -60,6 +87,7 @@ const TwoFactorVerify = () => {
                     <p className="auth-subtitle">
                         Enter the 6-digit code from your <strong>Google Authenticator</strong> app
                     </p>
+
 
                     <input
                         type="text" inputMode="numeric" maxLength={6}

@@ -3,7 +3,7 @@ from django.conf import settings
 
 
 class Conversation(models.Model):
-    bien         = models.ForeignKey('patrimoine.Bien', on_delete=models.CASCADE, related_name='conversations')
+    bien         = models.ForeignKey('patrimoine.Bien', on_delete=models.CASCADE, related_name='conversations', null=True, blank=True)
     client       = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='conversations_client')
     proprietaire = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='conversations_proprio')
     created_at   = models.DateTimeField(auto_now_add=True)

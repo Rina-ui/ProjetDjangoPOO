@@ -29,8 +29,8 @@ const TwoFactorSetup = () => {
         })
             .then(r => r.json())
             .then(data => {
-                setQrCode(data.qr_code)
-                setSecret(data.secret)
+                setQrCode(data.qr_code || data.qr || data.otpauth_url || "")
+                setSecret(data.secret || data.base32 || "")
             })
             .catch(() => setError("Failed to load QR code"))
             .finally(() => setFetching(false))
@@ -53,9 +53,13 @@ const TwoFactorSetup = () => {
                     "Content-Type": "application/json",
                     Authorization:  `Bearer ${token}`
                 },
-                body: JSON.stringify({ code })
+                body: JSON.stringify({ code, otp: code })
             })
-            if (!res.ok) { setError("Invalid code. Check your app and try again."); return }
+            if (!res.ok) {
+                const err = await res.json().catch(() => null)
+                setError(err?.detail || err?.message || "Invalid code. Check your app and try again.")
+                return
+            }
             goTo("success")
         } catch {
             setError("Invalid code. Check your app and try again.")

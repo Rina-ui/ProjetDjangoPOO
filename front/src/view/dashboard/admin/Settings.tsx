@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import DashboardLayout from "../../../component/sidebar"
+import TwoFactorCard from "../../../component/TwoFactorCard"
 import { useAuth } from "../../../context/AuthContext"
 import "../../../style/dashboard.css"
 
@@ -251,6 +252,8 @@ const AdminSettings = () => {
                                 <button className="btn-primary" onClick={changePassword}>Update Password</button>
                                 {pwdMsg && <span style={{ fontSize: 13, color: pwdMsg.includes("success") ? "var(--green)" : "var(--red)", fontWeight: 500 }}>{pwdMsg}</span>}
                             </div>
+
+                            <TwoFactorCard />
                         </div>
                     )}
 

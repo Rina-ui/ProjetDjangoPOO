@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react"
 import DashboardLayout from "../../../component/sidebar"
+import TwoFactorCard from "../../../component/TwoFactorCard"
+import { useAuth } from "../../../context/AuthContext"
 import "../../../style/dashboard.css"
 import "../../../style/owner-pages.css"
 
@@ -40,6 +42,7 @@ const AvatarUpload = ({ name, onUpload }: { name: string; onUpload: (f: File) =>
 
 // ── Main ─────────────────────────────────────────────────
 const SettingsPage = () => {
+    const { user, logout } = useAuth()
     const [loading, setLoading]     = useState(true)
     const [saving, setSaving]       = useState<string|null>(null)
     const [saved, setSaved]         = useState<string|null>(null)
@@ -61,11 +64,12 @@ const SettingsPage = () => {
     })
     const [pwError, setPwError]   = useState("")
     const [pwSuccess, setPwSuccess] = useState(false)
+    const [totpEnabled, setTotpEnabled] = useState(false)
 
     const token = localStorage.getItem("access_token")
 
     useEffect(() => {
-        fetch(`${BASE_URL}/api/utilisateurs/me/`, { headers: { Authorization: `Bearer ${token}` } })
+        fetch(`${BASE_URL}/api/auth/me/`, { headers: { Authorization: `Bearer ${token}` } })
             .then(r => r.json())
             .then(data => {
                 setProfile({
@@ -76,6 +80,7 @@ const SettingsPage = () => {
                     adresse:    data.adresse    ?? "",
                     bio:        data.bio        ?? "",
                 })
+                setTotpEnabled(Boolean(data.totp_enabled))
                 setLoading(false)
                 setTimeout(() => setVisible(true), 80)
             })
@@ -85,7 +90,7 @@ const SettingsPage = () => {
     const saveProfile = async () => {
         setSaving("profile")
         try {
-            await fetch(`${BASE_URL}/api/utilisateurs/me/`, {
+            await fetch(`${BASE_URL}/api/auth/me/`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                 body: JSON.stringify(profile)
@@ -98,7 +103,7 @@ const SettingsPage = () => {
     const saveNotifs = async () => {
         setSaving("notifs")
         try {
-            await fetch(`${BASE_URL}/api/utilisateurs/notifications-preferences/`, {
+            await fetch(`${BASE_URL}/api/auth/notifications-preferences/`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                 body: JSON.stringify(notifs)
@@ -127,6 +132,7 @@ const SettingsPage = () => {
     }
 
     const fullName = `${profile.first_name} ${profile.last_name}`.trim()
+    const initials = user?.fullName?.split(" ").map(p => p[0]).join("").toUpperCase() ?? "?"
 
     const tabs = [
         { key: "profile",       label: "Profile",       icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg> },
@@ -148,12 +154,58 @@ const SettingsPage = () => {
                 <div className="st-layout">
                     {/* Left nav */}
                     <nav className="st-nav">
+                        <div className="st-side-title">Account</div>
+
+                        <div className="card" style={{ textAlign: "center", padding: 20, marginBottom: 8 }}>
+                            <div style={{
+                                width: 64, height: 64, borderRadius: "50%",
+                                background: "var(--gold-bg)", border: "3px solid var(--gold)",
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                fontSize: 22, fontWeight: 800, color: "var(--gold)",
+                                margin: "0 auto 10px"
+                            }}>
+                                {initials}
+                            </div>
+                            <div style={{ fontWeight: 700, fontSize: 14 }}>{(user?.fullName) || (fullName) || "Owner"}</div>
+                            <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}>{(user?.email) || (profile.email)}</div>
+                            <div style={{ display: "inline-block", marginTop: 8, background: "var(--green-bg)", color: "var(--green)", fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20 }}>
+                                Property Owner
+                            </div>
+                        </div>
+
+                        <div className="st-side-meta">
+                            <div className="st-side-meta-row">
+                                <span>2FA / OTP</span>
+                                <span className={`st-side-pill ${totpEnabled ? "ok" : "off"}`}>{totpEnabled ? "Active" : "Inactive"}</span>
+                            </div>
+                            <div className="st-side-meta-row">
+                                <span>Email</span>
+                                <span className="st-side-pill neutral">{profile.email ? "Set" : "Missing"}</span>
+                            </div>
+                        </div>
+
                         {tabs.map(t => (
                             <button key={t.key} className={`st-nav-btn ${activeTab === t.key ? "active" : ""}`} onClick={() => setActiveTab(t.key as any)}>
                                 {t.icon}
                                 {t.label}
                             </button>
                         ))}
+
+                        <button
+                            className="op-btn-ghost"
+                            onClick={() => setActiveTab("security")}
+                            style={{ marginTop: 8, width: "100%", justifyContent: "center" }}
+                        >
+                            Security Center
+                        </button>
+
+                        <button
+                            className="btn-ghost"
+                            onClick={logout}
+                            style={{ marginTop: 12, width: "100%", color: "var(--red)", borderColor: "var(--red)", justifyContent: "center" }}
+                        >
+                            Sign Out
+                        </button>
                     </nav>
 
                     {/* Content */}
@@ -295,6 +347,8 @@ const SettingsPage = () => {
                                         {saving === "security" ? <span className="op-spinner"/> : "Update password"}
                                     </button>
                                 </div>
+
+                                <TwoFactorCard />
 
                                 <div className="st-danger-zone">
                                     <h3>Danger zone</h3>

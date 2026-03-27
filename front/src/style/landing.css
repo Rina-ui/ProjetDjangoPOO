@@ -1,13 +1,35 @@
 /* src/style/landing.css — Sections landing page KÔRÂ */
 
+:root {
+    --text: #1a1a1a;
+    --text2: #6b7280;
+    --bg: #f5f5f3;
+    --white: #ffffff;
+    --border: #e5e7eb;
+    --dark-bg: #1a1a1a;
+    --light-text: #ffffff;
+    --gold: #b8922a;
+}
+
+html[data-theme="dark"] {
+    --text: #eceef1;
+    --text2: #b5bcc6;
+    --bg: #0f1113;
+    --white: #151617;
+    --border: #2a2f35;
+    --dark-bg: #0f1113;
+    --light-text: #eceef1;
+    --gold: #d2b057;
+}
+
 /* ── STATS BAR ───────────────────────────────────────────── */
 .stats-bar {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 0;
-    background: #fff;
-    border-bottom: 1px solid #e5e7eb;
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
     padding: 20px 48px;
 }
 
@@ -17,7 +39,7 @@
     align-items: center;
     gap: 4px;
     padding: 0 48px;
-    border-right: 1px solid #e5e7eb;
+    border-right: 1px solid var(--border);
 }
 
 .stats-bar__item:last-child { border-right: none; }
@@ -25,13 +47,13 @@
 .stats-bar__val {
     font-size: 28px;
     font-weight: 800;
-    color: #1a1a1a;
+    color: var(--text);
     letter-spacing: -1px;
 }
 
 .stats-bar__label {
     font-size: 12px;
-    color: #6b7280;
+    color: var(--text2);
     font-weight: 500;
 }
 
@@ -40,7 +62,7 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 0;
-    background: #fff;
+    background: var(--white);
     padding: 80px 60px;
     align-items: center;
 }
@@ -59,7 +81,7 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: #fff;
+    background: var(--white);
     border-radius: 999px;
     padding: 8px 16px;
     display: flex;
@@ -74,22 +96,22 @@
 .discover-text h2 {
     font-size: 32px;
     font-weight: 800;
-    color: #1a1a1a;
+    color: var(--text);
     line-height: 1.2;
     margin-bottom: 16px;
 }
 
 .discover-text p {
     font-size: 14px;
-    color: #6b7280;
+    color: var(--text2);
     line-height: 1.7;
     margin-bottom: 28px;
     max-width: 380px;
 }
 
 .discover-btn {
-    background: #1a1a1a;
-    color: #fff;
+    background: var(--dark-bg);
+    color: var(--light-text);
     border: none;
     border-radius: 999px;
     padding: 14px 28px;
@@ -99,11 +121,11 @@
     transition: background 0.2s;
 }
 
-.discover-btn:hover { background: #374151; }
+.discover-btn:hover { opacity: 0.85; }
 
 /* ── PROPERTIES SECTION ──────────────────────────────────── */
 .props-section {
-    background: #f5f5f3;
+    background: var(--bg);
     padding: 80px 60px;
 }
 
@@ -117,19 +139,19 @@
 .props-title {
     font-size: 36px;
     font-weight: 800;
-    color: #1a1a1a;
+    color: var(--text);
     margin-bottom: 10px;
 }
 
 .props-sub {
     font-size: 14px;
-    color: #6b7280;
+    color: var(--text2);
     line-height: 1.6;
 }
 
 .props-see-all {
-    background: #1a1a1a;
-    color: #fff;
+    background: var(--dark-bg);
+    color: var(--light-text);
     border: none;
     border-radius: 999px;
     padding: 12px 24px;
@@ -141,7 +163,7 @@
     flex-shrink: 0;
 }
 
-.props-see-all:hover { background: #374151; }
+.props-see-all:hover { opacity: 0.85; }
 
 .props-grid {
     display: grid;
@@ -150,7 +172,7 @@
 }
 
 .prop-card-home {
-    background: #fff;
+    background: var(--white);
     border-radius: 16px;
     overflow: hidden;
     cursor: pointer;
@@ -185,7 +207,7 @@
     top: 12px;
     left: 12px;
     background: #4ade80;
-    color: #fff;
+    color: var(--white);
     font-size: 11px;
     font-weight: 700;
     padding: 4px 10px;
@@ -200,27 +222,27 @@
     display: flex;
     gap: 16px;
     font-size: 12px;
-    color: #6b7280;
+    color: var(--text2);
     margin-bottom: 8px;
 }
 
 .prop-card-home__name {
     font-size: 15px;
     font-weight: 700;
-    color: #1a1a1a;
+    color: var(--text);
     margin-bottom: 4px;
 }
 
 .prop-card-home__addr {
     font-size: 12px;
-    color: #9ca3af;
+    color: var(--text2);
     margin-bottom: 10px;
 }
 
 .prop-card-home__price {
     font-size: 16px;
     font-weight: 800;
-    color: #1a1a1a;
+    color: var(--text);
 }
 
 /* ── FAQ SECTION ─────────────────────────────────────────── */
@@ -228,7 +250,7 @@
     display: grid;
     grid-template-columns: 1.2fr 1fr;
     gap: 80px;
-    background: #fff;
+    background: var(--white);
     padding: 80px 60px;
     align-items: start;
 }
@@ -236,7 +258,7 @@
 .faq-left h2 {
     font-size: 36px;
     font-weight: 800;
-    color: #1a1a1a;
+    color: var(--text);
     margin-bottom: 32px;
     line-height: 1.2;
 }
@@ -248,7 +270,7 @@
 }
 
 .faq-item {
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid var(--border);
     padding: 20px 0;
     cursor: pointer;
 }
@@ -259,19 +281,19 @@
     justify-content: space-between;
     font-size: 15px;
     font-weight: 600;
-    color: #1a1a1a;
+    color: var(--text);
     gap: 16px;
 }
 
 .faq-chevron {
     font-size: 12px;
-    color: #6b7280;
+    color: var(--text2);
     flex-shrink: 0;
 }
 
 .faq-answer {
     font-size: 14px;
-    color: #6b7280;
+    color: var(--text2);
     line-height: 1.7;
     margin-top: 12px;
     max-width: 560px;
@@ -286,7 +308,7 @@
 
 .faq-right > p {
     font-size: 14px;
-    color: #6b7280;
+    color: var(--text2);
     line-height: 1.7;
 }
 
@@ -306,17 +328,17 @@
 .faq-agent__name {
     font-size: 14px;
     font-weight: 700;
-    color: #1a1a1a;
+    color: var(--text);
 }
 
 .faq-agent__role {
     font-size: 12px;
-    color: #6b7280;
+    color: var(--text2);
 }
 
 .faq-cta {
-    background: #1a1a1a;
-    color: #fff;
+    background: var(--dark-bg);
+    color: var(--light-text);
     border: none;
     border-radius: 999px;
     padding: 14px 28px;
@@ -327,12 +349,12 @@
     transition: background 0.2s;
 }
 
-.faq-cta:hover { background: #374151; }
+.faq-cta:hover { opacity: 0.85; }
 
 /* ── FOOTER ──────────────────────────────────────────────── */
 .footer {
-    background: #1a1a1a;
-    color: #fff;
+    background: var(--dark-bg);
+    color: var(--light-text);
     padding: 60px 60px 32px;
 }
 
@@ -342,7 +364,7 @@
     gap: 80px;
     margin-bottom: 48px;
     padding-bottom: 48px;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
+    border-bottom: 1px solid var(--border);
 }
 
 .footer-logo {
@@ -350,12 +372,12 @@
     font-weight: 800;
     letter-spacing: 1px;
     margin-bottom: 16px;
-    color: #fff;
+    color: var(--white);
 }
 
 .footer-brand p {
     font-size: 13px;
-    color: rgba(255,255,255,0.5);
+    color: var(--text2);
     line-height: 1.7;
     max-width: 280px;
 }
@@ -375,7 +397,7 @@
 .footer-col__title {
     font-size: 12px;
     font-weight: 700;
-    color: rgba(255,255,255,0.4);
+    color: var(--text2);
     text-transform: uppercase;
     letter-spacing: 1px;
     margin-bottom: 4px;
@@ -383,19 +405,19 @@
 
 .footer-col span {
     font-size: 14px;
-    color: rgba(255,255,255,0.7);
+    color: var(--text2);
     cursor: pointer;
     transition: color 0.2s;
 }
 
-.footer-col span:hover { color: #fff; }
+.footer-col span:hover { color: var(--light-text); }
 
 .footer-bottom {
     display: flex;
     align-items: center;
     justify-content: space-between;
     font-size: 13px;
-    color: rgba(255,255,255,0.4);
+    color: var(--text2);
 }
 
 .footer-socials {
@@ -408,7 +430,7 @@
     transition: color 0.2s;
 }
 
-.footer-socials span:hover { color: #fff; }
+.footer-socials span:hover { color: var(--light-text); }
 
 /* ── RESPONSIVE ──────────────────────────────────────────── */
 @media (max-width: 900px) {

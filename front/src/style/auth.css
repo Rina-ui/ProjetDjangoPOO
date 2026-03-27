@@ -3,6 +3,32 @@
    Matches EverGreen home page aesthetic
    ============================================ */
 
+:root {
+    --text: #1a1a1a;
+    --text2: #6b7280;
+    --bg: #fafafa;
+    --white: #ffffff;
+    --border: #e5e7eb;
+    --success: #4ade80;
+    --success-dark: #22c55e;
+    --success-text: #ffffff;
+    --error: #f87171;
+    --error-bg: rgba(248, 113, 113, 0.12);
+}
+
+html[data-theme="dark"] {
+    --text: #eceef1;
+    --text2: #b5bcc6;
+    --bg: #1a1d20;
+    --white: #151617;
+    --border: #2a2f35;
+    --success: #4fbf78;
+    --success-dark: #3fa366;
+    --success-text: #0f1113;
+    --error: #ea6c61;
+    --error-bg: rgba(234, 108, 97, 0.15);
+}
+
 /* ── Page — fond plein écran avec image ─────── */
 .auth-page {
     width: 100%;
@@ -31,7 +57,7 @@
 .auth-card {
     position: relative;
     z-index: 2;
-    background: rgba(255, 255, 255, 0.97);
+    background: color-mix(in srgb, var(--white) 97%, transparent);
     backdrop-filter: blur(16px);
     border-radius: 24px;
     padding: 40px 40px 36px;
@@ -60,7 +86,7 @@
 /* ── Pill switcher Login / Register ─────────── */
 .auth-switcher {
     display: flex;
-    background: #f3f4f6;
+    background: var(--bg);
     border-radius: 999px;
     padding: 4px;
     margin-bottom: 32px;
@@ -76,17 +102,17 @@
     font-weight: 600;
     cursor: pointer;
     background: transparent;
-    color: #6b7280;
+    color: var(--text2);
     transition: all 0.25s ease;
 }
 
 .auth-switcher button:hover {
-    color: #1a1a1a;
+    color: var(--text);
 }
 
 .auth-switcher button.active {
-    background: #ffffff;
-    color: #1a1a1a;
+    background: var(--white);
+    color: var(--text);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 
@@ -98,21 +124,21 @@
 .auth-header h2 {
     font-size: 26px;
     font-weight: 700;
-    color: #1a1a1a;
+    color: var(--text);
     margin-bottom: 6px;
     letter-spacing: -0.3px;
 }
 
 .auth-header p {
     font-size: 14px;
-    color: #6b7280;
+    color: var(--text2);
 }
 
 /* ── Message d'erreur ───────────────────────── */
 .error-msg {
-    background: #fef2f2;
-    border: 1px solid #fecaca;
-    color: #dc2626;
+    background: var(--error-bg);
+    border: 1px solid var(--error);
+    color: var(--error);
     font-size: 13px;
     padding: 10px 14px;
     border-radius: 10px;
@@ -129,11 +155,11 @@
 .input-group input {
     width: 100%;
     padding: 20px 16px 8px;
-    border: 1.5px solid #e5e7eb;
+    border: 1.5px solid var(--border);
     border-radius: 12px;
     font-size: 15px;
-    color: #1a1a1a;
-    background: #fafafa;
+    color: var(--text);
+    background: var(--bg);
     outline: none;
     transition:
             border-color 0.2s ease,
@@ -142,9 +168,9 @@
 }
 
 .input-group input:focus {
-    border-color: #4ade80;
-    background: #ffffff;
-    box-shadow: 0 0 0 4px rgba(74, 222, 128, 0.12);
+    border-color: var(--success);
+    background: var(--white);
+    box-shadow: 0 0 0 4px rgba(79, 191, 120, 0.12);
 }
 
 /* Le label flottant */
@@ -154,7 +180,7 @@
     top: 50%;
     transform: translateY(-50%);
     font-size: 15px;
-    color: #9ca3af;
+    color: var(--text2);
     pointer-events: none;
     transition: all 0.2s ease;
     background: transparent;
@@ -167,7 +193,7 @@
     transform: translateY(0);
     font-size: 11px;
     font-weight: 600;
-    color: #4ade80;
+    color: var(--success);
     letter-spacing: 0.3px;
     text-transform: uppercase;
 }
@@ -186,8 +212,8 @@
 }
 
 .input-error input {
-    border-color: #f87171 !important;
-    box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.12) !important;
+    border-color: var(--error) !important;
+    box-shadow: 0 0 0 4px var(--error-bg) !important;
 }
 
 /* ── Forgot password ────────────────────────── */
@@ -199,21 +225,21 @@
 
 .auth-forgot span {
     font-size: 13px;
-    color: #6b7280;
+    color: var(--text2);
     cursor: pointer;
     transition: color 0.2s;
 }
 
 .auth-forgot span:hover {
-    color: #16a34a;
+    color: var(--success);
 }
 
 /* ── Bouton submit vert comme la home ───────── */
 .btn-auth {
     width: 100%;
     padding: 14px;
-    background: #4ade80;
-    color: #ffffff;
+    background: var(--success);
+    color: var(--success-text);
     border: none;
     border-radius: 12px;
     font-size: 15px;
@@ -231,7 +257,7 @@
 }
 
 .btn-auth:hover:not(:disabled) {
-    background: #22c55e;
+    background: var(--success-dark);
     transform: translateY(-1px);
     box-shadow: 0 8px 24px rgba(74, 222, 128, 0.4);
 }
@@ -250,10 +276,15 @@
     display: inline-block;
     width: 20px;
     height: 20px;
-    border: 2.5px solid rgba(255, 255, 255, 0.4);
-    border-top-color: #ffffff;
+    border: 2.5px solid rgba(26, 26, 26, 0.15);
+    border-top-color: var(--success);
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
+}
+
+html[data-theme="dark"] .spinner {
+    border-color: rgba(236, 238, 241, 0.15);
+    border-top-color: var(--success);
 }
 
 @keyframes spin {
@@ -265,18 +296,18 @@
     text-align: center;
     margin-top: 24px;
     font-size: 14px;
-    color: #6b7280;
+    color: var(--text2);
 }
 
 .auth-footer span {
-    color: #16a34a;
+    color: var(--success);
     font-weight: 600;
     cursor: pointer;
     transition: color 0.2s;
 }
 
 .auth-footer span:hover {
-    color: #4ade80;
+    color: var(--success-dark);
     text-decoration: underline;
 }
 

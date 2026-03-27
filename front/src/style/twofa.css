@@ -1,8 +1,31 @@
+:root {
+    --gold: #b8922a;
+    --text: #1a1814;
+    --text2: #6b6560;
+    --text3: #9d9893;
+    --bg: #f7f6f4;
+    --bg2: #f0ede8;
+    --white: #ffffff;
+    --border: #e5e1da;
+    --border2: #d4cfc7;
+}
+
+html[data-theme="dark"] {
+    --text: #eceef1;
+    --text2: #b5bcc6;
+    --text3: #8892a0;
+    --bg: #0f1113;
+    --bg2: #1a1d20;
+    --white: #151617;
+    --border: #2a2f35;
+    --border2: #3a424a;
+}
+
 /* src/style/twofa.css */
 
 /* ── SETUP CARD (no scroll — fixed height) ──────────────── */
 .tfa-setup-card {
-    background: #fff;
+    background: var(--white);
     border-radius: 24px;
     width: 420px;
     height: 580px;
@@ -24,7 +47,7 @@
 .auth-logo-mark {
     width: 32px;
     height: 32px;
-    background: #b8922a;
+    background: var(--gold);
     border-radius: 8px;
     display: flex;
     align-items: center;
@@ -32,7 +55,7 @@
     font-family: 'Cormorant Garamond', serif;
     font-size: 17px;
     font-weight: 700;
-    color: #fff;
+    color: var(--white);
     flex-shrink: 0;
 }
 .auth-logo-text {
@@ -54,16 +77,16 @@
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: var(--border2);
+    background: var(--border2, #d4cfc7);
     transition: all .3s ease;
 }
 .tfa-dot--active {
     width: 24px;
     border-radius: 4px;
-    background: #b8922a;
+    background: var(--gold);
 }
 .tfa-dot--done {
-    background: #15803d;
+    background: var(--green, #15803d);
 }
 
 /* ── SLIDE ANIMATION ────────────────────────────────────── */
@@ -166,21 +189,21 @@
     transition: border-color .2s, box-shadow .2s;
 }
 .tfa-code-input:focus {
-    border-color: #b8922a;
+    border-color: var(--gold);
     box-shadow: 0 0 0 3px rgba(184,146,42,0.12);
-    background: #fff;
+    background: var(--white);
 }
 .tfa-code-input::placeholder { color: var(--border2); letter-spacing: 6px; }
 
 .tfa-timer { font-size: 11px; color: var(--text3); margin: 0 0 10px; text-align: center; }
-.tfa-error { font-size: 12px; color: #c0392b; background: #fef2f2; border-radius: 8px; padding: 8px 12px; margin-bottom: 10px; }
+.tfa-error { font-size: 12px; color: var(--red, #c0392b); background: var(--red-bg, #fef2f2); border-radius: 8px; padding: 8px 12px; margin-bottom: 10px; }
 
 /* ── BUTTONS ────────────────────────────────────────────── */
 .tfa-btn {
     width: 100%;
     padding: 12px 20px;
-    background: #1a1814;
-    color: #fff;
+    background: var(--text);
+    color: var(--white);
     border: none;
     border-radius: 12px;
     font-size: 14px;
@@ -197,7 +220,7 @@
 }
 .tfa-btn:hover:not(:disabled) { opacity: .85; }
 .tfa-btn:disabled { opacity: .45; cursor: not-allowed; }
-.tfa-btn--green   { background: #15803d; }
+.tfa-btn--green   { background: var(--green, #15803d); }
 .tfa-btn--success { background: #15803d; }
 
 .tfa-back {

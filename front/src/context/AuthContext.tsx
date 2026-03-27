@@ -16,6 +16,7 @@ interface AuthContextType {
     login:           (username: string, password: string) => Promise<void>
     logout:          () => void
     register:        (data: any) => Promise<void>
+    completeLogin:   (tokens: { access: string; refresh: string }) => Promise<void>
     isAuthenticated: boolean
 }
 
@@ -29,9 +30,43 @@ const mapRole = (role: string): Role => {
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000"
 
+const clearPending2FA = () => {
+    sessionStorage.removeItem("pending_2fa_user")
+    sessionStorage.removeItem("pending_2fa_challenge")
+    sessionStorage.removeItem("pending_2fa_method")
+    sessionStorage.removeItem("pending_2fa_temp_token")
+}
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [user,    setUser]    = useState<User | null>(null)
     const [loading, setLoading] = useState(true)
+
+    const setUserFromMe = (me: any) => {
+        setUser({
+            id: String(me.id),
+            fullName: `${me.first_name} ${me.last_name}`.trim() || me.username,
+            email: me.email,
+            role: mapRole(me.role),
+            username: me.username,
+        })
+    }
+
+    const completeLogin = async (tokens: { access: string; refresh: string }) => {
+        localStorage.setItem("access_token", tokens.access)
+        localStorage.setItem("refresh_token", tokens.refresh)
+
+        const meRes = await fetch(`${BASE_URL}/api/auth/me/`, {
+            headers: { Authorization: `Bearer ${tokens.access}` }
+        })
+        if (!meRes.ok) {
+            localStorage.removeItem("access_token")
+            localStorage.removeItem("refresh_token")
+            throw new Error("Impossible de recuperer le profil utilisateur")
+        }
+        const me = await meRes.json()
+        clearPending2FA()
+        setUserFromMe(me)
+    }
 
     useEffect(() => {
         const token = localStorage.getItem("access_token")
@@ -63,36 +98,51 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             body:    JSON.stringify({ username, password })
         })
         if (!res.ok) throw new Error("Identifiants incorrects")
-        const tokens = await res.json()
+        const data = await res.json()
+
+        // Nouveau contrat API recommandé pour 2FA.
+        if (data?.requires_2fa) {
+            sessionStorage.setItem("pending_2fa_user", username)
+            if (data.challenge_token) {
+                sessionStorage.setItem("pending_2fa_challenge", String(data.challenge_token))
+            }
+            if (data.method) {
+                sessionStorage.setItem("pending_2fa_method", String(data.method))
+            }
+            if (data.temp_token) {
+                sessionStorage.setItem("pending_2fa_temp_token", String(data.temp_token))
+            } else if (data.access) {
+                // Compat: certains backends renvoient un access temporaire pendant le challenge 2FA.
+                sessionStorage.setItem("pending_2fa_temp_token", String(data.access))
+            }
+            throw { is2FA: true, method: data.method ?? "totp" }
+        }
+
+        const access = data?.access
+        const refresh = data?.refresh
+        if (!access || !refresh) throw new Error("Réponse de connexion invalide")
 
         const meRes = await fetch(`${BASE_URL}/api/auth/me/`, {
-            headers: { Authorization: `Bearer ${tokens.access}` }
+            headers: { Authorization: `Bearer ${access}` }
         })
+        if (!meRes.ok) throw new Error("Impossible de recuperer le profil utilisateur")
         const me = await meRes.json()
 
-        // 2FA activé
-        if (me.totp_enabled) {
+        // Compat ancien backend: login normal + contrôle totp_enabled via /me.
+        if (me?.totp_enabled) {
             sessionStorage.setItem("pending_2fa_user", username)
-            sessionStorage.setItem("pending_2fa_access", tokens.access)
-            sessionStorage.setItem("pending_2fa_refresh", tokens.refresh)
-            throw { is2FA: true }
+            sessionStorage.setItem("pending_2fa_temp_token", access)
+            throw { is2FA: true, method: "totp" }
         }
 
         // Pas de 2FA → connexion directe
-        localStorage.setItem("access_token",  tokens.access)
-        localStorage.setItem("refresh_token", tokens.refresh)
-        setUser({
-            id:       String(me.id),
-            fullName: `${me.first_name} ${me.last_name}`.trim() || me.username,
-            email:    me.email,
-            role:     mapRole(me.role),
-            username: me.username,
-        })
+        await completeLogin({ access, refresh })
     }
 
     const logout = () => {
         localStorage.removeItem("access_token")
         localStorage.removeItem("refresh_token")
+        clearPending2FA()
         setUser(null)
     }
 
@@ -110,7 +160,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     return (
         <AuthContext.Provider value={{
-            user, loading, login, logout, register,
+            user, loading, login, logout, register, completeLogin,
             isAuthenticated: !!user
         }}>
             {children}

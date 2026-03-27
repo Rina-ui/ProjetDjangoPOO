@@ -368,7 +368,7 @@ const ClientDashboard = () => {
                                             </div>
                                             <div className="comment-stars">
                                                 {[1,2,3,4,5].map(s => (
-                                                    <IconStar key={s} size={12} color={s <= c.rating ? "#b8922a" : "#d4cfc7"} filled={s <= c.rating}/>
+                                                    <IconStar key={s} size={12} color={s <= c.rating ? "var(--gold)" : "var(--border2)"} filled={s <= c.rating}/>
                                                 ))}
                                             </div>
                                             <p className="comment-text">{c.text}</p>
@@ -397,7 +397,7 @@ const ClientDashboard = () => {
                                 </span>
                                 {/* Badge statut bail */}
                                 {canPay && (
-                                    <span style={{ fontSize:10, fontWeight:700, background:"#f0fdf4", color:"#15803d", padding:"2px 8px", borderRadius:20 }}>
+                                    <span style={{ fontSize:10, fontWeight:700, background:"var(--green-bg)", color:"var(--green)", padding:"2px 8px", borderRadius:20 }}>
                                         ✓ Bail actif
                                     </span>
                                 )}
@@ -453,11 +453,11 @@ const ClientDashboard = () => {
                             {/* ÉTAPE 2 — Visite planifiée, bail pas encore signé */}
                             {hasVisit && !canPay && (
                                 <>
-                                    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 14px", background:"#fffbeb", border:"1px solid #f0d980", borderRadius:12, marginBottom:10, fontSize:13 }}>
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#b8922a" strokeWidth="2">
+                                    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 14px", background:"var(--gold-bg)", border:"1px solid var(--gold)", borderRadius:12, marginBottom:10, fontSize:13 }}>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="2">
                                             <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
                                         </svg>
-                                        <span style={{ color:"#92400e", fontWeight:600 }}>Visite planifiée — en attente de confirmation</span>
+                                        <span style={{ color:"var(--gold)", fontWeight:600 }}>Visite planifiée — en attente de confirmation</span>
                                     </div>
                                     <button
                                         onClick={handleContactOwner}
@@ -475,17 +475,15 @@ const ClientDashboard = () => {
                             {/* ÉTAPE 3 — Bail actif → paiement disponible */}
                             {canPay && (
                                 <>
-                                    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 14px", background:"#f0fdf4", border:"1px solid #bbf7d0", borderRadius:12, marginBottom:10, fontSize:13 }}>
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#15803d" strokeWidth="2.5" strokeLinecap="round">
+                                    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 14px", background:"var(--green-bg)", border:"1px solid var(--green)", borderRadius:12, marginBottom:10, fontSize:13 }}>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2.5" strokeLinecap="round">
                                             <polyline points="20 6 9 17 4 12"/>
                                         </svg>
-                                        <span style={{ color:"#15803d", fontWeight:600 }}>Contrat signé — paiement activé</span>
+                                        <span style={{ color:"var(--green)", fontWeight:600 }}>Contrat signé — paiement activé</span>
                                     </div>
                                     <button
                                         onClick={() => setShowPay(true)}
-                                        style={{ width:"100%", padding:"12px 0", background:"#b8922a", color:"#fff", border:"none", borderRadius:12, fontSize:14, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}
-                                        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "#c9a030" }}
-                                        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "#b8922a" }}
+                                        style={{ width:"100%", padding:"12px 0", background:"var(--gold)", color:"var(--white)", border:"none", borderRadius:12, fontSize:14, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}
                                     >
                                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                                             <rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>

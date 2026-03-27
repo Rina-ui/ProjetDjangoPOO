@@ -26,6 +26,14 @@ const AdminMessages = () => {
         return d.toLocaleDateString("en", { month: "short", day: "numeric" })
     }
 
+    const formatMessageTime = (iso: string) => {
+        const d = new Date(iso)
+        const now = new Date()
+        const isToday = d.toDateString() === now.toDateString()
+        if (isToday) return d.toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit" })
+        return d.toLocaleString("en", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
+    }
+
     // Liste des propriétés uniques pour le filtre
     const properties = ["all", ...Array.from(new Set(conversations.map(c => c.property_name)))]
 
@@ -46,7 +54,7 @@ const AdminMessages = () => {
                     <div className="msg-sidebar-header">
                         <div className="msg-sidebar-title">
                             All threads
-                            <span className="msg-unread-badge" style={{ background: "var(--text2)" }}>
+                            <span className="msg-unread-badge msg-unread-badge--muted">
                                 {conversations.length}
                             </span>
                             {totalUnread > 0 && <span className="msg-unread-badge">{totalUnread} new</span>}
@@ -56,16 +64,7 @@ const AdminMessages = () => {
                             <input placeholder="Search users, properties…" value={search} onChange={e => setSearch(e.target.value)}/>
                         </div>
                         {/* Filter by property */}
-                        <select
-                            value={filterProp}
-                            onChange={e => setFilterProp(e.target.value)}
-                            style={{
-                                marginTop: 8, width: "100%", padding: "6px 10px",
-                                border: "1px solid var(--border)", borderRadius: 8,
-                                fontSize: 12, color: "var(--text2)", background: "var(--bg)",
-                                fontFamily: "DM Sans", outline: "none", cursor: "pointer"
-                            }}
-                        >
+                        <select value={filterProp} onChange={e => setFilterProp(e.target.value)} className="msg-filter-select">
                             {properties.map(p => (
                                 <option key={p} value={p}>{p === "all" ? "All properties" : p}</option>
                             ))}
@@ -108,11 +107,7 @@ const AdminMessages = () => {
                                 <div className="msg-chat-header-sub">{activeConv.property_name} · {activeConv.messages.length} messages</div>
                             </div>
                             {/* Admin badge */}
-                            <span style={{
-                                padding: "4px 10px", borderRadius: 20,
-                                background: "#fdf6e7", color: "#b8922a",
-                                fontSize: 11, fontWeight: 600, border: "1px solid #f0d980"
-                            }}>
+                            <span className="msg-admin-readonly">
                                 Read-only
                             </span>
                         </div>
@@ -127,15 +122,13 @@ const AdminMessages = () => {
 
                         <div className="msg-messages">
                             {activeConv.messages.map(msg => {
-                                const isOwner = msg.sender_id === activeConv.owner_id
+                                const isOwner = msg.sender_id === activeConv.proprietaire
+                                const authorLabel = isOwner ? "Proprietaire" : "Locataire"
                                 return (
                                     <div key={msg.id} className={`msg-bubble-wrap ${isOwner ? "msg-bubble-wrap--me" : ""}`}>
                                         {!isOwner && <div className="msg-bubble-avatar">{msg.sender_name.charAt(0)}</div>}
-                                        <div style={{ display: "flex", flexDirection: "column", gap: 2, alignItems: isOwner ? "flex-end" : "flex-start" }}>
-                                            <span style={{ fontSize: 10, color: "var(--text3)", padding: "0 4px" }}>{msg.sender_name}</span>
-                                            <div className={`msg-bubble ${isOwner ? "msg-bubble--me" : ""}`}>{msg.text}</div>
-                                        </div>
-                                        <span className="msg-bubble-time">{formatTime(msg.created_at)}</span>
+                                        <div className={`msg-bubble ${isOwner ? "msg-bubble--me" : ""}`}>{msg.text}</div>
+                                        <span className="msg-bubble-time">{authorLabel} · {formatMessageTime(msg.created_at)}</span>
                                     </div>
                                 )
                             })}

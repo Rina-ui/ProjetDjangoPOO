@@ -290,26 +290,26 @@ const InvestmentTimeline = ({
                             <AreaChart data={projection} margin={{ top:8, right:8, left:0, bottom:0 }}>
                                 <defs>
                                     <linearGradient id="gVente" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%"  stopColor="#b8922a" stopOpacity={0.3}/>
-                                        <stop offset="95%" stopColor="#b8922a" stopOpacity={0}/>
+                                        <stop offset="5%"  stopColor="var(--gold)" stopOpacity={0.3}/>
+                                        <stop offset="95%" stopColor="var(--gold)" stopOpacity={0}/>
                                     </linearGradient>
                                     <linearGradient id="gLouer" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%"  stopColor="#15803d" stopOpacity={0.25}/>
-                                        <stop offset="95%" stopColor="#15803d" stopOpacity={0}/>
+                                        <stop offset="5%"  stopColor="var(--green)" stopOpacity={0.25}/>
+                                        <stop offset="95%" stopColor="var(--green)" stopOpacity={0}/>
                                     </linearGradient>
                                 </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#ece8e0" strokeOpacity={0.6}/>
-                                <XAxis dataKey="label" tick={{ fontSize:11, fill:"#aaa" }} axisLine={false} tickLine={false}/>
-                                <YAxis tickFormatter={(v: any) => fmt(Number(v))} tick={{ fontSize:10, fill:"#aaa" }} axisLine={false} tickLine={false} width={62}/>
+                                <CartesianGrid strokeDasharray="3 3" stroke="var(--itl-chart-grid)" strokeOpacity={0.6}/>
+                                <XAxis dataKey="label" tick={{ fontSize:11, fill:"var(--itl-chart-tick)" }} axisLine={false} tickLine={false}/>
+                                <YAxis tickFormatter={(v: any) => fmt(Number(v))} tick={{ fontSize:10, fill:"var(--itl-chart-tick)" }} axisLine={false} tickLine={false} width={62}/>
                                 <Tooltip
                                     formatter={(v: any, name: any) => [
                                         fmt(Number(v)),
                                         name === "valeurBien" ? "Valeur si vendu" : "Revenus loyers cumulés"
                                     ] as [string, string]}
-                                    contentStyle={{ background:"#fff", border:"1px solid #ece8e0", borderRadius:10, fontSize:12 }}
+                                    contentStyle={{ background:"var(--itl-tooltip-bg)", border:"1px solid var(--itl-tooltip-border)", borderRadius:10, fontSize:12, color:"var(--text)" }}
                                 />
-                                <Area type="monotone" dataKey="valeurBien"  stroke="#b8922a" strokeWidth={2} fill="url(#gVente)" dot={false} name="valeurBien"/>
-                                <Area type="monotone" dataKey="cumulLoyers" stroke="#15803d" strokeWidth={2} fill="url(#gLouer)" dot={false} strokeDasharray="5 5" name="cumulLoyers"/>
+                                <Area type="monotone" dataKey="valeurBien"  stroke="var(--gold)" strokeWidth={2} fill="url(#gVente)" dot={false} name="valeurBien"/>
+                                <Area type="monotone" dataKey="cumulLoyers" stroke="var(--green)" strokeWidth={2} fill="url(#gLouer)" dot={false} strokeDasharray="5 5" name="cumulLoyers"/>
                             </AreaChart>
                         </ResponsiveContainer>
                         <div className="itl-legend">
@@ -322,9 +322,9 @@ const InvestmentTimeline = ({
                         <div className="itl-chart-title">Analyse multicritère de votre bien</div>
                         <ResponsiveContainer width="100%" height={220}>
                             <RadarChart data={radarData} margin={{ top:8, right:30, left:30, bottom:8 }}>
-                                <PolarGrid stroke="#ece8e0"/>
-                                <PolarAngleAxis dataKey="facteur" tick={{ fontSize:11, fill:"#888" }}/>
-                                <Radar name="Score" dataKey="score" stroke="#b8922a" fill="#b8922a" fillOpacity={0.25}/>
+                                <PolarGrid stroke="var(--itl-chart-grid)"/>
+                                <PolarAngleAxis dataKey="facteur" tick={{ fontSize:11, fill:"var(--itl-chart-tick)" }}/>
+                                <Radar name="Score" dataKey="score" stroke="var(--gold)" fill="var(--gold)" fillOpacity={0.25}/>
                             </RadarChart>
                         </ResponsiveContainer>
                     </>

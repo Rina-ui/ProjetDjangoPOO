@@ -580,8 +580,8 @@ const ProprioDashboard = () => {
                                     <div className="prop-tags">
                                         <span className={`badge badge-${st.css}`}>{st.label}</span>
                                         {b.en_ligne
-                                            ? <span style={{ fontSize: 10, background: "#f0fdf4", color: "#15803d", padding: "2px 8px", borderRadius: 20, fontWeight: 600 }}>Online</span>
-                                            : <span style={{ fontSize: 10, background: "#fef2f2", color: "#c0392b", padding: "2px 8px", borderRadius: 20, fontWeight: 600 }}>Offline</span>
+                                            ? <span style={{ fontSize: 10, background: "var(--green-bg)", color: "var(--green)", padding: "2px 8px", borderRadius: 20, fontWeight: 600 }}>Online</span>
+                                            : <span style={{ fontSize: 10, background: "var(--red-bg)", color: "var(--red)", padding: "2px 8px", borderRadius: 20, fontWeight: 600 }}>Offline</span>
                                         }
                                     </div>
                                 </div>
@@ -597,7 +597,7 @@ const ProprioDashboard = () => {
                                             className="btn-icon"
                                             title="Submit for validation"
                                             onClick={(e) => { e.stopPropagation(); handlePublish(b.id) }}
-                                            style={{ color: "#b8922a" }}
+                                            style={{ color: "var(--gold)" }}
                                         >
                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
                                         </button>
@@ -645,15 +645,15 @@ const ProprioDashboard = () => {
                         <svg className="spark-svg" viewBox="0 0 240 56">
                             <defs>
                                 <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#b8922a" stopOpacity="0.18"/>
-                                    <stop offset="100%" stopColor="#b8922a" stopOpacity="0"/>
+                                    <stop offset="0%" stopColor="var(--gold)" stopOpacity="0.18"/>
+                                    <stop offset="100%" stopColor="var(--gold)" stopOpacity="0"/>
                                 </linearGradient>
                             </defs>
                             <polygon points="0,48 40,34 80,38 120,18 160,26 200,14 240,20 240,56 0,56" fill="url(#sg)"/>
-                            <polyline points="0,48 40,34 80,38 120,18 160,26 200,14 240,20" fill="none" stroke="#b8922a" strokeWidth="2" strokeLinejoin="round"/>
+                            <polyline points="0,48 40,34 80,38 120,18 160,26 200,14 240,20" fill="none" stroke="var(--gold)" strokeWidth="2" strokeLinejoin="round"/>
                             {[0,40,80,120,160,200,240].map((x, i) => {
                                 const ys = [48,34,38,18,26,14,20]
-                                return <circle key={i} cx={x} cy={ys[i]} r="3" fill="#b8922a"/>
+                                return <circle key={i} cx={x} cy={ys[i]} r="3" fill="var(--gold)"/>
                             })}
                         </svg>
                         <div className="spark-lbl">

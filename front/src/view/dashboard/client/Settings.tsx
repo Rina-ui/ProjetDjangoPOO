@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import DashboardLayout from "../../../component/sidebar"
+import TwoFactorCard from "../../../component/TwoFactorCard"
 import { useAuth } from "../../../context/AuthContext"
 import "../../../style/dashboard.css"
 
@@ -136,14 +137,15 @@ const Settings = () => {
                                 onClick={() => setTab(t.key)}
                                 style={{
                                     display: "flex", alignItems: "center", gap: 10,
-                                    padding: "10px 14px", borderRadius: 10, border: "none",
+                                    padding: "10px 14px", borderRadius: 10,
                                     background: tab === t.key ? "var(--gold-bg)" : "var(--white)",
                                     color: tab === t.key ? "var(--gold)" : "var(--text2)",
                                     fontWeight: tab === t.key ? 600 : 400,
                                     fontSize: 13, cursor: "pointer", textAlign: "left",
                                     width: "100%", fontFamily: "DM Sans, sans-serif",
                                     boxShadow: tab === t.key ? "none" : "var(--shadow)",
-                                    border: `1px solid ${tab === t.key ? "rgba(184,146,42,0.2)" : "var(--border)"}`,
+                                    border: "1px solid var(--border)",
+                                    borderColor: tab === t.key ? "rgba(184,146,42,0.2)" : "var(--border)",
                                     transition: "all .15s"
                                 }}>
                         </button>
@@ -260,6 +262,8 @@ const Settings = () => {
                                     </span>
                                 )}
                             </div>
+
+                            <TwoFactorCard />
 
                             {/* Danger zone */}
                             <div style={{ marginTop: 32, paddingTop: 24, borderTop: "1px solid var(--border)" }}>

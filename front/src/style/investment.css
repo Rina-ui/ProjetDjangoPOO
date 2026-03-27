@@ -4,9 +4,35 @@
  * Préfixe : .itl-  (Investment TimeLine)
  */
 
+:root {
+    --itl-surface: var(--white);
+    --itl-surface-muted: #faf9f7;
+    --itl-toggle-bg: #f5f3ef;
+    --itl-score-bg: rgba(0, 0, 0, 0.04);
+    --itl-score-bg-active: rgba(0, 0, 0, 0.07);
+    --itl-star-off: #ddd;
+    --itl-chart-grid: #ece8e0;
+    --itl-chart-tick: #9d9893;
+    --itl-tooltip-bg: #ffffff;
+    --itl-tooltip-border: #ece8e0;
+}
+
+html[data-theme="dark"] {
+    --itl-surface: var(--white);
+    --itl-surface-muted: var(--bg2);
+    --itl-toggle-bg: var(--bg2);
+    --itl-score-bg: rgba(236, 238, 241, 0.08);
+    --itl-score-bg-active: rgba(236, 238, 241, 0.15);
+    --itl-star-off: #5c6674;
+    --itl-chart-grid: #2f3741;
+    --itl-chart-tick: #aab3bf;
+    --itl-tooltip-bg: #111418;
+    --itl-tooltip-border: #2f3741;
+}
+
 /* ── CONTENEUR ───────────────────────────────────────────────── */
 .itl-wrap {
-    background: #fff;
+    background: var(--itl-surface);
     border: 1px solid var(--border);
     border-radius: 18px;
     padding: 22px 24px 18px;
@@ -29,7 +55,7 @@
 
 .itl-view-toggle {
     display: flex;
-    background: #f5f3ef;
+    background: var(--itl-toggle-bg);
     border-radius: 30px;
     padding: 3px;
     gap: 2px;
@@ -49,7 +75,7 @@
     white-space: nowrap;
 }
 .itl-view-btn.active {
-    background: #fff;
+    background: var(--itl-surface);
     color: var(--text);
     box-shadow: 0 1px 4px rgba(0,0,0,0.1);
 }
@@ -109,13 +135,13 @@
     gap: 2px;
     padding: 8px 12px;
     border-radius: 10px;
-    background: rgba(0,0,0,0.04);
+    background: var(--itl-score-bg);
     opacity: 0.5;
     transition: all .2s;
 }
 .itl-score.active {
     opacity: 1;
-    background: rgba(0,0,0,0.07);
+    background: var(--itl-score-bg-active);
 }
 .itl-score-num {
     font-size: 20px;
@@ -144,9 +170,9 @@
     flex-direction: column;
     gap: 5px;
 }
-.itl-prix--vente { border-top: 3px solid #b8922a; background: #fdf6e7; }
-.itl-prix--loyer { border-top: 3px solid #15803d; background: #f0fdf4; }
-.itl-prix--base  { border-top: 3px solid #ece8e0; background: #faf9f7; }
+.itl-prix--vente { border-top: 3px solid var(--gold); background: var(--gold-bg); }
+.itl-prix--loyer { border-top: 3px solid var(--green); background: var(--green-bg); }
+.itl-prix--base  { border-top: 3px solid var(--border); background: var(--itl-surface-muted); }
 
 .itl-prix-lbl  { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; color: var(--text3); }
 .itl-prix-val  { font-size: 20px; font-weight: 800; letter-spacing: -.5px; color: var(--text); }
@@ -166,11 +192,11 @@
     width: 100%;
     letter-spacing: -.4px;
 }
-.itl-prix-input:focus { border-bottom-color: #b8922a; }
+.itl-prix-input:focus { border-bottom-color: var(--gold); }
 
 /* ── FACTEURS ────────────────────────────────────────────────── */
 .itl-facteurs {
-    background: #faf9f7;
+    background: var(--itl-surface-muted);
     border: 1px solid var(--border);
     border-radius: 14px;
     padding: 14px 16px;
@@ -205,13 +231,13 @@
     background: none;
     border: none;
     font-size: 18px;
-    color: #ddd;
+    color: var(--itl-star-off);
     cursor: pointer;
     padding: 0;
     line-height: 1;
     transition: color .12s, transform .1s;
 }
-.itl-star.active { color: #b8922a; }
+.itl-star.active { color: var(--gold); }
 .itl-star:hover  { transform: scale(1.2); }
 
 .itl-facteur-score {
@@ -239,8 +265,8 @@
     flex-wrap: wrap;
 }
 .itl-leg { font-size: 11px; font-weight: 500; }
-.itl-leg--gold  { color: #b8922a; }
-.itl-leg--green { color: #15803d; }
+.itl-leg--gold  { color: var(--gold); }
+.itl-leg--green { color: var(--green); }
 
 /* ── HORIZON ─────────────────────────────────────────────────── */
 .itl-horizon {
@@ -267,8 +293,8 @@
     transition: all .15s;
     font-family: 'DM Sans', sans-serif;
 }
-.itl-horizon-btn:hover  { border-color: #b8922a; color: #b8922a; }
-.itl-horizon-btn.active { background: var(--text); border-color: var(--text); color: #fff; }
+.itl-horizon-btn:hover  { border-color: var(--gold); color: var(--gold); }
+.itl-horizon-btn.active { background: var(--text); border-color: var(--text); color: var(--white); }
 
 /* ── NOTE ────────────────────────────────────────────────────── */
 .itl-note {
