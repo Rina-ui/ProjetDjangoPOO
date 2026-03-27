@@ -1,8 +1,9 @@
 from pathlib import Path
 from datetime import timedelta
+from decouple import config
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-SECRET_KEY = 'django-insecure-w!)+5_a$x@zktsz*+pg-nst-*2024c=l6^$%suc6jdy^51bb)h'
+SECRET_KEY = config('SECRET_KEY', default='django-insecure-w!)+5_a$x@zktsz*+pg-nst-*2024c=l6^$%suc6jdy^51bb)h')
 DEBUG = True
 ALLOWED_HOSTS = ['*']
 
@@ -89,3 +90,14 @@ CHANNEL_LAYERS = {
         'BACKEND': 'channels.layers.InMemoryChannelLayer',
     }
 }
+
+# ============================================
+# EMAIL — Gmail SMTP
+# ============================================
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)

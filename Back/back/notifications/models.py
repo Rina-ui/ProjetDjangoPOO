@@ -6,8 +6,6 @@ from django.db import models
 from django.utils import timezone
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
-from rest_framework.decorators import action
-from rest_framework.response import Response
 
 
 class Quittance(models.Model):
@@ -69,23 +67,26 @@ class Quittance(models.Model):
         self.save()
 
     def envoyer_par_email(self):
-        # ❌ sécurité
         if not self.fichier_pdf:
-            raise Exception("PDF non généré")
+            raise ValueError("PDF non généré. Appelez generer_pdf() d'abord.")
+
+        chemin_pdf = self.fichier_pdf.path
+        if not os.path.isfile(chemin_pdf):
+            raise FileNotFoundError(f"Le fichier PDF n'existe pas : {chemin_pdf}")
 
         locataire = self.paiement.bail.locataire
 
         if not locataire.email:
-            raise Exception("Email du locataire manquant")
+            raise ValueError("Email du locataire manquant")
 
-        # 📧 envoi
         email = EmailMessage(
             subject="Votre quittance de loyer",
-            body="Veuillez trouver votre quittance en pièce jointe.",
-            to=[locataire.email]
+            body="Bonjour,\n\nVeuillez trouver ci-joint votre quittance de loyer.\n\nCordialement,\nL'équipe KÔRÂ",
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[locataire.email],
         )
 
-        email.attach_file(self.fichier_pdf.path)
+        email.attach_file(chemin_pdf)
         email.send()
 
     def __str__(self):
@@ -129,35 +130,19 @@ class DemandeContact(models.Model):
     date_creation = models.DateTimeField(auto_now_add=True)
     date_traitement = models.DateTimeField(null=True, blank=True)
 
-    @action(detail=True, methods=['post'])
-    def traiter(self, request, pk=None):
-        demande = self.get_object()
+    def traiter(self, reponse):
+        """Marque la demande comme traitée avec la réponse admin."""
+        self.reponse_admin = reponse
+        self.statut = 'TRAITEE'
+        self.date_traitement = timezone.now()
+        self.save()
 
-        if demande.statut != 'EN_ATTENTE':
-            return Response({'error': 'Déjà traitée'}, status=400)
-
-        reponse = request.data.get('reponse')
-        if not reponse:
-            return Response({'error': 'Réponse obligatoire'}, status=400)
-
-        demande.traiter(reponse)
-
-        return Response({'message': 'Demande traitée'})
-
-    @action(detail=True, methods=['post'])
-    def rejeter(self, request, pk=None):
-        demande = self.get_object()
-
-        if demande.statut != 'EN_ATTENTE':
-            return Response({'error': 'Déjà traitée'}, status=400)
-
-        raison = request.data.get('raison')
-        if not raison:
-            return Response({'error': 'Raison obligatoire'}, status=400)
-
-        demande.rejeter(raison)
-
-        return Response({'message': 'Demande rejetée'})
+    def rejeter(self, raison):
+        """Rejette la demande avec une raison."""
+        self.reponse_admin = raison
+        self.statut = 'REJETEE'
+        self.date_traitement = timezone.now()
+        self.save()
 
     def __str__(self):
         return f"{self.sujet} - {self.get_statut_display()}"
